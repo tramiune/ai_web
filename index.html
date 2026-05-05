@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MotionAI Studio - Biến ảnh thành video AI bắt trend</title>
+    <meta name="description" content="Dịch vụ AI Motion Transfer chuyên nghiệp. Tải lên ảnh nhân vật và video mẫu, chúng tôi tạo video AI mới hoàn chỉnh.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Sticky Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="#" class="logo">MotionAI Studio</a>
+            <ul class="nav-links">
+                <li><a href="javascript:void(0)" onclick="window.navTo('services')">Dịch vụ</a></li>
+                <li><a href="javascript:void(0)" onclick="window.navTo('how-it-works')">Cách hoạt động</a></li>
+                <li><a href="javascript:void(0)" onclick="window.navTo('pricing')">Bảng giá</a></li>
+                <li><a href="javascript:void(0)" onclick="window.navTo('faq')">FAQ</a></li>
+            </ul>
+            <div id="auth-section">
+                <button class="auth-btn" id="login-btn">
+                    <span>Đăng nhập Google</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content (Landing Page) -->
+    <main id="landing-page">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Biến 1 ảnh thành video bắt trend</h1>
+                <p>Tải lên ảnh nhân vật và video mẫu chuyển động. Chúng tôi tạo video AI mới, trong đó nhân vật của bạn thực hiện chuyển động theo video tham chiếu.</p>
+                <div class="cta-group">
+                    <button class="btn-primary" onclick="openOrderModal()">Tạo video ngay</button>
+                    <button class="btn-secondary" onclick="scrollToHow()">Xem cách hoạt động</button>
+                </div>
+            </div>
+
+            <!-- Hero Visual -->
+            <div class="hero-visual">
+                <div class="visual-card">
+                    <div class="visual-box">
+                        <img id="preview-char" src="https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_image.jpeg" alt="Ảnh nhân vật" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="visual-overlay">Ảnh nhân vật</div>
+                    </div>
+                </div>
+                <div class="visual-arrow" style="font-size: 3rem;">+</div>
+                <div class="visual-card">
+                    <div class="visual-box">
+                        <video id="preview-motion" autoplay muted loop playsinline style="width:100%; height:100%; object-fit:cover;">
+                            <source src="https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_video.mp4" type="video/mp4">
+                        </video>
+                        <div class="visual-overlay">Copy Motion</div>
+                    </div>
+                </div>
+                <div class="visual-arrow" style="font-size: 3rem;">=</div>
+                <div class="visual-card">
+                    <div class="visual-box result-glow">
+                        <video id="preview-result" autoplay muted loop playsinline style="width:100%; height:100%; object-fit:cover;">
+                            <source src="https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_video_result.mp4" type="video/mp4">
+                        </video>
+                        <div class="visual-overlay" style="background: var(--primary);">Video hoàn chỉnh</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="trust-badges">
+                <div class="badge"><span class="badge-icon">✓</span> Không cần prompt</div>
+                <div class="badge"><span class="badge-icon">✓</span> Hỗ trợ TikTok/Reels</div>
+                <div class="badge"><span class="badge-icon">✓</span> Xử lý chất lượng cao</div>
+                <div class="badge"><span class="badge-icon">✓</span> Tùy chỉnh theo yêu cầu</div>
+            </div>
+        </section>
+
+        <!-- Problem/Solution Section -->
+        <section id="services">
+            <div class="section-header">
+                <h2>Không cần tự prompt từng động tác</h2>
+                <p>Chúng tôi giúp bạn tiết kiệm hàng giờ thử nghiệm AI. Chỉ cần gửi file và nhận kết quả.</p>
+            </div>
+            <div class="grid-3">
+                <div class="card">
+                    <span class="card-icon">🖼️</span>
+                    <h3>Ảnh rõ nhân vật</h3>
+                    <p>Chỉ cần 1 bức ảnh rõ mặt hoặc toàn thân của nhân vật bạn muốn animate.</p>
+                </div>
+                <div class="card">
+                    <span class="card-icon">📹</span>
+                    <h3>Video mẫu</h3>
+                    <p>Chọn bất kỳ video dance trend hoặc hành động nào bạn muốn nhân vật bắt chước.</p>
+                </div>
+                <div class="card">
+                    <span class="card-icon">🎬</span>
+                    <h3>Nhận video sẵn sàng</h3>
+                    <p>Đội ngũ chuyên gia xử lý thủ công để đảm bảo video mượt mà và tự nhiên nhất.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Use Cases Section -->
+        <section>
+            <div class="section-header">
+                <h2>Ứng dụng đa dạng</h2>
+                <p>Phù hợp cho mọi nhu cầu tạo nội dung số hiện đại.</p>
+            </div>
+            <div class="grid-3">
+                <div class="card">
+                    <h3>AI Dance Trend</h3>
+                    <p>Biến nhân vật của bạn thành ngôi sao TikTok với các điệu nhảy viral.</p>
+                </div>
+                <div class="card">
+                    <h3>Người mẫu thời trang</h3>
+                    <p>Cho phép người mẫu/outfit thực hiện các bước đi catwalk chuyên nghiệp.</p>
+                </div>
+                <div class="card">
+                    <h3>Mascot Thương hiệu</h3>
+                    <p>Làm sống động linh vật thương hiệu để tương tác với khách hàng.</p>
+                </div>
+                <div class="card">
+                    <h3>Nhân vật ảo TikTok</h3>
+                    <p>Xây dựng kênh content với nhân vật AI không cần lộ mặt.</p>
+                </div>
+                <div class="card">
+                    <h3>Video Sản phẩm</h3>
+                    <p>Tạo các chuyển động nghệ thuật cho sản phẩm của bạn.</p>
+                </div>
+                <div class="card">
+                    <h3>Content sáng tạo</h3>
+                    <p>Bất kỳ ý tưởng nào bạn muốn hiện thực hóa qua video.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works">
+            <div class="section-header">
+                <h2>Quy trình đơn giản</h2>
+            </div>
+            <div class="grid-3">
+                <div class="card">
+                    <h3>1. Đăng nhập</h3>
+                    <p>Sử dụng tài khoản Google để bắt đầu ngay lập tức.</p>
+                </div>
+                <div class="card">
+                    <h3>2. Nạp coin</h3>
+                    <p>Chọn gói coin phù hợp với nhu cầu của bạn.</p>
+                </div>
+                <div class="card">
+                    <h3>3. Gửi yêu cầu</h3>
+                    <p>Tải ảnh, link video mẫu và mô tả yêu cầu của bạn.</p>
+                </div>
+            </div>
+            
+            <div style="margin-top: 3rem; background: var(--bg-card); padding: 2rem; border-radius: var(--radius-lg);">
+                <h3 style="margin-bottom: 1rem;">💡 Mẹo để video đẹp nhất</h3>
+                <ul style="color: var(--text-muted); text-align: left; display: inline-block;">
+                    <li>• Ảnh nên rõ mặt, rõ toàn thân nếu muốn nhảy.</li>
+                    <li>• Video mẫu nên có 1 người chính, chuyển động rõ ràng.</li>
+                    <li>• Tránh video quá mờ, quá tối hoặc nhiều người che nhau.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Pricing Section -->
+        <section id="pricing">
+            <div class="section-header">
+                <h2>Gói nạp Coin</h2>
+                <p>Nạp coin một lần, sử dụng cho mọi dịch vụ.</p>
+            </div>
+            <div class="pricing-grid" id="coin-packages">
+                <!-- Will be rendered by JS -->
+            </div>
+
+            <div class="section-header" style="margin-top: 5rem;">
+                <h2>Gói dịch vụ Video</h2>
+            </div>
+            <div class="pricing-grid" id="service-packages">
+                <!-- Will be rendered by JS -->
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq">
+            <div class="section-header">
+                <h2>Câu hỏi thường gặp</h2>
+            </div>
+            <div class="grid-3">
+                <div class="card">
+                    <h3>Bao lâu nhận được video?</h3>
+                    <p>Thời gian xử lý trung bình từ 15 - 20 phút, tối đa không quá 24h tùy độ phức tạp của yêu cầu.</p>
+                </div>
+                <div class="card">
+                    <h3>Nếu video chưa ưng ý?</h3>
+                    <p>Các gói Plus và Viral hỗ trợ sửa đổi miễn phí theo yêu cầu.</p>
+                </div>
+                <div class="card">
+                    <h3>Coin có hết hạn không?</h3>
+                    <p>Không, coin của bạn sẽ được bảo lưu vĩnh viễn trong tài khoản.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- User Dashboard (Hidden when logged out) -->
+    <div id="user-dashboard" class="dashboard">
+        <div class="db-header">
+            <div>
+                <h1 id="user-greeting">Chào mừng, User!</h1>
+                <p id="user-email"></p>
+            </div>
+            <div class="coin-balance-card">
+                <div>
+                    <div style="font-size: 0.8rem; opacity: 0.8;">Số dư hiện tại</div>
+                    <div class="coin-val"><span id="coin-balance">0</span> 🪙</div>
+                </div>
+                <button class="btn-primary" onclick="window.openTopupModal()">Nạp thêm</button>
+            </div>
+        </div>
+
+        <div class="db-actions" style="margin-bottom: 3rem;">
+            <button class="btn-primary" onclick="window.openOrderModal()">+ Tạo đơn mới</button>
+        </div>
+
+        <div class="section-header" style="text-align: left; margin-bottom: 0.5rem;">
+            <h2>Đơn hàng của tôi</h2>
+        </div>
+        <p style="font-size: 0.85rem; color: #ff4d4d; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+            ⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>
+        </p>
+        <div style="overflow-x: auto; background: var(--bg-card); border-radius: var(--radius-md);">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Ảnh</th>
+                        <th>Mã đơn</th>
+                        <th>Gói</th>
+                        <th>Chi phí</th>
+                        <th>Ngày tạo</th>
+                        <th>Trạng thái & Kết quả</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody id="my-orders-list">
+                    <!-- Orders will be rendered here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section-header" style="text-align: left; margin-bottom: 1.5rem; margin-top: 3rem;">
+            <h2>Lịch sử nạp coin</h2>
+        </div>
+        <div style="overflow-x: auto; background: var(--bg-card); border-radius: var(--radius-md);">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Gói nạp</th>
+                        <th>Số tiền</th>
+                        <th>Coin nhận</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày gửi</th>
+                    </tr>
+                </thead>
+                <tbody id="my-topups-list">
+                    <!-- Topups will be rendered here -->
+                </tbody>
+            </table>
+        </div>
+
+    <!-- Admin Panel (Hidden for normal users) -->
+    <div id="admin-panel" class="admin-panel" style="display: none;">
+        <div class="section-header">
+            <h1>Admin Dashboard</h1>
+            <div class="admin-tabs">
+                <button class="admin-tab-btn active" onclick="switchAdminTab('topups')">Nạp Coin</button>
+                <button class="admin-tab-btn" onclick="switchAdminTab('orders')">Đơn hàng</button>
+                <button id="tab-users" class="admin-tab-btn" onclick="switchAdminTab('users')" style="display: none;">Thành viên</button>
+            </div>
+        </div>
+        
+        <!-- Tab: Topups -->
+        <div id="admin-tab-topups" class="admin-tab-content active">
+            <div class="admin-section">
+                <div class="sub-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+                    <button class="sub-tab-btn active" data-status="pending" onclick="window.switchTopupSubTab('pending')">Đang chờ</button>
+                    <button class="sub-tab-btn" data-status="approved" onclick="window.switchTopupSubTab('approved')">Đã duyệt</button>
+                    <button class="sub-tab-btn" data-status="rejected" onclick="window.switchTopupSubTab('rejected')">Bị từ chối</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Khách hàng</th>
+                                <th>Gói / Tiền</th>
+                                <th>Nội dung</th>
+                                <th>Bằng chứng</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-topups-list">
+                            <!-- Filtered topups will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Orders -->
+        <div id="admin-tab-orders" class="admin-tab-content">
+            <div class="admin-section">
+                <div class="sub-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+                    <button class="sub-tab-btn order-sub-tab active" data-status="pending" onclick="window.switchOrderSubTab('pending')">Đang chờ</button>
+                    <button class="sub-tab-btn order-sub-tab" data-status="processing" onclick="window.switchOrderSubTab('processing')">Đang xử lý</button>
+                    <button class="sub-tab-btn order-sub-tab" data-status="completed" onclick="window.switchOrderSubTab('completed')">Hoàn thành</button>
+                    <button class="sub-tab-btn order-sub-tab" data-status="failed" onclick="window.switchOrderSubTab('failed')">Thất bại</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Mã đơn</th>
+                                <th>Khách hàng</th>
+                                <th>Dịch vụ</th>
+                                <th>Chi phí</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-orders-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Users -->
+        <div id="admin-tab-users" class="admin-tab-content">
+            <div class="admin-section">
+                <h2>Phân quyền Admin</h2>
+                <div class="glass-card" style="padding: 1.5rem; max-width: 500px;">
+                    <div class="form-group">
+                        <label>Email người dùng</label>
+                        <input type="email" id="user-admin-email" class="form-control" placeholder="Nhập email để cấp quyền Admin">
+                    </div>
+                    <button class="btn-primary" onclick="window.makeAdmin()" style="width: 100%;">Cấp quyền Admin</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="topup-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 650px; width: 95%;">
+            <span class="modal-close" onclick="closeModal('topup-modal')">&times;</span>
+            <div class="modal-header">
+                <h2 style="margin-bottom: 0.5rem;">Xác nhận Nạp Coin</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Vui lòng chuyển khoản theo thông tin bên dưới.</p>
+            </div>
+            
+            <div class="modal-body" style="padding: 1.25rem 1.5rem; overflow-y: auto; max-height: 88vh;">
+                <div class="topup-grid" style="gap: 1.5rem;">
+                    <!-- Left Column: Payment Info -->
+                    <div class="topup-payment-side">
+                        <div style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border); text-align: center;">
+                            <h4 style="margin-bottom: 1rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Quét mã QR Techcombank</h4>
+                            <div style="margin-bottom: 1.5rem; position: relative; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                                <div id="qr-loader" class="qr-loader-container">
+                                    <div class="spinner-ring"></div>
+                                    <div class="loading-text">Đang tạo mã QR...</div>
+                                </div>
+                                <img id="qr-code-img" src="" alt="VietQR" style="display: none; width: 100%; max-width: 200px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+                            </div>
+                            
+                            <div style="font-size: 0.85rem; line-height: 1.5; text-align: left;">
+                                <div style="margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;">
+                                    <span style="opacity: 0.6; font-size: 0.7rem;">Số tài khoản:</span><br>
+                                    <strong style="letter-spacing: 1px; font-size: 0.95rem;">5401868686</strong>
+                                </div>
+                                <div style="margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;">
+                                    <span style="opacity: 0.6; font-size: 0.7rem;">Chủ tài khoản:</span><br>
+                                    <strong style="font-size: 0.95rem;">VĂN ĐÌNH HOÀNG</strong>
+                                </div>
+                                <div>
+                                    <span style="opacity: 0.6; font-size: 0.7rem;">Nội dung chuyển khoản:</span><br>
+                                    <strong id="transfer-code" style="color: #ffde00; font-size: 1.05rem; letter-spacing: 1px;"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Submission Form -->
+                    <div class="topup-form-side">
+                        <div id="topup-package-info" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.05); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--glass-border);"></div>
+                        
+                        <form id="topup-form">
+                            <div class="form-group" style="margin-bottom: 1.5rem;">
+                                <label style="font-size: 0.9rem; font-weight: 600;">Ảnh chuyển khoản (Bắt buộc)</label>
+                                <div class="upload-zone" onclick="document.getElementById('file-topup-proof').click()" style="height: 120px; border-style: dashed; border-width: 2px;">
+                                    <span>📸</span>
+                                    <p style="font-size: 0.8rem; opacity: 0.8;">Nhấn để tải lên ảnh giao dịch</p>
+                                    <div id="preview-topup-container" class="preview-container"></div>
+                                </div>
+                                <input type="file" id="file-topup-proof" accept="image/*" style="display:none" onchange="window.handlePreview(this, 'preview-topup-container')">
+                            </div>
+
+                            <button type="submit" class="btn-primary" style="width: 100%; height: 50px; font-weight: 800; font-size: 0.9rem; text-transform: uppercase; white-space: nowrap;">
+                                XÁC NHẬN NẠP COIN
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <p style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem; font-style: italic;">
+                    * Hệ thống sẽ cộng coin ngay sau khi Admin duyệt giao dịch.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Modal -->
+    <div id="order-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('order-modal')">&times;</span>
+            <div class="modal-header">
+                <h2 style="margin-bottom: 0.5rem;">Tạo đơn Motion Transfer</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Chọn ảnh và video để bắt đầu sáng tạo.</p>
+            </div>
+            
+            <form id="order-form" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                <div class="modal-body">
+                    <!-- Upload Grid -->
+                    <div class="grid-2" style="margin-bottom: 1.5rem;">
+                        <div class="form-group">
+                            <label>1. Ảnh nhân vật</label>
+                            <div class="upload-zone" onclick="document.getElementById('file-char').click()">
+                                <span>📸</span>
+                                <p>Nhấn để chọn ảnh</p>
+                                <div class="upload-note">Lưu ý: Nên chọn ảnh chân dung full người.</div>
+                                <div id="preview-char-container" class="preview-container"></div>
+                            </div>
+                            <input type="file" id="file-char" accept="image/*" style="display:none" onchange="window.handlePreview(this, 'preview-char-container')">
+                        </div>
+                        <div class="form-group">
+                            <label>2. Video mẫu / bối cảnh</label>
+                            <div class="upload-zone" onclick="document.getElementById('file-video').click()">
+                                <span>🎥</span>
+                                <p>Nhấn để chọn video</p>
+                                <div class="upload-note">Lưu ý: Đảm bảo nhân vật xuất hiện ngay từ đầu video.</div>
+                                <div id="preview-video-container" class="preview-container"></div>
+                            </div>
+                            <input type="file" id="file-video" accept="video/*" style="display:none" onchange="window.handlePreview(this, 'preview-video-container')">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Chọn kiểu dịch vụ</label>
+                        <div class="grid-2">
+                            <label class="card" style="padding: 1rem; cursor: pointer;">
+                                <input type="radio" name="service-type" value="char-to-video" checked>
+                                <div style="margin-top: 0.5rem; font-weight: 700;">Lồng nhân vật vào Video</div>
+                                <div class="service-desc">Lấy người từ ảnh dán vào bối cảnh video mẫu.</div>
+                                <video class="card-video-preview" src="https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4" autoplay muted loop></video>
+                            </label>
+                            <label class="card" style="padding: 1rem; cursor: pointer;">
+                                <input type="radio" name="service-type" value="motion-to-char">
+                                <div style="margin-top: 0.5rem; font-weight: 700;">Copy motion vào Ảnh</div>
+                                <div class="service-desc">Nhân vật trong ảnh sẽ thực hiện chuyển động của video.</div>
+                                <video class="card-video-preview" src="https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4" autoplay muted loop></video>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Chọn Model (Chất lượng)</label>
+                        <div class="grid-2">
+                            <label class="card compact-card" style="cursor: pointer;">
+                                <input type="radio" name="model-type" value="basic" checked>
+                                <div class="card-content-inline">
+                                    <span class="card-icon-sm">⭐</span>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 0.9rem;">Model Tiêu chuẩn</div>
+                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem;">6 Coins</div>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="card compact-card" style="cursor: pointer;">
+                                <input type="radio" name="model-type" value="pro">
+                                <div class="card-content-inline">
+                                    <span class="card-icon-sm">💎</span>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 0.9rem;">Model Cao cấp</div>
+                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem;">12 Coins</div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tỉ lệ video</label>
+                        <div class="grid-2">
+                            <label class="card compact-card" style="cursor: pointer;">
+                                <input type="radio" name="aspect-ratio" value="9:16" checked>
+                                <div class="card-content-inline">
+                                    <span class="card-icon-sm">🎬</span>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">Dọc (TikTok)</div>
+                                </div>
+                            </label>
+                            <label class="card compact-card" style="cursor: pointer;">
+                                <input type="radio" name="aspect-ratio" value="16:9">
+                                <div class="card-content-inline">
+                                    <span class="card-icon-sm">▶️</span>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">Ngang (YouTube)</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" id="order-submit-btn" class="btn-primary" style="width: 100%; height: 55px;">
+                        Thành video ngay (<span id="submit-cost">6</span> coin)
+                    </button>
+                    <div id="upload-progress" style="display:none; text-align:center; margin-top: 1rem; color: var(--accent);">
+                        Đang tải file lên... <span id="progress-val">0</span>%
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+        </div>
+    </div>
+
+    <!-- Pricing Modal (Package Selection) -->
+    <div id="pricing-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="modal-close" onclick="closeModal('pricing-modal')">&times;</span>
+            <div class="modal-header">
+                <h2>Chọn gói nạp Coin</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Nạp càng nhiều, ưu đãi càng lớn. 1 Coin = 1.000đ.</p>
+            </div>
+            <div class="modal-body">
+                <div class="pricing-grid" id="modal-coin-packages">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="admin-detail-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('admin-detail-modal')">&times;</span>
+                <h2 style="margin:0;">Chi tiết đơn hàng</h2>
+            </div>
+            
+            <div class="modal-body">
+                <div id="admin-order-details"></div>
+                
+                <form id="admin-update-form">
+                    <div class="form-group">
+                        <label>Trạng thái thực hiện</label>
+                        <select class="form-control" id="admin-status">
+                            <option value="pending">Đang chờ</option>
+                            <option value="processing">Đang xử lý</option>
+                            <option value="completed">Hoàn thành</option>
+                            <option value="failed">Thất bại</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>🎬 Link kết quả (Video/Ảnh)</label>
+                        <input type="url" class="form-control" id="admin-result-link" placeholder="https://..." style="margin-bottom: 0.8rem;">
+                        
+                        <div class="glass-card" style="padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                            <label style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 0.5rem;">Tải lên video trực tiếp:</label>
+                            <input type="file" id="admin-file-result" accept="video/*" style="font-size: 0.75rem; width: 100%;">
+                            <button type="button" class="btn-primary" onclick="window.handleAdminResultUpload()" id="btn-admin-upload" style="width: 100%; margin-top: 0.8rem; padding: 8px; font-weight: 600; font-size: 0.85rem;">🚀 Tải lên Worker</button>
+                            <div id="admin-upload-status" style="font-size: 0.7rem; margin-top: 0.5rem; text-align: center; display: none;"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú cho khách hàng</label>
+                        <textarea class="form-control" id="admin-note" placeholder="Nhập lời nhắn hoặc hướng dẫn..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">Cập nhật đơn hàng</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 2.5rem;">
+            <div id="confirm-icon" style="font-size: 3.5rem; margin-bottom: 1.5rem;">⏳</div>
+            <h3 id="confirm-title" style="font-size: 1.5rem; margin-bottom: 1rem;">Xác nhận</h3>
+            <p id="confirm-msg" style="color: var(--text-muted); margin-bottom: 2rem; line-height: 1.6;"></p>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn-secondary" style="flex: 1;" onclick="closeModal('confirm-modal')">Quay lại</button>
+                <button class="btn-primary" style="flex: 1;" id="confirm-yes-btn">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <div id="user-order-detail-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('user-order-detail-modal')">&times;</span>
+                <h2 style="margin:0;">Chi tiết đơn hàng</h2>
+            </div>
+            <div class="modal-body">
+                <div id="user-order-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        
+        import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
+        import { initAppLogic } from "./script.js";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // Make Firebase available globally for script.js
+        window.firebase = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
+        window.ADMIN_EMAILS = ADMIN_EMAILS;
+
+        initAppLogic();
+    </script>
+    <!-- Image Viewer Modal -->
+    <div id="image-viewer-modal" class="modal-overlay" onclick="closeModal('image-viewer-modal')">
+        <style>
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.85);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                backdrop-filter: blur(8px);
+                padding: 1rem;
+            }
+        </style>
+        <div style="max-width: 90%; max-height: 90%; display: flex; align-items: center; justify-content: center;">
+            <img id="full-res-image" src="" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 0 50px rgba(0,0,0,0.8);">
+        </div>
+    </div>
+
+</body>
+</html>
