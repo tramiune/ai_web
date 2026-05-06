@@ -137,7 +137,8 @@ async function signRS256(message, pem) {
     if (pem.includes(pemHeader)) {
         pemContents = pem.substring(pem.indexOf(pemHeader) + pemHeader.length, pem.indexOf(pemFooter));
     }
-    pemContents = pemContents.replace(/\s/g, "");
+    // Chỉ giữ lại các ký tự hợp lệ của Base64: A-Z, a-z, 0-9, +, /, =
+    pemContents = pemContents.replace(/[^A-Za-z0-9+/=]/g, "");
 
     try {
         const binaryDerString = atob(pemContents);
