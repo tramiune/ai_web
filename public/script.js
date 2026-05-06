@@ -421,41 +421,69 @@ window.openOrderModal = () => {
     window.openModal('order-modal');
 };
 
+window.niceConfirm = ({ title, message, icon, onConfirm }) => {
+    document.getElementById('confirm-title').innerText = title;
+    document.getElementById('confirm-msg').innerText = message;
+    document.getElementById('confirm-icon').innerText = icon || '❓';
+    
+    const yesBtn = document.getElementById('confirm-yes-btn');
+    const newBtn = yesBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(newBtn, yesBtn);
+    
+    newBtn.onclick = () => {
+        closeModal('confirm-modal');
+        if (onConfirm) onConfirm();
+    };
+    
+    window.openModal('confirm-modal');
+};
+
 window.handlePreview = (input, containerId) => {
     const container = document.getElementById(containerId);
     const file = input.files[0];
-    if (!file) return;
+    if (!file) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = '';
 
     if (file.type.startsWith('image/')) {
-        // Kiểm tra dung lượng ảnh (10MB)
         if (file.size > 10 * 1024 * 1024) {
             showToast("⚠️ Ảnh quá nặng! Vui lòng chọn ảnh dưới 10MB.");
             input.value = '';
-            container.innerHTML = '';
             return;
         }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            container.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
-        };
-        reader.readAsDataURL(file);
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        img.style.borderRadius = '8px';
+        img.onload = () => URL.revokeObjectURL(img.src);
+        container.appendChild(img);
     } else if (file.type.startsWith('video/')) {
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
-            window.URL.revokeObjectURL(video.src);
-            // Kiểm tra độ dài video (20s)
-            if (video.duration > 20) {
+            const duration = video.duration;
+            if (duration > 20) {
                 showToast("⚠️ Video quá dài! Vui lòng chọn video dưới 20 giây.");
                 input.value = '';
-                container.innerHTML = '';
+                URL.revokeObjectURL(video.src);
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                container.innerHTML = `<video src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" autoplay muted loop></video>`;
-            };
-            reader.readAsDataURL(file);
+            const previewVideo = document.createElement('video');
+            previewVideo.src = URL.createObjectURL(file);
+            previewVideo.controls = false;
+            previewVideo.autoplay = true;
+            previewVideo.muted = true;
+            previewVideo.loop = true;
+            previewVideo.style.width = '100%';
+            previewVideo.style.height = '100%';
+            previewVideo.style.objectFit = 'cover';
+            previewVideo.style.borderRadius = '8px';
+            container.appendChild(previewVideo);
         };
         video.src = URL.createObjectURL(file);
     }
