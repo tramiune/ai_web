@@ -1,6 +1,8 @@
-/**
  * script.js - Core logic for MotionAI Studio
  */
+
+const TELEGRAM_BOT_TOKEN = '8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc';
+const TELEGRAM_CHAT_ID = '6067707939';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
@@ -573,6 +575,15 @@ async function setupEventListeners() {
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
                             showDashboard();
+                            const msg = `🚀 *ĐƠN HÀNG MỚI!*\n\n` +
+                                        `🆔 Mã đơn: #${orderId}\n` +
+                                        `👤 Khách: ${currentUser.displayName}\n` +
+                                        `📧 Email: ${currentUser.email}\n` +
+                                        `📦 Gói: ${model.name}\n` +
+                                        `💰 Chi phí: ${model.cost} Coin\n` +
+                                        `🖼 [Xem ảnh nhân vật](${charUrl})\n` +
+                                        `📹 [Xem video tham chiếu](${videoUrl})`;
+                            sendTelegramMessage(msg);
                         } catch (err) {
                             console.error("Order Creation Error:", err);
                             showToast("❌ Lỗi khi tạo đơn: " + (err.message || err));
@@ -1071,3 +1082,21 @@ function scrollToHow() {
 
 window.scrollToPricing = scrollToPricing;
 window.scrollToHow = scrollToHow;
+
+// --- Telegram Notification ---
+async function sendTelegramMessage(text) {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    try {
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: TELEGRAM_CHAT_ID,
+                text: text,
+                parse_mode: 'Markdown'
+            })
+        });
+    } catch (e) {
+        console.error("Telegram Notify Error:", e);
+    }
+}

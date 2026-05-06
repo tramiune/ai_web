@@ -3,6 +3,9 @@
  * MotionAI Studio - Automated Top-up
  */
 
+const TELEGRAM_BOT_TOKEN = '8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc';
+const TELEGRAM_CHAT_ID = '6067707939';
+
 // Dán toàn bộ nội dung file JSON của bạn vào đây
 const SERVICE_ACCOUNT = {
   "type": "service_account",
@@ -41,6 +44,15 @@ export const webhookHandler = {
           if (topup && topup.status === "pending") {
              await grantCoins(accessToken, topup.userId, coins, topup.id);
              console.log(`Successfully granted ${coins} coins to user ${topup.userId}`);
+             
+             // Gửi thông báo Telegram
+             const message = `💰 *NẠP TIỀN THÀNH CÔNG!*\n\n` +
+                             `👤 Khách: ${topup.userName || 'N/A'}\n` +
+                             `📧 Email: ${topup.userEmail || 'N/A'}\n` +
+                             `💵 Số tiền: ${amount.toLocaleString()}đ\n` +
+                             `🪙 Coin nhận: +${coins}\n` +
+                             `📝 Nội dung: ${code}`;
+             await notifyTelegram(message);
           }
         }
       }
@@ -122,7 +134,14 @@ async function findTopup(token, content) {
   const data = await res.json();
   if (data?.[0]?.document) {
     const doc = data[0].document;
-    return { id: doc.name.split("/").pop(), userId: doc.fields.userId.stringValue, status: doc.fields.status.stringValue };
+    const fields = doc.fields;
+    return { 
+      id: doc.name.split("/").pop(), 
+      userId: fields.userId.stringValue, 
+      status: fields.status.stringValue,
+      userName: fields.userName?.stringValue || 'Khách',
+      userEmail: fields.userEmail?.stringValue || ''
+    };
   }
   return null;
 }
@@ -149,3 +168,20 @@ async function grantCoins(token, userId, coins, topupId) {
 }
 
 function b64(str) { return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+
+async function notifyTelegram(text) {
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: text,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (err) {
+    console.error("Telegram Notify Error:", err.message);
+  }
+}
