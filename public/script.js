@@ -17,6 +17,7 @@ const MODELS = {
 
 let currentUser = null;
 let selectedTopupPackage = null;
+let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
 const STATUS_MAP = {
     'pending': 'Đang chờ',
@@ -149,7 +150,19 @@ async function handleUserLoggedIn(user) {
     onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.data();
-            document.getElementById('coin-balance').innerText = data.coins || 0;
+            const currentCoins = data.coins || 0;
+            
+            // Tự động nhận biết nạp coin thành công
+            const topupModal = document.getElementById('topup-modal');
+            if (topupModal && topupModal.style.display === 'flex' && currentCoins > initialCoinsBeforeTopup) {
+                showToast("✨ Thanh toán thành công! Đã cộng coin vào tài khoản.");
+                closeModal('topup-modal');
+                // Hiệu ứng pháo hoa hoặc rung nhẹ balance
+                document.getElementById('coin-balance').classList.add('coin-update-glow');
+                setTimeout(() => document.getElementById('coin-balance').classList.remove('coin-update-glow'), 2000);
+            }
+
+            document.getElementById('coin-balance').innerText = currentCoins;
             document.getElementById('user-greeting').innerText = `Chào mừng, ${data.displayName}!`;
             document.getElementById('user-email').innerText = data.email;
 
@@ -291,9 +304,12 @@ window.openPricingModal = () => {
     window.openModal('pricing-modal');
 };
 
-window.selectTopup = (id) => {
+window.selectTopup = async (id) => {
     if (!currentUser) return login();
     selectedTopupPackage = COIN_PACKAGES.find(p => p.id === id);
+    
+    // Lưu số dư hiện tại để theo dõi biến động khi nạp
+    initialCoinsBeforeTopup = parseInt(document.getElementById('coin-balance').innerText) || 0;
 
     // Close pricing modal if open
     closeModal('pricing-modal');
@@ -301,6 +317,27 @@ window.selectTopup = (id) => {
     // Generate unique random code: [CoinAmount] COIN [RandomStr]
     const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
     const transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
+
+    // --- Tự động tạo bản ghi nạp tiền để Webhook Casso có thể tìm thấy ---
+    const { db, collection, addDoc, serverTimestamp } = window.firebase;
+    try {
+        await addDoc(collection(db, "topups"), {
+            userId: currentUser.uid,
+            userEmail: currentUser.email,
+            userName: currentUser.displayName,
+            packageName: selectedTopupPackage.name,
+            coins: selectedTopupPackage.coins,
+            amount: selectedTopupPackage.amount,
+            transferContent: transferContent,
+            status: "pending",
+            createdAt: serverTimestamp(),
+            isAutomated: true // Đánh dấu đây là đơn tạo tự động
+        });
+        console.log("📝 Đã tạo bản ghi nạp tiền tự động:", transferContent);
+    } catch (err) {
+        console.error("Lỗi khi tạo bản ghi nạp tiền:", err);
+        // Vẫn tiếp tục hiện QR cho khách, Admin có thể check tay nếu lỗi DB
+    }
 
     document.getElementById('topup-package-info').innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -400,48 +437,8 @@ async function setupEventListeners() {
         });
     });
 
-    // Topup Form
-    const topupForm = document.getElementById('topup-form');
-    if (topupForm) {
-        topupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const { db, collection, addDoc, serverTimestamp } = window.firebase;
-
-            const transferContent = document.getElementById('transfer-code').innerText;
-            const proofFileInput = document.getElementById('file-topup-proof');
-            const proofFile = proofFileInput.files[0];
-
-            if (!proofFile) {
-                return showToast("Vui lòng tải lên ảnh bằng chứng!");
-            }
-
-            try {
-                showToast("⏳ Đang tải ảnh bằng chứng...");
-                const proofUrl = await uploadFile(proofFile, "proofs");
-
-                await addDoc(collection(db, "topups"), {
-                    userId: currentUser.uid,
-                    userEmail: currentUser.email,
-                    userName: currentUser.displayName,
-                    packageName: selectedTopupPackage.name,
-                    coins: selectedTopupPackage.coins,
-                    amount: selectedTopupPackage.amount,
-                    transferContent: transferContent,
-                    proofLink: proofUrl,
-                    status: "pending",
-                    createdAt: serverTimestamp()
-                });
-
-                showToast("🚀 Đã gửi yêu cầu! Vui lòng chờ Admin duyệt.");
-                closeModal('topup-modal');
-                e.target.reset();
-                document.getElementById('preview-topup-container').innerHTML = '';
-            } catch (error) {
-                console.error(error);
-                showToast("❌ Lỗi khi gửi yêu cầu nạp tiền.");
-            }
-        });
-    }
+    // Topup Form removed for automated flow
+    // (Admin updates coins in Firestore -> Real-time listener detects change -> UI auto-closes)
 
     // Order Form (Updated for File Upload & New Pricing)
     const orderForm = document.getElementById('order-form');

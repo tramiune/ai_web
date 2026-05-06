@@ -274,6 +274,7 @@
                 </tbody>
             </table>
         </div>
+    </div>
 
     <!-- Admin Panel (Hidden for normal users) -->
     <div id="admin-panel" class="admin-panel" style="display: none;">
@@ -356,68 +357,94 @@
         </div>
     </div>
 
+    <!-- Topup Modal (Centered QR - Automated Flow) -->
     <div id="topup-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 650px; width: 95%;">
+        <style>
+            .dot-flashing {
+                position: relative;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background-color: var(--accent);
+                color: var(--accent);
+                animation: dot-flashing 1s infinite linear alternate;
+                animation-delay: 0.5s;
+                margin: 0 15px;
+            }
+            .dot-flashing::before, .dot-flashing::after {
+                content: "";
+                display: inline-block;
+                position: absolute;
+                top: 0;
+            }
+            .dot-flashing::before {
+                left: -15px;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background-color: var(--accent);
+                color: var(--accent);
+                animation: dot-flashing 1s infinite alternate;
+                animation-delay: 0s;
+            }
+            .dot-flashing::after {
+                left: 15px;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background-color: var(--accent);
+                color: var(--accent);
+                animation: dot-flashing 1s infinite alternate;
+                animation-delay: 1s;
+            }
+            @keyframes dot-flashing {
+                0% { background-color: var(--accent); }
+                50%, 100% { background-color: rgba(0, 242, 254, 0.2); }
+            }
+        </style>
+        <div class="modal-content" style="max-width: 500px; width: 95%;">
             <span class="modal-close" onclick="closeModal('topup-modal')">&times;</span>
             <div class="modal-header">
-                <h2 style="margin-bottom: 0.5rem;">Xác nhận Nạp Coin</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Vui lòng chuyển khoản theo thông tin bên dưới.</p>
+                <h2 style="margin-bottom: 0.5rem;">Nạp Coin tự động</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Hệ thống tự động cộng coin sau khi nhận được thanh toán.</p>
             </div>
             
-            <div class="modal-body" style="padding: 1.25rem 1.5rem; overflow-y: auto; max-height: 88vh;">
-                <div class="topup-grid" style="gap: 1.5rem;">
-                    <!-- Left Column: Payment Info -->
-                    <div class="topup-payment-side">
-                        <div style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border); text-align: center;">
-                            <h4 style="margin-bottom: 1rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;">Quét mã QR MB Bank</h4>
-                            <div style="margin-bottom: 1.5rem; position: relative; min-height: 200px; display: flex; align-items: center; justify-content: center;">
-                                <div id="qr-loader" class="qr-loader-container">
-                                    <div class="spinner-ring"></div>
-                                    <div class="loading-text">Đang tạo mã QR...</div>
-                                </div>
-                                <img id="qr-code-img" src="" alt="VietQR" style="display: none; width: 100%; max-width: 200px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
-                            </div>
-                            
-                            <div style="font-size: 0.85rem; line-height: 1.5; text-align: left;">
-                                <div style="margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;">
-                                    <span style="opacity: 0.6; font-size: 0.7rem;">Số tài khoản:</span><br>
-                                    <strong style="letter-spacing: 1px; font-size: 0.95rem;">0965951536</strong>
-                                </div>
-                                <div style="margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;">
-                                    <span style="opacity: 0.6; font-size: 0.7rem;">Chủ tài khoản:</span><br>
-                                    <strong style="font-size: 0.95rem;">VĂN ĐÌNH HOÀNG</strong>
-                                </div>
-                                <div>
-                                    <span style="opacity: 0.6; font-size: 0.7rem;">Nội dung chuyển khoản:</span><br>
-                                    <strong id="transfer-code" style="color: #ffde00; font-size: 1.05rem; letter-spacing: 1px;"></strong>
-                                </div>
-                            </div>
+            <div class="modal-body" style="padding: 1.5rem; text-align: center;">
+                <div style="background: var(--bg-card-hover); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+                    <h4 style="margin-bottom: 1.5rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;">Quét mã QR MB Bank</h4>
+                    
+                    <div style="margin-bottom: 1.5rem; position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center;">
+                        <div id="qr-loader" class="qr-loader-container">
+                            <div class="spinner-ring"></div>
+                            <div class="loading-text">Đang tạo mã QR...</div>
+                        </div>
+                        <img id="qr-code-img" src="" alt="VietQR" style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    </div>
+                    
+                    <div id="topup-package-info" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 1.1rem;"></div>
+
+                    <div style="font-size: 0.85rem; line-height: 1.6; text-align: left; background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 8px;">
+                        <div style="margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                            <span style="opacity: 0.6; font-size: 0.75rem;">Số tài khoản:</span><br>
+                            <strong style="letter-spacing: 1px; font-size: 1.1rem;">0965951536</strong>
+                        </div>
+                        <div style="margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
+                            <span style="opacity: 0.6; font-size: 0.75rem;">Chủ tài khoản:</span><br>
+                            <strong style="font-size: 1.1rem;">VĂN ĐÌNH HOÀNG</strong>
+                        </div>
+                        <div>
+                            <span style="opacity: 0.6; font-size: 0.75rem;">Nội dung chuyển khoản (Bắt buộc):</span><br>
+                            <strong id="transfer-code" style="color: #ffde00; font-size: 1.1rem; letter-spacing: 1px;"></strong>
                         </div>
                     </div>
 
-                    <!-- Right Column: Submission Form -->
-                    <div class="topup-form-side">
-                        <div id="topup-package-info" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.05); padding: 1.2rem; border-radius: var(--radius-md); border: 1px solid var(--glass-border);"></div>
-                        
-                        <form id="topup-form">
-                            <div class="form-group" style="margin-bottom: 1.5rem;">
-                                <label style="font-size: 0.9rem; font-weight: 600;">Ảnh chuyển khoản (Bắt buộc)</label>
-                                <div class="upload-zone" onclick="document.getElementById('file-topup-proof').click()" style="height: 120px; border-style: dashed; border-width: 2px;">
-                                    <span>📸</span>
-                                    <p style="font-size: 0.8rem; opacity: 0.8;">Nhấn để tải lên ảnh giao dịch</p>
-                                    <div id="preview-topup-container" class="preview-container"></div>
-                                </div>
-                                <input type="file" id="file-topup-proof" accept="image/*" style="display:none" onchange="window.handlePreview(this, 'preview-topup-container')">
-                            </div>
-
-                            <button type="submit" class="btn-primary" style="width: 100%; height: 50px; font-weight: 800; font-size: 0.9rem; text-transform: uppercase; white-space: nowrap;">
-                                XÁC NHẬN NẠP COIN
-                            </button>
-                        </form>
+                    <div style="margin-top: 2rem; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); font-size: 0.85rem;">
+                        <div class="dot-flashing"></div>
+                        <span>Đang chờ xác nhận thanh toán...</span>
                     </div>
                 </div>
-                <p style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem; font-style: italic;">
-                    * Hệ thống sẽ cộng coin ngay sau khi Admin duyệt giao dịch.
+                <p style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 1.5rem; font-style: italic;">
+                    * Coin sẽ được cộng tự động. Vui lòng giữ cửa sổ này cho đến khi hoàn tất.
                 </p>
             </div>
         </div>
@@ -532,8 +559,6 @@
                     </div>
                 </div>
             </form>
-        </div>
-    </div>
         </div>
     </div>
 
@@ -676,6 +701,3 @@
 
 </body>
 </html>
-/ /   u p d a t e  
- / /   u p d a t e  
- 

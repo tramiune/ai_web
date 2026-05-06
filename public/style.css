@@ -1043,3 +1043,56 @@ section {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Coin Update Animation */
+@keyframes coin-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); color: var(--accent); }
+    100% { transform: scale(1); }
+}
+
+.coin-update-glow {
+    animation: coin-pop 0.5s ease-in-out 3;
+    text-shadow: 0 0 15px var(--accent);
+}
+
+.dot-flashing {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: var(--accent);
+  color: var(--accent);
+  animation: dot-flashing 1s infinite linear alternate;
+  animation-delay: 0.5s;
+  margin: 0 15px;
+}
+.dot-flashing::before, .dot-flashing::after {
+  content: "";
+  display: inline-block;
+  position: absolute;
+  top: 0;
+}
+.dot-flashing::before {
+  left: -15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: var(--accent);
+  color: var(--accent);
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 0s;
+}
+.dot-flashing::after {
+  left: 15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: var(--accent);
+  color: var(--accent);
+  animation: dot-flashing 1s infinite alternate;
+  animation-delay: 1s;
+}
+@keyframes dot-flashing {
+  0% { background-color: var(--accent); }
+  50%, 100% { background-color: rgba(0, 242, 254, 0.2); }
+}
