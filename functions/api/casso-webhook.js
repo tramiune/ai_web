@@ -56,12 +56,12 @@ async function getAccessToken(email, privateKey) {
 
   const message = `${header}.${payload}`;
   
-  // Clean PEM Key - Chỉ giữ lại ký tự Base64 (A-Z, a-z, 0-9, +, /, =)
+  // Clean PEM Key - Xóa sạch mọi ký tự lạ và cả dấu = ở giữa
   let pemContents = privateKey
     .replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g, "")
-    .replace(/[^A-Za-z0-9+/=]/g, ""); 
+    .replace(/[^A-Za-z0-9+/]/g, ""); // Tạm thời xóa hết cả dấu =
     
-  // Đảm bảo độ dài chia hết cho 4 (Bù dấu =)
+  // Bù lại dấu = ở cuối cho đúng chuẩn (Base64 length must be multiple of 4)
   while (pemContents.length % 4 !== 0) pemContents += "=";
     
   const binaryDerString = atob(pemContents);
