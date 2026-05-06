@@ -598,8 +598,12 @@ async function setupEventListeners() {
 
 // --- Data Loading (Real-time) ---
 function loadMyOrders() {
-    const { db, collection, query, where, onSnapshot } = window.firebase;
-    const q = query(collection(db, "orders"), where("userId", "==", currentUser.uid));
+    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const q = query(
+        collection(db, "orders"), 
+        where("userId", "==", currentUser.uid),
+        orderBy("createdAt", "desc")
+    );
 
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-orders-list');
@@ -610,37 +614,44 @@ function loadMyOrders() {
         list.innerHTML = snapshot.docs.map(doc => {
             const d = doc.data();
             const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
-            const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
+            const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
+            const fullDate = d.createdAt ? d.createdAt.toDate().toLocaleDateString('vi-VN') : '';
             const statusVN = STATUS_MAP[d.status] || d.status;
+            
             return `
                 <tr onclick="window.openUserOrderDetail('${doc.id}')" style="cursor: pointer;">
                     <td>
-                        <div style="width: 40px; height: 40px; border-radius: 4px; overflow: hidden; border: 1px solid var(--glass-border);">
+                        <div style="width: 44px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); background: #000;">
                             <img src="${d.characterImageLink}" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     </td>
-                    <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${orderId}</td>
-                    <td>${d.packageName}</td>
-                    <td>${d.costCoins} 🪙</td>
-                    <td>${date}</td>
+                    <td>
+                        <div style="font-family: monospace; font-weight: bold; color: var(--accent-primary); font-size: 1rem;">#${orderId}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 2px;">${date} - ${fullDate}</div>
+                    </td>
                     <td>
                         <span class="status-badge status-${d.status}">${statusVN}</span>
-                        ${d.resultLink ? `
-                            <a href="${d.resultLink.includes('workers.dev') ? d.resultLink + (d.resultLink.includes('?') ? '&' : '?') + 'download=1' : d.resultLink}" 
-                               target="_blank" 
-                               style="color: var(--accent-primary); font-weight: 700; display: block; margin-top: 8px; font-size: 0.85rem; text-decoration: underline;" 
-                               onclick="event.stopPropagation(); if(!currentUser){ showToast('⚠️ Phiên đăng nhập hết hạn. Vui lòng F5.'); return false; }">📥 TẢI VIDEO</a>` : ''}
+                        ${d.resultLink ? '<div style="font-size: 0.7rem; color: var(--primary); margin-top: 4px; font-weight: 600;">✅ Đã có kết quả</div>' : ''}
                     </td>
-                    <td style="font-size: 0.8rem; color: var(--text-dim); max-width: 150px;">${d.adminNote || '-'}</td>
                 </tr>
             `;
         }).join('');
+    }, (error) => {
+        console.error("Orders Listener Error:", error);
+        // Nếu lỗi do thiếu index, in ra thông báo cho user
+        if (error.code === 'failed-precondition') {
+            console.warn("⚠️ Cần tạo Index cho Firestore. Hãy kiểm tra Console để nhấn vào link tạo index.");
+        }
     });
 }
 
 function loadMyTopups() {
-    const { db, collection, query, where, onSnapshot } = window.firebase;
-    const q = query(collection(db, "topups"), where("userId", "==", currentUser.uid));
+    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const q = query(
+        collection(db, "topups"), 
+        where("userId", "==", currentUser.uid),
+        orderBy("createdAt", "desc")
+    );
 
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-topups-list');
