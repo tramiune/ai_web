@@ -110,32 +110,22 @@ button {
   filter: drop-shadow(0 0 5px var(--primary-glow));
 }
 
-.nav-links {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.nav-item {
+.auth-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
   padding: 0.6rem 1.2rem;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  font-weight: 600;
   transition: all 0.3s ease;
 }
 
-.nav-item:hover {
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.nav-item.active {
-  color: var(--text-main);
-  background: rgba(138, 43, 226, 0.2);
-  border: 1px solid rgba(138, 43, 226, 0.3);
+.auth-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--primary);
 }
 
 .nav-icon {

@@ -120,8 +120,9 @@ async function handleUserLoggedIn(user) {
     document.getElementById('dropdown-user-name').innerText = user.displayName;
     document.getElementById('dropdown-user-email').innerText = user.email;
     
-    // Hiển thị Dashboard link trong menu
-    document.getElementById('nav-db-li').style.display = 'block';
+    // Hiển thị Dashboard link trong dropdown
+    const dbItem = document.getElementById('db-dropdown-item');
+    if (dbItem) dbItem.style.display = 'flex';
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
@@ -191,20 +192,16 @@ async function handleUserLoggedIn(user) {
 function handleUserLoggedOut() {
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
-    document.getElementById('nav-db-li').style.display = 'none';
+    
+    const dbItem = document.getElementById('db-dropdown-item');
+    if (dbItem) dbItem.style.display = 'none';
+    
     showLanding();
 }
 
 function showDashboard() {
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('user-dashboard').style.display = 'block';
-    
-    // Cập nhật Active State
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    
-    const dbBtn = document.getElementById('nav-dashboard');
-    if (dbBtn) dbBtn.classList.add('active');
-    
     window.scrollTo(0, 0);
 }
 
@@ -212,12 +209,6 @@ function showLanding() {
     document.getElementById('landing-page').style.display = 'block';
     document.getElementById('user-dashboard').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'none';
-    
-    // Cập nhật Active State
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    
-    const homeBtn = document.getElementById('nav-home');
-    if (homeBtn) homeBtn.classList.add('active');
 }
 
 window.toggleDashboard = () => {
