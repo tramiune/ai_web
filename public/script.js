@@ -421,6 +421,46 @@ window.openOrderModal = () => {
     window.openModal('order-modal');
 };
 
+window.handlePreview = (input, containerId) => {
+    const container = document.getElementById(containerId);
+    const file = input.files[0];
+    if (!file) return;
+
+    if (file.type.startsWith('image/')) {
+        // Kiểm tra dung lượng ảnh (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            showToast("⚠️ Ảnh quá nặng! Vui lòng chọn ảnh dưới 10MB.");
+            input.value = '';
+            container.innerHTML = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            container.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
+        };
+        reader.readAsDataURL(file);
+    } else if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(video.src);
+            // Kiểm tra độ dài video (20s)
+            if (video.duration > 20) {
+                showToast("⚠️ Video quá dài! Vui lòng chọn video dưới 20 giây.");
+                input.value = '';
+                container.innerHTML = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                container.innerHTML = `<video src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" autoplay muted loop></video>`;
+            };
+            reader.readAsDataURL(file);
+        };
+        video.src = URL.createObjectURL(file);
+    }
+};
+
 // --- File Upload Helper ---
 async function uploadFile(file, folder) {
     let workerUrl = "https://motionai-upload-api.traderfinn0312.workers.dev";
@@ -498,6 +538,9 @@ async function setupEventListeners() {
                 const videoFile = document.getElementById('file-video').files[0];
 
                 if (!charFile || !videoFile) return showToast("Vui lòng chọn đầy đủ file.");
+
+                // Kiểm tra lại lần cuối trước khi upload
+                if (charFile.size > 10 * 1024 * 1024) return showToast("⚠️ Ảnh vượt quá 10MB.");
 
                 // Show loading
                 submitBtn.disabled = true;
