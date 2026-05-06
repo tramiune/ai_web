@@ -56,20 +56,33 @@ async function getAccessToken(email, privateKey) {
 
   const message = `${header}.${payload}`;
   
-  // Clean PEM Key - Cách làm mới an toàn hơn
-  const pemHeader = "-----BEGIN PRIVATE KEY-----";
-  const pemFooter = "-----END PRIVATE KEY-----";
+  // Clean PEM Key - Siêu phòng thủ
   let pemContents = privateKey.trim();
   
-  if (pemContents.includes(pemHeader)) {
-    pemContents = pemContents.substring(pemContents.indexOf(pemHeader) + pemHeader.length, pemContents.indexOf(pemFooter));
-  }
-  
-  // Xóa sạch mọi thứ không phải Base64
+  // 1. Nếu dán nhầm cả file JSON, hãy lấy đúng field private_key
+  try {
+    if (pemContents.startsWith("{")) {
+      const json = JSON.parse(pemContents);
+      if (json.private_key) pemContents = json.private_key;
+    }
+  } catch(e) {}
+
+  // 2. Xóa dấu ngoặc kép nếu lỡ copy cả dấu ""
+  pemContents = pemContents.replace(/^"|"$/g, "");
+
+  // 3. Xóa header/footer
+  pemContents = pemContents
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "");
+
+  // 4. Xóa sạch mọi ký tự lạ (bao gồm cả \n literal)
   pemContents = pemContents.replace(/[^A-Za-z0-9+/]/g, "");
     
-  // Bù dấu = ở cuối
+  // 5. Bù dấu =
   while (pemContents.length % 4 !== 0) pemContents += "=";
+  
+  // Debug an toàn: Chỉ hiện độ dài và 3 ký tự đầu/cuối để b kiểm tra
+  console.log(`Key Info: Len=${pemContents.length}, Start=${pemContents.substring(0,3)}, End=${pemContents.substring(pemContents.length-3)}`);
     
   const binaryDerString = atob(pemContents);
   const binaryDer = new Uint8Array(binaryDerString.length);
