@@ -1,3 +1,4 @@
+/**
  * script.js - Core logic for MotionAI Studio
  */
 
