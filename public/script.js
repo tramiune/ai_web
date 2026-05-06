@@ -598,20 +598,27 @@ async function setupEventListeners() {
 
 // --- Data Loading (Real-time) ---
 function loadMyOrders() {
-    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const { db, collection, query, where, onSnapshot } = window.firebase;
     const q = query(
         collection(db, "orders"), 
-        where("userId", "==", currentUser.uid),
-        orderBy("createdAt", "desc")
+        where("userId", "==", currentUser.uid)
     );
 
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-orders-list');
         if (snapshot.empty) {
-            list.innerHTML = `<tr><td colspan="7" style="text-align:center; opacity: 0.5; padding: 2rem;">Chưa có đơn hàng nào.</td></tr>`;
+            list.innerHTML = `<tr><td colspan="3" style="text-align:center; opacity: 0.5; padding: 2rem;">Chưa có đơn hàng nào.</td></tr>`;
             return;
         }
-        list.innerHTML = snapshot.docs.map(doc => {
+
+        // Sắp xếp thủ công trên client để tránh lỗi Index Firestore
+        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+            const timeA = a.data().createdAt?.seconds || 0;
+            const timeB = b.data().createdAt?.seconds || 0;
+            return timeB - timeA;
+        });
+
+        list.innerHTML = sortedDocs.map(doc => {
             const d = doc.data();
             const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
             const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
@@ -646,11 +653,10 @@ function loadMyOrders() {
 }
 
 function loadMyTopups() {
-    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const { db, collection, query, where, onSnapshot } = window.firebase;
     const q = query(
         collection(db, "topups"), 
-        where("userId", "==", currentUser.uid),
-        orderBy("createdAt", "desc")
+        where("userId", "==", currentUser.uid)
     );
 
     onSnapshot(q, (snapshot) => {
@@ -659,7 +665,15 @@ function loadMyTopups() {
             list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">Chưa có yêu cầu nạp nào.</td></tr>`;
             return;
         }
-        list.innerHTML = snapshot.docs.map(doc => {
+
+        // Sắp xếp thủ công trên client
+        const sortedDocs = [...snapshot.docs].sort((a, b) => {
+            const timeA = a.data().createdAt?.seconds || 0;
+            const timeB = b.data().createdAt?.seconds || 0;
+            return timeB - timeA;
+        });
+
+        list.innerHTML = sortedDocs.map(doc => {
             const d = doc.data();
             const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
             const statusVN = STATUS_MAP[d.status] || d.status;
