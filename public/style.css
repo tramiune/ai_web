@@ -1195,7 +1195,8 @@ section {
   }
 
   .logo-text {
-    display: none; /* Hide 'MotionAI' text on small mobile, keep icon only */
+    display: block; /* Show full text */
+    font-size: 1rem; /* Smaller font on mobile to fit everything */
   }
 
   .nav-links {
