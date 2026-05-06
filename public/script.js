@@ -124,6 +124,14 @@ async function handleUserLoggedIn(user) {
     const dbItem = document.getElementById('db-dropdown-item');
     if (dbItem) dbItem.style.display = 'flex';
 
+    // Xử lý hành động đang chờ (ví dụ: mở modal tạo đơn sau khi login)
+    if (window.pendingAction === 'openOrderModal') {
+        window.pendingAction = null;
+        setTimeout(() => {
+            window.openOrderModal();
+        }, 500);
+    }
+
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
 
@@ -403,7 +411,10 @@ window.selectTopup = async (id) => {
 };
 
 window.openOrderModal = () => {
-    if (!currentUser) return login();
+    if (!currentUser) {
+        window.pendingAction = 'openOrderModal';
+        return login();
+    }
     window.openModal('order-modal');
 };
 
@@ -561,6 +572,7 @@ async function setupEventListeners() {
                             document.getElementById('order-form').reset();
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
+                            showDashboard();
                         } catch (err) {
                             console.error("Order Creation Error:", err);
                             showToast("❌ Lỗi khi tạo đơn: " + (err.message || err));
