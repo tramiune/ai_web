@@ -19,19 +19,19 @@
         <div class="nav-container">
             <a href="javascript:void(0)" class="logo" onclick="window.navTo('landing-page')">
                 <img src="favicon.png" alt="Logo" class="logo-img">
-                <span>MotionAI</span>
+                <span class="logo-text">MotionAI</span>
             </a>
             
-            <!-- Desktop Nav Links -->
+            <!-- Desktop & Mobile Nav Links -->
             <ul class="nav-links">
                 <li>
                     <a href="javascript:void(0)" id="nav-home" class="nav-item active" onclick="window.navTo('landing-page')">
-                        <span class="nav-icon">🏠</span> Home
+                        <span class="nav-icon">🏠</span> <span class="nav-text">Home</span>
                     </a>
                 </li>
                 <li id="nav-db-li" style="display: none;">
                     <a href="javascript:void(0)" id="nav-dashboard" class="nav-item" onclick="window.navTo('user-dashboard')">
-                        <span class="nav-icon">📊</span> Dashboard
+                        <span class="nav-icon">📊</span> <span class="nav-text">Dashboard</span>
                     </a>
                 </li>
             </ul>
@@ -42,7 +42,7 @@
                     <span>Đăng nhập</span>
                 </button>
                 
-                <!-- Logged In State (Icon only on mobile top) -->
+                <!-- Logged In State -->
                 <div id="user-profile-menu" class="user-profile-dropdown" style="display: none;">
                     <div class="user-avatar-wrapper" onclick="window.toggleUserMenu(event)">
                         <img id="user-avatar" class="user-avatar" src="" alt="User">
@@ -62,26 +62,6 @@
             </div>
         </div>
     </nav>
-
-    <!-- Mobile Bottom Navigation Bar -->
-    <div class="mobile-nav-bar">
-        <a href="javascript:void(0)" id="m-nav-home" class="m-nav-item active" onclick="window.navTo('landing-page')">
-            <span class="m-nav-icon">🏠</span>
-            <span class="m-nav-label">Home</span>
-        </a>
-        <a href="javascript:void(0)" id="m-nav-dashboard" class="m-nav-item" onclick="window.navTo('user-dashboard')" style="display: none;">
-            <span class="m-nav-icon">📊</span>
-            <span class="m-nav-label">Dashboard</span>
-        </a>
-        <a href="javascript:void(0)" class="m-nav-item" onclick="window.toggleUserMenu(event)" id="m-nav-profile" style="display: none;">
-            <span class="m-nav-icon">👤</span>
-            <span class="m-nav-label">Tôi</span>
-        </a>
-        <a href="javascript:void(0)" class="m-nav-item" onclick="window.loginUser()" id="m-nav-login">
-            <span class="m-nav-icon">🔑</span>
-            <span class="m-nav-label">Login</span>
-        </a>
-    </div>
 
     <!-- Main Content (Landing Page) -->
     <main id="landing-page">

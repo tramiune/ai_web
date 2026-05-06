@@ -110,49 +110,6 @@ button {
   filter: drop-shadow(0 0 5px var(--primary-glow));
 }
 
-/* Mobile Bottom Nav */
-.mobile-nav-bar {
-  display: none; /* Hidden on desktop */
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 65px;
-  background: rgba(10, 10, 18, 0.9);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid var(--glass-border);
-  z-index: 2000;
-  justify-content: space-around;
-  align-items: center;
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.m-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.7rem;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  flex: 1;
-}
-
-.m-nav-icon {
-  font-size: 1.25rem;
-}
-
-.m-nav-item.active {
-  color: var(--primary);
-  transform: translateY(-2px);
-}
-
-.m-nav-item.active .m-nav-icon {
-  filter: drop-shadow(0 0 5px var(--primary-glow));
-}
-
 .nav-links {
   display: flex;
   gap: 1rem;
@@ -1238,25 +1195,35 @@ section {
 }
 
 @media (max-width: 768px) {
-  body {
-    padding-bottom: 80px; /* Space for mobile nav */
-  }
-
-  .mobile-nav-bar {
-    display: flex;
-  }
-  
   /* Navbar Mobile */
   .navbar {
     height: 60px;
   }
   
   .nav-container {
-    padding: 0 1rem;
+    padding: 0 0.75rem;
+  }
+
+  .logo-text {
+    display: none; /* Hide 'MotionAI' text on small mobile, keep icon only */
+  }
+
+  .nav-links {
+    display: flex; /* Always show links */
+    gap: 0.5rem;
+  }
+
+  .nav-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .nav-text {
+    display: none; /* Hide 'Home/Dashboard' text on mobile, keep icons */
   }
   
-  .nav-links {
-    display: none; /* Hide main nav links on mobile for simplicity */
+  .nav-icon {
+    font-size: 1.2rem;
   }
   
   .logo {

@@ -122,14 +122,6 @@ async function handleUserLoggedIn(user) {
     
     // Hiển thị Dashboard link trong menu
     document.getElementById('nav-db-li').style.display = 'block';
-    
-    // Đồng bộ Mobile Nav
-    const mDb = document.getElementById('m-nav-dashboard');
-    const mProfile = document.getElementById('m-nav-profile');
-    const mLogin = document.getElementById('m-nav-login');
-    if (mDb) mDb.style.display = 'flex';
-    if (mProfile) mProfile.style.display = 'flex';
-    if (mLogin) mLogin.style.display = 'none';
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
@@ -200,15 +192,6 @@ function handleUserLoggedOut() {
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
     document.getElementById('nav-db-li').style.display = 'none';
-    
-    // Đồng bộ Mobile Nav
-    const mDb = document.getElementById('m-nav-dashboard');
-    const mProfile = document.getElementById('m-nav-profile');
-    const mLogin = document.getElementById('m-nav-login');
-    if (mDb) mDb.style.display = 'none';
-    if (mProfile) mProfile.style.display = 'none';
-    if (mLogin) mLogin.style.display = 'flex';
-    
     showLanding();
 }
 
@@ -216,14 +199,11 @@ function showDashboard() {
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('user-dashboard').style.display = 'block';
     
-    // Cập nhật Active State (Cả Desktop và Mobile)
-    document.querySelectorAll('.nav-item, .m-nav-item').forEach(el => el.classList.remove('active'));
+    // Cập nhật Active State
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     
     const dbBtn = document.getElementById('nav-dashboard');
     if (dbBtn) dbBtn.classList.add('active');
-    
-    const mDbBtn = document.getElementById('m-nav-dashboard');
-    if (mDbBtn) mDbBtn.classList.add('active');
     
     window.scrollTo(0, 0);
 }
@@ -233,14 +213,11 @@ function showLanding() {
     document.getElementById('user-dashboard').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'none';
     
-    // Cập nhật Active State (Cả Desktop và Mobile)
-    document.querySelectorAll('.nav-item, .m-nav-item').forEach(el => el.classList.remove('active'));
+    // Cập nhật Active State
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     
     const homeBtn = document.getElementById('nav-home');
     if (homeBtn) homeBtn.classList.add('active');
-    
-    const mHomeBtn = document.getElementById('m-nav-home');
-    if (mHomeBtn) mHomeBtn.classList.add('active');
 }
 
 window.toggleDashboard = () => {
