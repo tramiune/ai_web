@@ -57,12 +57,19 @@ async function getAccessToken(email, privateKey) {
   const message = `${header}.${payload}`;
   
   // Clean PEM Key
-  const pemContents = privateKey
+  let pemContents = privateKey
     .replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g, "")
     .replace(/\\n/g, "")
     .replace(/\s/g, "");
     
-  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  // Đảm bảo độ dài chia hết cho 4 (Bù dấu =)
+  while (pemContents.length % 4 !== 0) pemContents += "=";
+    
+  const binaryDerString = atob(pemContents);
+  const binaryDer = new Uint8Array(binaryDerString.length);
+  for (let i = 0; i < binaryDerString.length; i++) {
+    binaryDer[i] = binaryDerString.charCodeAt(i);
+  }
   
   const key = await crypto.subtle.importKey(
     "pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
