@@ -617,7 +617,7 @@ async function setupEventListeners() {
                             showToast("✅ Đã tải xong video. Đang tạo đơn hàng...");
 
                             // 3. Finalize Transaction (Deduct coins and create order)
-                            await runTransaction(db, async (transaction) => {
+                            const orderId = await runTransaction(db, async (transaction) => {
                                 const userDoc = await transaction.get(userRef);
                                 const currentCoins = userDoc.data().coins;
 
@@ -643,6 +643,7 @@ async function setupEventListeners() {
                                     createdAt: serverTimestamp(),
                                     updatedAt: serverTimestamp()
                                 });
+                                return orderRef.id;
                             });
 
                             showToast("🚀 Đơn hàng đã được tạo thành công!");
