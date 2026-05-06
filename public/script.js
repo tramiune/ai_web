@@ -637,20 +637,32 @@ function loadMyOrders() {
             const fullDate = d.createdAt ? d.createdAt.toDate().toLocaleDateString('vi-VN') : '';
             const statusVN = STATUS_MAP[d.status] || d.status;
             
+            // Kiểm tra xem đơn hàng có phải là "Mới" (trong vòng 5 phút) không
+            const isNew = d.createdAt && (Date.now() - d.createdAt.toDate().getTime() < 5 * 60 * 1000);
+            const rowClass = isNew ? 'new-order-highlight' : '';
+            
             return `
-                <tr onclick="window.openUserOrderDetail('${doc.id}')" style="cursor: pointer;">
+                <tr onclick="window.openUserOrderDetail('${doc.id}')" class="${rowClass}" style="cursor: pointer;">
                     <td>
                         <div style="width: 44px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); background: #000;">
                             <img src="${d.characterImageLink}" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                     </td>
                     <td>
-                        <div style="font-family: monospace; font-weight: bold; color: var(--accent-primary); font-size: 1rem;">#${orderId}</div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-family: monospace; font-weight: bold; color: var(--accent-primary); font-size: 1rem;">#${orderId}</span>
+                            ${isNew ? '<span class="new-badge">MỚI</span>' : ''}
+                        </div>
                         <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 2px;">${date} - ${fullDate}</div>
                     </td>
                     <td>
                         <span class="status-badge status-${d.status}">${statusVN}</span>
-                        ${d.resultLink ? '<div style="font-size: 0.7rem; color: var(--primary); margin-top: 4px; font-weight: 600;">✅ Đã có kết quả</div>' : ''}
+                        ${d.resultLink ? '<div style="font-size: 0.7rem; color: #2ecc71; margin-top: 4px; font-weight: 600;">✅ Xong</div>' : ''}
+                    </td>
+                    <td>
+                        <button class="btn-detail-view">
+                            <span>🔍 Xem</span>
+                        </button>
                     </td>
                 </tr>
             `;
