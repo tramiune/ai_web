@@ -75,8 +75,10 @@ async function getAccessToken(email, privateKey) {
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "");
 
-  // 4. Xóa sạch mọi ký tự lạ (bao gồm cả \n literal)
-  pemContents = pemContents.replace(/[^A-Za-z0-9+/]/g, "");
+  // 4. Xóa sạch mọi ký tự lạ (Xử lý kỹ lỗi biến \n thành n)
+  pemContents = pemContents
+    .replace(/\\n/g, "") // Xóa chuỗi \n (dấu xuyệt và chữ n)
+    .replace(/[^A-Za-z0-9+/]/g, ""); // Xóa mọi thứ không phải Base64
     
   // 5. Bù dấu =
   while (pemContents.length % 4 !== 0) pemContents += "=";
