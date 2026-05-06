@@ -56,12 +56,19 @@ async function getAccessToken(email, privateKey) {
 
   const message = `${header}.${payload}`;
   
-  // Clean PEM Key - Xóa sạch mọi ký tự lạ và cả dấu = ở giữa
-  let pemContents = privateKey
-    .replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----/g, "")
-    .replace(/[^A-Za-z0-9+/]/g, ""); // Tạm thời xóa hết cả dấu =
+  // Clean PEM Key - Cách làm mới an toàn hơn
+  const pemHeader = "-----BEGIN PRIVATE KEY-----";
+  const pemFooter = "-----END PRIVATE KEY-----";
+  let pemContents = privateKey.trim();
+  
+  if (pemContents.includes(pemHeader)) {
+    pemContents = pemContents.substring(pemContents.indexOf(pemHeader) + pemHeader.length, pemContents.indexOf(pemFooter));
+  }
+  
+  // Xóa sạch mọi thứ không phải Base64
+  pemContents = pemContents.replace(/[^A-Za-z0-9+/]/g, "");
     
-  // Bù lại dấu = ở cuối cho đúng chuẩn (Base64 length must be multiple of 4)
+  // Bù dấu = ở cuối
   while (pemContents.length % 4 !== 0) pemContents += "=";
     
   const binaryDerString = atob(pemContents);
@@ -70,9 +77,14 @@ async function getAccessToken(email, privateKey) {
     binaryDer[i] = binaryDerString.charCodeAt(i);
   }
   
-  const key = await crypto.subtle.importKey(
-    "pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
-  );
+  let key;
+  try {
+    key = await crypto.subtle.importKey(
+      "pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]
+    );
+  } catch (e) {
+    throw new Error(`Lỗi định dạng mã khóa (PKCS8): ${e.message}. Hãy kiểm tra lại mã bạn dán vào Cloudflare có đủ ký tự không.`);
+  }
   
   const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(message));
   const jwt = `${message}.${b64(String.fromCharCode(...new Uint8Array(signature)))}`;
