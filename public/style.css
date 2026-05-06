@@ -102,48 +102,131 @@ button {
 
 .nav-links {
   display: flex;
-  gap: 2.5rem;
+  gap: 1rem;
   align-items: center;
 }
 
-.nav-links a {
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.nav-links a:hover {
-  color: var(--text-main);
-}
-
-.auth-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--glass-border);
-  color: var(--text-main);
+.nav-item {
   padding: 0.6rem 1.2rem;
   border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: all 0.3s ease;
+}
+
+.nav-item:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item.active {
+  color: var(--text-main);
+  background: rgba(138, 43, 226, 0.2);
+  border: 1px solid rgba(138, 43, 226, 0.3);
+}
+
+.nav-icon {
+  font-size: 1.1rem;
+}
+
+/* User Profile Dropdown */
+.user-profile-dropdown {
+  position: relative;
+}
+
+.user-avatar-wrapper {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
+  padding: 0.4rem;
+  border-radius: 99px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.auth-btn:hover {
+.user-avatar-wrapper:hover {
   background: var(--bg-card-hover);
-  border-color: var(--text-muted);
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  border-color: var(--primary);
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 2px solid var(--primary);
   object-fit: cover;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-right: 0.4rem;
+}
+
+.dropdown-content {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: #1a1a2e;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  min-width: 200px;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  z-index: 1001;
+  overflow: hidden;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.dropdown-content.show {
+  display: flex;
+}
+
+.dropdown-user-info {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dropdown-user-info strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.dropdown-user-info span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dropdown-divider {
+  border: none;
+  border-top: 1px solid var(--glass-border);
+  margin: 0;
+}
+
+.dropdown-item {
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
 }
 
 /* Hero Section */

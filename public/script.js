@@ -113,14 +113,15 @@ async function logout() {
 async function handleUserLoggedIn(user) {
     const { db, doc, getDoc, setDoc, onSnapshot } = window.firebase;
 
-    document.getElementById('auth-section').innerHTML = `
-        <div class="user-profile">
-            <img src="${user.photoURL}" class="user-avatar" alt="Avatar">
-            <span style="font-weight: 600;">${user.displayName.split(' ')[0]}</span>
-            <button onclick="window.toggleDashboard()" class="auth-btn">Dashboard</button>
-            <button onclick="window.logoutUser()" class="auth-btn" style="color: var(--danger);">⨯</button>
-        </div>
-    `;
+    // Hiển thị Profile Menu thay vì ghi đè HTML
+    document.getElementById('login-btn').style.display = 'none';
+    document.getElementById('user-profile-menu').style.display = 'block';
+    document.getElementById('user-avatar').src = user.photoURL;
+    document.getElementById('dropdown-user-name').innerText = user.displayName;
+    document.getElementById('dropdown-user-email').innerText = user.email;
+    
+    // Hiển thị Dashboard link trong menu
+    document.getElementById('nav-db-li').style.display = 'block';
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
@@ -188,17 +189,21 @@ async function handleUserLoggedIn(user) {
 }
 
 function handleUserLoggedOut() {
-    document.getElementById('auth-section').innerHTML = `
-        <button class="auth-btn" id="login-btn" onclick="window.loginUser()">
-            <span>Đăng nhập Google</span>
-        </button>
-    `;
+    document.getElementById('login-btn').style.display = 'flex';
+    document.getElementById('user-profile-menu').style.display = 'none';
+    document.getElementById('nav-db-li').style.display = 'none';
     showLanding();
 }
 
 function showDashboard() {
     document.getElementById('landing-page').style.display = 'none';
     document.getElementById('user-dashboard').style.display = 'block';
+    
+    // Cập nhật Active State
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const dbBtn = document.getElementById('nav-dashboard');
+    if (dbBtn) dbBtn.classList.add('active');
+    
     window.scrollTo(0, 0);
 }
 
@@ -206,6 +211,11 @@ function showLanding() {
     document.getElementById('landing-page').style.display = 'block';
     document.getElementById('user-dashboard').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'none';
+    
+    // Cập nhật Active State
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const homeBtn = document.getElementById('nav-home');
+    if (homeBtn) homeBtn.classList.add('active');
 }
 
 window.toggleDashboard = () => {
@@ -222,13 +232,34 @@ window.showLanding = showLanding;
 window.showDashboard = showDashboard;
 
 // Helper for navbar links
-window.navTo = (id) => {
-    showLanding();
-    setTimeout(() => {
-        const el = document.getElementById(id);
-        if (el) el.scrollIntoView();
-    }, 100);
+window.navTo = (target) => {
+    if (target === 'user-dashboard') {
+        showDashboard();
+    } else if (target === 'landing-page') {
+        showLanding();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        // Cuộn đến section trong landing page
+        showLanding();
+        setTimeout(() => {
+            const el = document.getElementById(target);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    }
 };
+
+window.toggleUserMenu = (e) => {
+    if (e) e.stopPropagation();
+    document.getElementById('dropdown-menu').classList.toggle('show');
+};
+
+// Đóng menu khi click ra ngoài
+window.addEventListener('click', () => {
+    const menu = document.getElementById('dropdown-menu');
+    if (menu) menu.classList.remove('show');
+});
+
+window.logout = logout;
 
 // Custom Confirm Helper
 window.niceConfirm = ({ title, message, icon, onConfirm }) => {

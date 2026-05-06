@@ -17,17 +17,44 @@
     <!-- Sticky Navbar -->
     <nav class="navbar">
         <div class="nav-container">
-            <a href="#" class="logo">MotionAI Studio</a>
+            <a href="#" class="logo" onclick="window.navTo('landing-page')">MotionAI Studio</a>
+            
             <ul class="nav-links">
-                <li><a href="javascript:void(0)" onclick="window.navTo('services')">Dịch vụ</a></li>
-                <li><a href="javascript:void(0)" onclick="window.navTo('how-it-works')">Cách hoạt động</a></li>
-                <li><a href="javascript:void(0)" onclick="window.navTo('pricing')">Bảng giá</a></li>
-                <li><a href="javascript:void(0)" onclick="window.navTo('faq')">FAQ</a></li>
+                <li>
+                    <a href="javascript:void(0)" id="nav-home" class="nav-item active" onclick="window.navTo('landing-page')">
+                        <span class="nav-icon">🏠</span> Home
+                    </a>
+                </li>
+                <li id="nav-db-li" style="display: none;">
+                    <a href="javascript:void(0)" id="nav-dashboard" class="nav-item" onclick="window.navTo('user-dashboard')">
+                        <span class="nav-icon">📊</span> Dashboard
+                    </a>
+                </li>
             </ul>
+
             <div id="auth-section">
+                <!-- Logged Out State -->
                 <button class="auth-btn" id="login-btn">
                     <span>Đăng nhập Google</span>
                 </button>
+                
+                <!-- Logged In State (Hidden by default) -->
+                <div id="user-profile-menu" class="user-profile-dropdown" style="display: none;">
+                    <div class="user-avatar-wrapper" onclick="window.toggleUserMenu(event)">
+                        <img id="user-avatar" class="user-avatar" src="" alt="User">
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div id="dropdown-menu" class="dropdown-content">
+                        <div class="dropdown-user-info">
+                            <strong id="dropdown-user-name">User Name</strong>
+                            <span id="dropdown-user-email">email@gmail.com</span>
+                        </div>
+                        <hr class="dropdown-divider">
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.logout()">
+                            <span class="nav-icon">🚪</span> Đăng xuất
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </nav>
