@@ -1,0 +1,15 @@
+{
+  "name": "motion-ai-studio",
+  "version": "1.0.0",
+  "description": "MotionAI Studio - AI Video Motion Transfer Web",
+  "main": "index.html",
+  "scripts": {
+    "start": "live-server ."
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
