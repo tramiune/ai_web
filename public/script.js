@@ -495,42 +495,46 @@ async function uploadFile(file, folder) {
     if (workerUrl.endsWith('/')) workerUrl = workerUrl.slice(0, -1);
 
     const fileName = `${folder}/${Date.now()}_${file.name}`;
-    console.log("📤 Bắt đầu tải lên:", fileName);
+    const fetchUrl = `${workerUrl}/?file=${encodeURIComponent(fileName)}&t=${Date.now()}`;
+    
+    const progressVal = document.getElementById('progress-val');
+    
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', fetchUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
 
-    try {
-        // Thêm tham số cache buster để tránh bị cache lỗi
-        const fetchUrl = `${workerUrl}/?file=${encodeURIComponent(fileName)}&t=${Date.now()}`;
-
-        const response = await fetch(fetchUrl, {
-            method: 'POST',
-            body: file,
-            mode: 'cors', // Đảm bảo dùng mode cors
-            headers: {
-                'Content-Type': file.type || 'application/octet-stream'
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                if (progressVal) progressVal.innerText = percent;
+                console.log(`Progress: ${percent}%`);
             }
-        });
+        };
 
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Máy chủ từ chối (${response.status}): ${errorBody}`);
-        }
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.url) {
+                        resolve(data.url);
+                    } else {
+                        reject(new Error("Không nhận được địa chỉ file từ máy chủ."));
+                    }
+                } catch (e) {
+                    reject(new Error("Lỗi xử lý phản hồi từ máy chủ."));
+                }
+            } else {
+                reject(new Error(`Máy chủ từ chối (${xhr.status}): ${xhr.responseText}`));
+            }
+        };
 
-        const data = await response.json();
-        if (!data.url) throw new Error("Không nhận được địa chỉ file từ máy chủ.");
+        xhr.onerror = () => {
+            reject(new Error("❌ KHÔNG THỂ KẾT NỐI MÁY CHỦ! Vui lòng kiểm tra mạng hoặc VPN."));
+        };
 
-        console.log("✅ Tải lên thành công!", data.url);
-        return data.url;
-    } catch (error) {
-        console.error("🚨 Lỗi Upload:", error);
-
-        let msg = "Lỗi tải file: " + error.message;
-        if (error.message.includes('Failed to fetch')) {
-            msg = "❌ KHÔNG THỂ KẾT NỐI MÁY CHỦ TẢI FILE! Có thể do mạng của bạn chặn tên miền .workers.dev hoặc lỗi CORS. Hãy thử dùng mạng khác hoặc VPN.";
-        }
-
-        showToast(msg);
-        throw error;
-    }
+        xhr.send(file);
+    });
 }
 
 // --- Form Submissions ---
