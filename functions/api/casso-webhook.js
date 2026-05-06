@@ -131,10 +131,32 @@ function b64(str) { return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").rep
 async function signRS256(message, pem) {
     const pemHeader = "-----BEGIN PRIVATE KEY-----";
     const pemFooter = "-----END PRIVATE KEY-----";
-    const pemContents = pem.substring(pemHeader.length, pem.length - pemFooter.length).replace(/\s/g, "");
-    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
     
-    const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-    const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(message));
-    return b64(String.fromCharCode(...new Uint8Array(signature)));
+    // Loại bỏ header, footer và tất cả các ký tự xuống dòng, khoảng trắng
+    let pemContents = pem;
+    if (pem.includes(pemHeader)) {
+        pemContents = pem.substring(pem.indexOf(pemHeader) + pemHeader.length, pem.indexOf(pemFooter));
+    }
+    pemContents = pemContents.replace(/\s/g, "");
+
+    try {
+        const binaryDerString = atob(pemContents);
+        const binaryDer = new Uint8Array(binaryDerString.length);
+        for (let i = 0; i < binaryDerString.length; i++) {
+            binaryDer[i] = binaryDerString.charCodeAt(i);
+        }
+        
+        const key = await crypto.subtle.importKey(
+            "pkcs8", 
+            binaryDer, 
+            { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, 
+            false, 
+            ["sign"]
+        );
+        
+        const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(message));
+        return b64(String.fromCharCode(...new Uint8Array(signature)));
+    } catch (e) {
+        throw new Error("Lỗi giải mã Private Key: " + e.message);
+    }
 }
