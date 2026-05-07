@@ -30,19 +30,32 @@ if (!['vi', 'en'].includes(currentLang)) {
 window.currentLang = currentLang;
 
 export function t(path, params = {}) {
-    if (!window.TRANSLATIONS || !window.TRANSLATIONS[currentLang]) {
+    const lang = (currentLang || 'vi').trim();
+    if (!window.TRANSLATIONS) {
+        console.warn(`window.TRANSLATIONS is missing when looking for ${path}`);
+        return path;
+    }
+    if (!window.TRANSLATIONS[lang]) {
+        console.warn(`window.TRANSLATIONS[${lang}] is missing when looking for ${path}`);
         return path;
     }
     const keys = path.split('.');
-    let value = window.TRANSLATIONS[currentLang];
+    let value = window.TRANSLATIONS[lang];
     for (const key of keys) {
-        value = value ? value[key] : null;
+        if (value && Object.prototype.hasOwnProperty.call(value, key)) {
+            value = value[key];
+        } else {
+            console.warn(`Key ${key} missing in path ${path} for lang ${lang}`);
+            value = null;
+            break;
+        }
     }
     if (!value) return path;
+    let translated = String(value);
     Object.keys(params).forEach(key => {
-        value = value.replace(`{${key}}`, params[key]);
+        translated = translated.replace(`{${key}}`, params[key]);
     });
-    return value;
+    return translated;
 }
 window.t = t;
 
