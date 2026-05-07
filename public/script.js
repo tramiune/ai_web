@@ -22,22 +22,88 @@ let currentUser = null;
 let selectedTopupPackage = null;
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
-const STATUS_MAP = {
-    'pending': 'Đang chờ',
-    'approved': 'Đã duyệt',
-    'rejected': 'Bị từ chối',
-    'processing': 'Đang xử lý',
-    'completed': 'Hoàn thành',
-    'failed': 'Thất bại'
-};
+// --- i18n Logic ---
+let currentLang = localStorage.getItem('app_lang');
+if (!['vi', 'en'].includes(currentLang)) {
+    currentLang = navigator.language.startsWith('en') ? 'en' : 'vi';
+}
+window.currentLang = currentLang;
 
-const SERVICE_TYPE_MAP = {
-    'char-to-video': '👤 Thay nhân vật',
-    'motion-to-char': '💃 Cop motion'
-};
+export function t(path, params = {}) {
+    if (!window.TRANSLATIONS || !window.TRANSLATIONS[currentLang]) {
+        return path;
+    }
+    const keys = path.split('.');
+    let value = window.TRANSLATIONS[currentLang];
+    for (const key of keys) {
+        value = value ? value[key] : null;
+    }
+    if (!value) return path;
+    Object.keys(params).forEach(key => {
+        value = value.replace(`{${key}}`, params[key]);
+    });
+    return value;
+}
+window.t = t;
+
+const STATUS_MAP = () => ({
+    'pending': t('status.pending'),
+    'approved': t('status.approved'),
+    'rejected': t('status.rejected'),
+    'processing': t('status.processing'),
+    'completed': t('status.completed'),
+    'failed': t('status.failed'),
+    'new': t('status.new'),
+    'done': t('status.done')
+});
+
+const SERVICE_TYPE_MAP = () => ({
+    'char-to-video': t('services.char_to_video'),
+    'motion-to-char': t('services.motion_to_char')
+});
 
 window.STATUS_MAP = STATUS_MAP;
 window.SERVICE_TYPE_MAP = SERVICE_TYPE_MAP;
+
+export function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const translation = t(key);
+        if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit')) {
+            el.value = translation;
+        } else if (el.tagName === 'INPUT' && el.placeholder) {
+            el.placeholder = translation;
+        } else {
+            el.innerHTML = translation;
+        }
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        el.title = t(key);
+    });
+    
+    // Update language switcher active state
+    const langBtns = document.querySelectorAll('.lang-btn');
+    langBtns.forEach(btn => {
+        const btnLang = (btn.getAttribute('data-lang') || '').trim();
+        const isActive = btnLang === currentLang.trim();
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+window.switchLanguage = (lang) => {
+    currentLang = lang;
+    window.currentLang = lang;
+    localStorage.setItem('app_lang', lang);
+    applyTranslations();
+    if (currentUser) {
+        const greetingEl = document.getElementById('user-greeting');
+        if (greetingEl) greetingEl.innerText = t('dashboard.greeting', { name: currentUser.displayName });
+        loadMyOrders();
+    }
+    renderPricing();
+};
 
 // --- App Initialization ---
 export function initAppLogic() {
@@ -74,6 +140,24 @@ export function initAppLogic() {
     setupEventListeners();
     renderPricing();
     syncVideos();
+    initPremiumEffects();
+    // Call again after dynamic parts are rendered
+    applyTranslations();
+}
+
+// --- Premium Glow Effects ---
+function initPremiumEffects() {
+    // Mouse-follow Glow for Cards
+    document.addEventListener('mousemove', e => {
+        const cards = document.querySelectorAll('.card, .pricing-card, .wallet-card');
+        cards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+        });
+    });
 }
 
 // --- Video Synchronization ---
@@ -641,7 +725,7 @@ async function setupEventListeners() {
                                     userName: currentUser.displayName,
                                     packageName: model.name,
                                     serviceType: serviceType,
-                                    serviceLabel: SERVICE_TYPE_MAP[serviceType] || serviceType,
+                                    serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
                                     costCoins: model.cost,
                                     characterImageLink: charUrl,
                                     referenceVideoLink: videoUrl,
@@ -661,7 +745,7 @@ async function setupEventListeners() {
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
                             showDashboard();
-                            const serviceLabel = SERVICE_TYPE_MAP[serviceType] || serviceType;
+                            const serviceLabel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
                             const msg = `🚀 *ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}*\n\n` +
                                 `🆔 Mã đơn: #${orderId}\n` +
                                 `👤 Khách: ${currentUser.displayName}\n` +
@@ -715,6 +799,21 @@ function loadMyOrders() {
         where("userId", "==", currentUser.uid)
     );
 
+    const list = document.getElementById('my-orders-list');
+    if (list) {
+        list.innerHTML = Array(3).fill(0).map(() => `
+            <tr>
+                <td><div class="skeleton" style="width:44px; height:44px; border-radius:8px;"></div></td>
+                <td>
+                    <div class="skeleton" style="width:100px; height:16px; margin-bottom:8px;"></div>
+                    <div class="skeleton" style="width:60px; height:12px;"></div>
+                </td>
+                <td><div class="skeleton" style="width:70px; height:20px; border-radius:10px;"></div></td>
+                <td><div class="skeleton" style="width:30px; height:20px; border-radius:4px;"></div></td>
+            </tr>
+        `).join('');
+    }
+
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-orders-list');
         if (snapshot.empty) {
@@ -734,7 +833,7 @@ function loadMyOrders() {
             const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
             const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
             const fullDate = d.createdAt ? d.createdAt.toDate().toLocaleDateString('vi-VN') : '';
-            const statusVN = STATUS_MAP[d.status] || d.status;
+            const statusVN = STATUS_MAP()[d.status] || d.status;
 
             // Kiểm tra xem đơn hàng có phải là "Mới" (trong vòng 5 phút) không
             const isNew = d.createdAt && (Date.now() - d.createdAt.toDate().getTime() < 5 * 60 * 1000);
@@ -781,6 +880,18 @@ function loadMyTopups() {
         collection(db, "topups"),
         where("userId", "==", currentUser.uid)
     );
+    const list = document.getElementById('my-topups-list');
+    if (list) {
+        list.innerHTML = Array(3).fill(0).map(() => `
+            <tr>
+                <td><div class="skeleton" style="width:100px; height:16px;"></div></td>
+                <td><div class="skeleton" style="width:60px; height:16px;"></div></td>
+                <td><div class="skeleton" style="width:40px; height:16px;"></div></td>
+                <td><div class="skeleton" style="width:80px; height:20px; border-radius:10px;"></div></td>
+                <td><div class="skeleton" style="width:100px; height:12px;"></div></td>
+            </tr>
+        `).join('');
+    }
 
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-topups-list');
@@ -799,7 +910,7 @@ function loadMyTopups() {
         list.innerHTML = sortedDocs.map(doc => {
             const d = doc.data();
             const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
-            const statusVN = STATUS_MAP[d.status] || d.status;
+            const statusVN = STATUS_MAP()[d.status] || d.status;
             return `
                 <tr>
                     <td>${d.packageName}</td>
@@ -904,7 +1015,7 @@ window.openAdminDetail = async (orderId) => {
             </div>
             <div class="info-item">
                 <span class="info-label">🔧 Kiểu dịch vụ</span>
-                <span class="info-value" style="color: var(--accent); font-weight: bold;">${SERVICE_TYPE_MAP[d.serviceType] || d.serviceType}</span>
+                <span class="info-value" style="color: var(--accent); font-weight: bold;">${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">📏 Tỷ lệ khung hình</span>
@@ -1006,7 +1117,7 @@ function loadAdminPanel() {
                                 <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${doc.id}', '${d.userId}', ${d.coins})">Duyệt</button>
                                 <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${doc.id}')">Hủy</button>
                             ` : `
-                                <span class="status-badge status-${d.status}">${STATUS_MAP[d.status] || d.status}</span>
+                                <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
                             `}
                         </td>
                     </tr>
@@ -1059,9 +1170,31 @@ window.openUserOrderDetail = async (orderId) => {
     if (!snap.exists()) return;
     const d = snap.data();
     const shortId = snap.id.substring(snap.id.length - 6).toUpperCase();
-    const statusVN = window.STATUS_MAP ? window.STATUS_MAP[d.status] : d.status;
+    const statusLabel = STATUS_MAP()[d.status] || d.status;
+
+    // Timeline Steps logic
+    const steps = ['pending', 'processing', 'completed'];
+    const currentStepIdx = steps.indexOf(d.status) === -1 ? 0 : steps.indexOf(d.status);
+    
+    const timelineHtml = `
+        <div class="status-timeline">
+            <div class="timeline-step ${currentStepIdx >= 0 ? 'active' : ''}">
+                <div class="step-dot">1</div>
+                <span class="step-label">${t('status.pending')}</span>
+            </div>
+            <div class="timeline-step ${currentStepIdx >= 1 ? 'active' : ''}">
+                <div class="step-dot">2</div>
+                <span class="step-label">${t('status.processing')}</span>
+            </div>
+            <div class="timeline-step ${currentStepIdx >= 2 ? 'active' : ''}">
+                <div class="step-dot">3</div>
+                <span class="step-label">${t('status.completed')}</span>
+            </div>
+        </div>
+    `;
 
     document.getElementById('user-order-info').innerHTML = `
+        ${timelineHtml}
         <div class="admin-info-grid">
             <div class="info-item">
                 <span class="info-label">🆔 Mã đơn hàng</span>
