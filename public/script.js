@@ -31,6 +31,14 @@ const STATUS_MAP = {
     'failed': 'Thất bại'
 };
 
+const SERVICE_TYPE_MAP = {
+    'char-to-video': '👤 Thay nhân vật',
+    'motion-to-char': '💃 Cop motion'
+};
+
+window.STATUS_MAP = STATUS_MAP;
+window.SERVICE_TYPE_MAP = SERVICE_TYPE_MAP;
+
 // --- App Initialization ---
 export function initAppLogic() {
     // Global Error Handler for debugging
@@ -122,7 +130,7 @@ async function handleUserLoggedIn(user) {
     document.getElementById('user-avatar').src = user.photoURL;
     document.getElementById('dropdown-user-name').innerText = user.displayName;
     document.getElementById('dropdown-user-email').innerText = user.email;
-    
+
     // Hiển thị Dashboard link trong dropdown
     const dbItem = document.getElementById('db-dropdown-item');
     if (dbItem) dbItem.style.display = 'flex';
@@ -164,7 +172,7 @@ async function handleUserLoggedIn(user) {
         if (snapshot.exists()) {
             const data = snapshot.data();
             const currentCoins = data.coins || 0;
-            
+
             // Tự động nhận biết nạp coin thành công
             const topupModal = document.getElementById('topup-modal');
             if (topupModal && topupModal.style.display === 'flex' && currentCoins > initialCoinsBeforeTopup) {
@@ -203,10 +211,10 @@ async function handleUserLoggedIn(user) {
 function handleUserLoggedOut() {
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
-    
+
     const dbItem = document.getElementById('db-dropdown-item');
     if (dbItem) dbItem.style.display = 'none';
-    
+
     showLanding();
 }
 
@@ -342,7 +350,7 @@ window.openPricingModal = () => {
 window.selectTopup = async (id) => {
     if (!currentUser) return login();
     selectedTopupPackage = COIN_PACKAGES.find(p => p.id === id);
-    
+
     // Lưu số dư hiện tại để theo dõi biến động khi nạp
     initialCoinsBeforeTopup = parseInt(document.getElementById('coin-balance').innerText) || 0;
 
@@ -425,16 +433,16 @@ window.niceConfirm = ({ title, message, icon, onConfirm }) => {
     document.getElementById('confirm-title').innerText = title;
     document.getElementById('confirm-msg').innerText = message;
     document.getElementById('confirm-icon').innerText = icon || '❓';
-    
+
     const yesBtn = document.getElementById('confirm-yes-btn');
     const newBtn = yesBtn.cloneNode(true);
     yesBtn.parentNode.replaceChild(newBtn, yesBtn);
-    
+
     newBtn.onclick = () => {
         closeModal('confirm-modal');
         if (onConfirm) onConfirm();
     };
-    
+
     window.openModal('confirm-modal');
 };
 
@@ -496,9 +504,9 @@ async function uploadFile(file, folder) {
 
     const fileName = `${folder}/${Date.now()}_${file.name}`;
     const fetchUrl = `${workerUrl}/?file=${encodeURIComponent(fileName)}&t=${Date.now()}`;
-    
+
     const progressVal = document.getElementById('progress-val');
-    
+
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', fetchUrl, true);
@@ -633,6 +641,7 @@ async function setupEventListeners() {
                                     userName: currentUser.displayName,
                                     packageName: model.name,
                                     serviceType: serviceType,
+                                    serviceLabel: SERVICE_TYPE_MAP[serviceType] || serviceType,
                                     costCoins: model.cost,
                                     characterImageLink: charUrl,
                                     referenceVideoLink: videoUrl,
@@ -652,14 +661,16 @@ async function setupEventListeners() {
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
                             showDashboard();
-                            const msg = `🚀 *ĐƠN HÀNG MỚI!*\n\n` +
-                                        `🆔 Mã đơn: #${orderId}\n` +
-                                        `👤 Khách: ${currentUser.displayName}\n` +
-                                        `📧 Email: ${currentUser.email}\n` +
-                                        `📦 Gói: ${model.name}\n` +
-                                        `💰 Chi phí: ${model.cost} Coin\n` +
-                                        `🖼 [Xem ảnh nhân vật](${charUrl})\n` +
-                                        `📹 [Xem video tham chiếu](${videoUrl})`;
+                            const serviceLabel = SERVICE_TYPE_MAP[serviceType] || serviceType;
+                            const msg = `🚀 *ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}*\n\n` +
+                                `🆔 Mã đơn: #${orderId}\n` +
+                                `👤 Khách: ${currentUser.displayName}\n` +
+                                `📧 Email: ${currentUser.email}\n` +
+                                `🔧 Dịch vụ: *${serviceLabel}*\n` +
+                                `📦 Gói: ${model.name}\n` +
+                                `💰 Chi phí: ${model.cost} Coin\n` +
+                                `🖼 [Xem ảnh nhân vật](${charUrl})\n` +
+                                `📹 [Xem video tham chiếu](${videoUrl})`;
                             sendTelegramMessage(msg);
                         } catch (err) {
                             console.error("Order Creation Error:", err);
@@ -700,7 +711,7 @@ async function setupEventListeners() {
 function loadMyOrders() {
     const { db, collection, query, where, onSnapshot } = window.firebase;
     const q = query(
-        collection(db, "orders"), 
+        collection(db, "orders"),
         where("userId", "==", currentUser.uid)
     );
 
@@ -724,11 +735,11 @@ function loadMyOrders() {
             const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
             const fullDate = d.createdAt ? d.createdAt.toDate().toLocaleDateString('vi-VN') : '';
             const statusVN = STATUS_MAP[d.status] || d.status;
-            
+
             // Kiểm tra xem đơn hàng có phải là "Mới" (trong vòng 5 phút) không
             const isNew = d.createdAt && (Date.now() - d.createdAt.toDate().getTime() < 5 * 60 * 1000);
             const rowClass = isNew ? 'new-order-highlight' : '';
-            
+
             return `
                 <tr onclick="window.openUserOrderDetail('${doc.id}')" class="${rowClass}" style="cursor: pointer;">
                     <td>
@@ -767,7 +778,7 @@ function loadMyOrders() {
 function loadMyTopups() {
     const { db, collection, query, where, onSnapshot } = window.firebase;
     const q = query(
-        collection(db, "topups"), 
+        collection(db, "topups"),
         where("userId", "==", currentUser.uid)
     );
 
@@ -890,6 +901,10 @@ window.openAdminDetail = async (orderId) => {
             <div class="info-item">
                 <span class="info-label">📦 Gói dịch vụ</span>
                 <span class="info-value">${d.packageName}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">🔧 Kiểu dịch vụ</span>
+                <span class="info-value" style="color: var(--accent); font-weight: bold;">${SERVICE_TYPE_MAP[d.serviceType] || d.serviceType}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">📏 Tỷ lệ khung hình</span>
@@ -1079,18 +1094,18 @@ window.openUserOrderDetail = async (orderId) => {
                 </div>
             </div>
             ${(() => {
-                const finalResultLink = d.resultLink;
-                if (!finalResultLink) return '';
-                const isWorkerLink = finalResultLink.includes('workers.dev');
-                const downloadUrl = isWorkerLink ? finalResultLink + (finalResultLink.includes('?') ? '&' : '?') + 'download=1' : finalResultLink;
-                return `
+            const finalResultLink = d.resultLink;
+            if (!finalResultLink) return '';
+            const isWorkerLink = finalResultLink.includes('workers.dev');
+            const downloadUrl = isWorkerLink ? finalResultLink + (finalResultLink.includes('?') ? '&' : '?') + 'download=1' : finalResultLink;
+            return `
                 <div class="info-item" style="grid-column: span 2;">
                     <span class="info-label">🎬 Kết quả video</span>
                     <a href="${downloadUrl}" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 8px; text-decoration:none; width: 100%; font-weight: 600;">Tải Video Về Máy (7 Ngày)</a>
                     <p style="font-size: 0.75rem; color: var(--danger); margin-top: 8px; text-align: center;">⚠️ Video sẽ bị xóa vĩnh viễn khỏi máy chủ sau 7 ngày.</p>
                 </div>
                 `;
-            })()}
+        })()}
             ${d.adminNote ? `
             <div class="info-item" style="grid-column: span 2;">
                 <span class="info-label">💬 Ghi chú từ hệ thống</span>
