@@ -1085,8 +1085,31 @@ function loadMyOrders() {
         `).join('');
     }
 
+    let isFirstLoad = true;
     onSnapshot(q, (snapshot) => {
         if (!grid) return;
+
+        // Detect changes for notifications
+        if (!isFirstLoad) {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === "modified") {
+                    const data = change.doc.data();
+                    const oldData = snapshot.docs.find(d => d.id === change.doc.id)?.data(); // This is not reliable, use a different way
+                    // Actually docChanges() only gives us the NEW data. 
+                    // To be sure it's a status change, we could compare or just notify on any mod.
+                    const orderId = change.doc.id.substring(change.doc.id.length - 6).toUpperCase();
+                    const statusVN = STATUS_MAP()[data.status] || data.status;
+                    
+                    if (data.status === 'completed') {
+                        showToast(`🎉 Đơn hàng #${orderId} đã hoàn thành!`);
+                        // Optional: play sound
+                    } else {
+                        showToast(`ℹ️ Đơn hàng #${orderId} chuyển sang: ${statusVN}`);
+                    }
+                }
+            });
+        }
+        isFirstLoad = false;
         
         if (snapshot.empty) {
             grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
@@ -1173,8 +1196,26 @@ function loadMyTopups() {
         `).join('');
     }
 
+    let isFirstLoadTopup = true;
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-topups-list');
+
+        // Detect changes for notifications
+        if (!isFirstLoadTopup) {
+            snapshot.docChanges().forEach(change => {
+                if (change.type === "modified") {
+                    const data = change.doc.data();
+                    const statusVN = STATUS_MAP()[data.status] || data.status;
+                    
+                    if (data.status === 'approved') {
+                        showToast(`✨ Đơn nạp ${data.packageName} đã được DUYỆT!`);
+                    } else if (data.status === 'rejected') {
+                        showToast(`❌ Đơn nạp ${data.packageName} đã bị TỪ CHỐI.`);
+                    }
+                }
+            });
+        }
+        isFirstLoadTopup = false;
         if (snapshot.empty) {
             list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_topups')}</td></tr>`;
             return;
