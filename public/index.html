@@ -961,7 +961,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
@@ -973,7 +973,7 @@
         const storage = getStorage(app);
 
         // Make Firebase available globally for script.js
-        window.firebase = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
+        window.firebase = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
         window.ADMIN_EMAILS = ADMIN_EMAILS;
 
         initAppLogic();
