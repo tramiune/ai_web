@@ -9,8 +9,8 @@ const TELEGRAM_CHAT_ID = '6067707939';
 const COIN_PACKAGES = [
     { id: 'creator', name: 'Creator', coins: 67, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 17 Coin' },
     { id: 'starter', name: 'Starter', coins: 15, price: '20.000đ', amount: 20000 },
-    { id: 'studio', name: 'Studio', coins: 120, price: '150.000đ', amount: 150000 },
-    { id: 'pro-studio', name: 'Pro Studio', coins: 300, price: '400.000đ', amount: 400000 }
+    { id: 'studio', name: 'Studio', coins: 450, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
+    { id: 'pro-studio', name: 'Enterprise', coins: 1200, price: '1.000.000đ', amount: 1000000, note: 'Tặng 200 Coin' }
 ];
 
 const TREND_VIDEOS = [
