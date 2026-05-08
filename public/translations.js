@@ -6,7 +6,8 @@ window.TRANSLATIONS = {
             logout: "Đăng xuất",
             login: "Đăng nhập",
             terms: "Điều khoản",
-            privacy: "Bảo mật"
+            privacy: "Bảo mật",
+            home: "Trang chủ"
         },
         hero: {
             title: "Biến 1 ảnh thành video bắt trend",
@@ -16,8 +17,66 @@ window.TRANSLATIONS = {
         },
         badges: {
             no_prompt: "Không cần prompt",
-            fast_speed: "Xử lý nhanh",
-            high_quality: "Chất lượng 4K"
+            support_tiktok: "Hỗ trợ TikTok/Reels",
+            high_quality: "Xử lý chất lượng cao",
+            custom_req: "Tùy chỉnh theo yêu cầu"
+        },
+        services: {
+            title: "Không cần tự prompt từng động tác",
+            subtitle: "Chúng tôi giúp bạn tiết kiệm hàng giờ thử nghiệm AI. Chỉ cần gửi file và nhận kết quả.",
+            char_title: "Ảnh rõ nhân vật",
+            char_desc: "Chỉ cần 1 bức ảnh rõ mặt hoặc toàn thân của nhân vật bạn muốn animate.",
+            video_title: "Video mẫu",
+            video_desc: "Chọn bất kỳ video dance trend hoặc hành động nào bạn muốn nhân vật bắt chước.",
+            ready_title: "Nhận video sẵn sàng",
+            ready_desc: "Đội ngũ chuyên gia xử lý thủ công để đảm bảo video mượt mà và tự nhiên nhất.",
+            char_to_video: "Lồng người vào Video",
+            motion_to_char: "Copy chuyển động vào Ảnh"
+        },
+        use_cases: {
+            title: "Ứng dụng đa dạng",
+            subtitle: "Phù hợp cho mọi nhu cầu tạo nội dung số hiện đại.",
+            dance: "AI Dance Trend",
+            dance_desc: "Biến nhân vật của bạn thành ngôi sao TikTok với các điệu nhảy viral.",
+            fashion: "Người mẫu thời trang",
+            fashion_desc: "Cho phép người mẫu/outfit thực hiện các bước đi catwalk chuyên nghiệp.",
+            mascot: "Mascot Thương hiệu",
+            mascot_desc: "Làm sống động linh vật thương hiệu để tương tác với khách hàng.",
+            virtual: "Nhân vật ảo TikTok",
+            virtual_desc: "Xây dựng kênh content với nhân vật AI không cần lộ mặt.",
+            product: "Video Sản phẩm",
+            product_desc: "Tạo các chuyển động nghệ thuật cho sản phẩm của bạn.",
+            creative: "Content sáng tạo",
+            creative_desc: "Bất kỳ ý tưởng nào bạn muốn hiện thực hóa qua video."
+        },
+        how_it_works: {
+            title: "Quy trình đơn giản",
+            step1_title: "1. Đăng nhập",
+            step1_desc: "Sử dụng tài khoản Google để bắt đầu ngay lập tức.",
+            step2_title: "2. Nạp coin",
+            step2_desc: "Chọn gói coin phù hợp với nhu cầu của bạn.",
+            step3_title: "3. Gửi yêu cầu",
+            step3_desc: "Tải ảnh, link video mẫu và mô tả yêu cầu của bạn.",
+            tips_title: "💡 Mẹo để video đẹp nhất",
+            tip1: "• Ảnh nên rõ mặt, rõ toàn thân nếu muốn nhảy.",
+            tip2: "• Video mẫu nên có 1 người chính, chuyển động rõ ràng.",
+            tip3: "• Tránh video quá mờ, quá tối hoặc nhiều người che nhau."
+        },
+        pricing: {
+            title: "Gói nạp Coin",
+            subtitle: "Nạp coin một lần, sử dụng cho mọi dịch vụ.",
+            service_title: "Gói dịch vụ Video",
+            featured: "Bán chạy nhất",
+            select_pkg: "Chọn gói"
+        },
+        faq: {
+            title: "Câu hỏi thường gặp",
+            q1: "Bao lâu nhận được video?",
+            a1: "Thời gian xử lý trung bình từ 15 - 20 phút, tối đa không quá 24h tùy độ phức tạp của yêu cầu.",
+            q2: "Nếu video chưa ưng ý?",
+            a2: "Các gói Plus và Viral hỗ trợ sửa đổi miễn phí theo yêu cầu.",
+            q3: "Coin có hết hạn không?",
+            a3: "Không, coin của bạn sẽ được bảo lưu vĩnh viễn trong tài khoản."
         },
         status: {
             pending: "Đang chờ xử lý",
@@ -29,17 +88,15 @@ window.TRANSLATIONS = {
             new: "MỚI",
             done: "Xong",
             empty_orders_msg: "Chưa có đơn hàng nào trong mục này",
-            empty_topups_msg: "Không có dữ liệu đơn nạp"
-        },
-        services: {
-            char_to_video: "Lồng người vào Video",
-            motion_to_char: "Copy chuyển động vào Ảnh"
+            empty_topups_msg: "Không có dữ liệu đơn nạp",
+            no_orders: "Chưa có đơn hàng nào.",
+            no_topups: "Chưa có yêu cầu nạp nào."
         },
         dashboard: {
             greeting: "Chào mừng, {name}! ✨",
             balance: "Số dư Coin",
             topup: "Nạp thêm",
-            create_new: "Tạo video mới",
+            create_new: "+ Tạo video mới",
             my_videos: "Video của tôi",
             topup_history: "Lịch sử nạp coin",
             col_image: "Ảnh",
@@ -49,20 +106,69 @@ window.TRANSLATIONS = {
             col_package: "Gói nạp",
             col_amount: "Số tiền",
             col_coins: "Coin nhận",
-            col_date: "Ngày gửi"
+            col_date: "Ngày gửi",
+            note_storage: "⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>",
+            action_view: "🔍 Xem"
         },
         modals: {
             topup_title: "Nạp Coin tự động",
-            order_title: "Tạo video AI mới",
-            order_subtitle: "Vui lòng tải lên ảnh và video mẫu để bắt đầu.",
-            char_label: "Ảnh nhân vật",
-            video_label: "Video mẫu chuyển động",
-            model_label: "Chọn Model AI",
+            topup_subtitle: "Hệ thống tự động cộng coin sau khi nhận được thanh toán.",
+            qr_mb_bank: "Quét mã QR MB Bank",
+            generating_qr: "Đang tạo mã QR...",
+            acc_no: "Số tài khoản:",
+            acc_name: "Chủ tài khoản:",
+            transfer_note: "Nội dung chuyển khoản (Bắt buộc):",
+            waiting_payment: "Đang chờ xác nhận thanh toán...",
+            auto_topup_notice: "* Coin sẽ được cộng tự động. Vui lòng giữ cửa sổ này cho đến khi hoàn tất.",
+            
+            order_title: "Tạo video mới",
+            order_subtitle: "Chọn ảnh và video để bắt đầu sáng tạo.",
+            char_label: "1. Ảnh nhân vật",
+            char_placeholder: "Nhấn để chọn ảnh",
+            char_note: "Lưu ý: Nên chọn ảnh chân dung full người.",
+            video_label: "2. Video mẫu / bối cảnh",
+            video_placeholder: "Nhấn để chọn video",
+            video_note: "Lưu ý: Đảm bảo nhân vật xuất hiện ngay từ đầu video.",
+            service_type_label: "Chọn kiểu dịch vụ",
+            service_copy_motion: "Copy motion vào Ảnh",
+            service_copy_motion_desc: "Nhân vật trong ảnh sẽ thực hiện chuyển động của video.",
+            service_insert_char: "Lồng nhân vật vào Video",
+            service_insert_char_desc: "Lấy người từ ảnh dán vào bối cảnh video mẫu.",
+            model_label: "Chọn Model (Chất lượng)",
+            model_basic: "Model Tiêu chuẩn",
+            model_pro: "Model Cao cấp",
+            aspect_ratio_label: "Tỉ lệ video",
+            aspect_ratio_vertical: "Dọc (TikTok)",
+            aspect_ratio_horizontal: "Ngang (YouTube)",
             submit_order: "Thành video ngay ({cost} coin)",
-            confirm_title: "Xác nhận đơn hàng",
-            confirm_msg: "Bạn sẽ mất {cost} coin cho yêu cầu này. Bạn có chắc chắn muốn tiếp tục?",
+            uploading: "Đang tải file lên...",
+            
+            confirm_order_title: "Xác nhận đơn hàng",
+            confirm_order_msg: "Hệ thống hiện đang có nhiều yêu cầu xử lý. Thời gian ước tính hoàn thành cho video của bạn là khoảng {min}-{max} phút. Bạn có đồng ý tiếp tục gửi yêu cầu và trừ {cost} coin không?",
+            
             insufficient_coins_title: "Số dư không đủ",
-            insufficient_coins_msg: "Số dư của bạn không đủ. Bạn có muốn nạp thêm Coin ngay không?"
+            insufficient_coins_msg: "Số dư của bạn không đủ để thực hiện yêu cầu này. Bạn có muốn nạp thêm Coin ngay không?",
+            
+            order_detail_title: "Chi tiết đơn hàng",
+            order_id: "🆔 Mã đơn hàng",
+            order_status: "✨ Trạng thái",
+            order_package: "📦 Gói dịch vụ",
+            order_aspect: "📏 Tỷ lệ khung hình",
+            order_char_img: "🖼️ Ảnh nhân vật",
+            order_ref_video: "📹 Video tham chiếu",
+            order_result_video: "🎬 Kết quả video",
+            order_download: "Tải Video Về Máy (7 Ngày)",
+            order_expiry_warn: "⚠️ Video sẽ bị xóa vĩnh viễn khỏi máy chủ sau 7 ngày.",
+            order_system_note: "💬 Ghi chú từ hệ thống",
+            
+            back: "Quay lại",
+            agree: "Đồng ý",
+            close: "&times;"
+        },
+        footer: {
+            rights: "&copy; 2026 MotionAI Studio. All rights reserved.",
+            terms: "Điều khoản dịch vụ",
+            privacy: "Chính sách bảo mật"
         },
         common: {
             error_auth: "Lỗi xác thực: {msg}",
@@ -70,7 +176,22 @@ window.TRANSLATIONS = {
             support_chat: "Chat với chúng tôi ✨",
             loading: "Đang tải...",
             success: "Thành công!",
-            error: "Lỗi!"
+            error: "Lỗi!",
+            toast_login_success: "Đăng nhập thành công!",
+            toast_login_failed: "Đăng nhập thất bại.",
+            toast_logout_success: "Đã đăng xuất.",
+            toast_order_created: "🚀 Đơn hàng đã được tạo thành công!",
+            toast_upload_error: "❌ Lỗi khi tải file.",
+            toast_coins_added: "✨ Thanh toán thành công! Đã cộng coin vào tài khoản."
+        },
+        admin: {
+            upload_video: "Vui lòng chọn file video!",
+            uploading: "⏳ Đang tải lên...",
+            upload_start: "Bắt đầu tải video lên R2...",
+            upload_success: "✅ Tải lên thành công! Link đã được tự động điền.",
+            toast_upload_success: "Đã tải video lên thành công!",
+            toast_upload_error: "Lỗi khi tải video lên.",
+            btn_upload: "🚀 Tải lên Worker"
         }
     },
     en: {
@@ -79,7 +200,8 @@ window.TRANSLATIONS = {
             logout: "Logout",
             login: "Login",
             terms: "Terms",
-            privacy: "Privacy"
+            privacy: "Privacy",
+            home: "Home"
         },
         hero: {
             title: "Transform 1 Photo into Trending Video",
@@ -89,8 +211,66 @@ window.TRANSLATIONS = {
         },
         badges: {
             no_prompt: "No prompt needed",
-            fast_speed: "Fast processing",
-            high_quality: "4K Quality"
+            support_tiktok: "TikTok/Reels Support",
+            high_quality: "High quality processing",
+            custom_req: "Custom requirements"
+        },
+        services: {
+            title: "No manual prompting required",
+            subtitle: "We save you hours of AI experimentation. Just send files and get results.",
+            char_title: "Clear Character Photo",
+            char_desc: "Just 1 clear face or full body photo of the character you want to animate.",
+            video_title: "Reference Video",
+            video_desc: "Choose any dance trend or action video you want the character to mimic.",
+            ready_title: "Get Ready Video",
+            ready_desc: "Manual processing by experts to ensure smooth and natural results.",
+            char_to_video: "Insert Character into Video",
+            motion_to_char: "Copy Motion to Image"
+        },
+        use_cases: {
+            title: "Diverse Applications",
+            subtitle: "Suitable for all modern digital content needs.",
+            dance: "AI Dance Trend",
+            dance_desc: "Turn your character into a TikTok star with viral dances.",
+            fashion: "Fashion Model",
+            fashion_desc: "Let models/outfits perform professional catwalk steps.",
+            mascot: "Brand Mascot",
+            mascot_desc: "Bring brand mascots to life to interact with customers.",
+            virtual: "Virtual TikToker",
+            virtual_desc: "Build content channels with AI characters without revealing your face.",
+            product: "Product Video",
+            product_desc: "Create artistic movements for your products.",
+            creative: "Creative Content",
+            creative_desc: "Any idea you want to realize through video."
+        },
+        how_it_works: {
+            title: "Simple Process",
+            step1_title: "1. Login",
+            step1_desc: "Use your Google account to get started instantly.",
+            step2_title: "2. Top-up Coins",
+            step2_desc: "Choose a coin package that fits your needs.",
+            step3_title: "3. Send Request",
+            step3_desc: "Upload photo, reference video link, and your requirements.",
+            tips_title: "💡 Tips for Best Results",
+            tip1: "• Photo should be clear face, full body for dancing.",
+            tip2: "• Reference video should have 1 main person, clear motion.",
+            tip3: "• Avoid blurry, dark videos or multiple overlapping people."
+        },
+        pricing: {
+            title: "Coin Packages",
+            subtitle: "Top up once, use for all services.",
+            service_title: "Video Service Packages",
+            featured: "Best Seller",
+            select_pkg: "Select Package"
+        },
+        faq: {
+            title: "Frequently Asked Questions",
+            q1: "How long to receive the video?",
+            a1: "Average processing time is 15-20 minutes, maximum 24h depending on complexity.",
+            q2: "What if I'm not satisfied?",
+            a2: "Plus and Viral packages support free revisions upon request.",
+            q3: "Do coins expire?",
+            a3: "No, your coins are permanently saved in your account."
         },
         status: {
             pending: "Pending",
@@ -102,17 +282,15 @@ window.TRANSLATIONS = {
             new: "NEW",
             done: "Done",
             empty_orders_msg: "No orders found in this category",
-            empty_topups_msg: "No top-up data found"
-        },
-        services: {
-            char_to_video: "Insert Character into Video",
-            motion_to_char: "Copy Motion to Image"
+            empty_topups_msg: "No top-up data found",
+            no_orders: "No orders yet.",
+            no_topups: "No top-up requests yet."
         },
         dashboard: {
             greeting: "Welcome, {name}! ✨",
             balance: "Coin Balance",
             topup: "Top-up",
-            create_new: "Create New Video",
+            create_new: "+ Create New Video",
             my_videos: "My Videos",
             topup_history: "Top-up History",
             col_image: "Image",
@@ -122,20 +300,69 @@ window.TRANSLATIONS = {
             col_package: "Package",
             col_amount: "Amount",
             col_coins: "Coins Received",
-            col_date: "Date Sent"
+            col_date: "Date Sent",
+            note_storage: "⚠️ <i>Note: The system only stores result videos for 7 days. Please download early!</i>",
+            action_view: "🔍 View"
         },
         modals: {
             topup_title: "Automated Top-up",
-            order_title: "Create New AI Video",
-            order_subtitle: "Please upload photo and motion video to start.",
-            char_label: "Character Photo",
-            video_label: "Motion Reference Video",
-            model_label: "Select AI Model",
+            topup_subtitle: "System automatically adds coins after receiving payment.",
+            qr_mb_bank: "Scan MB Bank QR Code",
+            generating_qr: "Generating QR Code...",
+            acc_no: "Account No:",
+            acc_name: "Account Name:",
+            transfer_note: "Transfer Content (Required):",
+            waiting_payment: "Waiting for payment confirmation...",
+            auto_topup_notice: "* Coins will be added automatically. Please keep this window open until complete.",
+            
+            order_title: "Create New Video",
+            order_subtitle: "Choose photo and video to start creating.",
+            char_label: "1. Character Photo",
+            char_placeholder: "Click to select photo",
+            char_note: "Note: Full body portrait recommended.",
+            video_label: "2. Reference Video / Background",
+            video_placeholder: "Click to select video",
+            video_note: "Note: Ensure character appears from the start.",
+            service_type_label: "Select Service Type",
+            service_copy_motion: "Copy motion to Photo",
+            service_copy_motion_desc: "Character in photo will perform the video motion.",
+            service_insert_char: "Insert Character into Video",
+            service_insert_char_desc: "Paste character from photo into video background.",
+            model_label: "Select Model (Quality)",
+            model_basic: "Standard Model",
+            model_pro: "Pro Model",
+            aspect_ratio_label: "Aspect Ratio",
+            aspect_ratio_vertical: "Vertical (TikTok)",
+            aspect_ratio_horizontal: "Horizontal (YouTube)",
             submit_order: "Create Video ({cost} coins)",
-            confirm_title: "Confirm Order",
-            confirm_msg: "You will spend {cost} coins for this request. Are you sure?",
+            uploading: "Uploading files...",
+            
+            confirm_order_title: "Confirm Order",
+            confirm_order_msg: "System is currently busy. Estimated time to complete your video is {min}-{max} minutes. Do you agree to proceed and deduct {cost} coins?",
+            
             insufficient_coins_title: "Insufficient Balance",
-            insufficient_coins_msg: "Your balance is not enough. Would you like to top up now?"
+            insufficient_coins_msg: "Your balance is not enough. Would you like to top up now?",
+            
+            order_detail_title: "Order Details",
+            order_id: "🆔 Order ID",
+            order_status: "✨ Status",
+            order_package: "📦 Service Package",
+            order_aspect: "📏 Aspect Ratio",
+            order_char_img: "🖼️ Character Photo",
+            order_ref_video: "📹 Reference Video",
+            order_result_video: "🎬 Video Result",
+            order_download: "Download Video (7 Days)",
+            order_expiry_warn: "⚠️ Video will be permanently deleted after 7 days.",
+            order_system_note: "💬 System Note",
+            
+            back: "Back",
+            agree: "Agree",
+            close: "&times;"
+        },
+        footer: {
+            rights: "&copy; 2026 MotionAI Studio. All rights reserved.",
+            terms: "Terms of Service",
+            privacy: "Privacy Policy"
         },
         common: {
             error_auth: "Auth Error: {msg}",
@@ -143,7 +370,22 @@ window.TRANSLATIONS = {
             support_chat: "Chat with us ✨",
             loading: "Loading...",
             success: "Success!",
-            error: "Error!"
+            error: "Error!",
+            toast_login_success: "Login successful!",
+            toast_login_failed: "Login failed.",
+            toast_logout_success: "Logged out.",
+            toast_order_created: "🚀 Order created successfully!",
+            toast_upload_error: "❌ File upload error.",
+            toast_coins_added: "✨ Payment successful! Coins added to account."
+        },
+        admin: {
+            upload_video: "Please select a video file!",
+            uploading: "⏳ Uploading...",
+            upload_start: "Starting video upload to R2...",
+            upload_success: "✅ Upload successful! Link filled automatically.",
+            toast_upload_success: "Video uploaded successfully!",
+            toast_upload_error: "Error uploading video.",
+            btn_upload: "🚀 Upload to Worker"
         }
     }
 };

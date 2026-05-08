@@ -114,6 +114,7 @@ window.switchLanguage = (lang) => {
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.innerText = t('dashboard.greeting', { name: currentUser.displayName });
         loadMyOrders();
+        loadMyTopups();
     }
     renderPricing();
 };
@@ -200,10 +201,10 @@ async function login() {
     const provider = new GoogleAuthProvider();
     try {
         await signInWithPopup(auth, provider);
-        showToast("Đăng nhập thành công!");
+        showToast(t('common.toast_login_success'));
     } catch (error) {
         console.error("Login Error", error);
-        showToast("Đăng nhập thất bại.");
+        showToast(t('common.toast_login_failed'));
     }
 }
 
@@ -211,7 +212,7 @@ async function logout() {
     const { auth, signOut } = window.firebase;
     try {
         await signOut(auth);
-        showToast("Đã đăng xuất.");
+        showToast(t('common.toast_logout_success'));
     } catch (error) {
         console.error("Logout Error", error);
     }
@@ -273,7 +274,7 @@ async function handleUserLoggedIn(user) {
             // Tự động nhận biết nạp coin thành công
             const topupModal = document.getElementById('topup-modal');
             if (topupModal && topupModal.style.display === 'flex' && currentCoins > initialCoinsBeforeTopup) {
-                showToast("✨ Thanh toán thành công! Đã cộng coin vào tài khoản.");
+                showToast(t('common.toast_coins_added'));
                 closeModal('topup-modal');
                 // Hiệu ứng pháo hoa hoặc rung nhẹ balance
                 document.getElementById('coin-balance').classList.add('coin-update-glow');
@@ -281,7 +282,7 @@ async function handleUserLoggedIn(user) {
             }
 
             document.getElementById('coin-balance').innerText = currentCoins;
-            document.getElementById('user-greeting').innerText = `Chào mừng, ${data.displayName}!`;
+            document.getElementById('user-greeting').innerText = t('dashboard.greeting', { name: data.displayName });
             document.getElementById('user-email').innerText = data.email;
 
             // Check Admin Rights từ Database
@@ -413,12 +414,12 @@ function renderPricing() {
 
     const html = COIN_PACKAGES.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
-            ${pkg.featured ? '<div class="featured-badge">Bán chạy nhất</div>' : ''}
+            ${pkg.featured ? `<div class="featured-badge">${t('pricing.featured')}</div>` : ''}
             <h4>${pkg.name}</h4>
             <div class="price-coins">${pkg.coins} 🪙</div>
             <div class="price-value">${pkg.price}</div>
             ${pkg.note ? `<div style="font-size: 0.75rem; color: var(--accent); margin-bottom: 1rem; font-weight: 600;">${pkg.note}</div>` : ''}
-            <button class="btn-primary" onclick="window.selectTopup('${pkg.id}')">Chọn gói</button>
+            <button class="btn-primary" onclick="window.selectTopup('${pkg.id}')">${t('pricing.select_pkg')}</button>
         </div>
     `).join('');
 
@@ -482,11 +483,11 @@ window.selectTopup = async (id) => {
     document.getElementById('topup-package-info').innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <div style="font-size: 0.8rem; opacity: 0.7;">Gói nạp</div>
+                <div style="font-size: 0.8rem; opacity: 0.7;">${t('dashboard.col_package')}</div>
                 <div style="font-weight: 700;">${selectedTopupPackage.name}</div>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 0.8rem; opacity: 0.7;">Thanh toán</div>
+                <div style="font-size: 0.8rem; opacity: 0.7;">${t('dashboard.col_amount')}</div>
                 <div style="color: var(--accent); font-weight: 800;">${selectedTopupPackage.price}</div>
             </div>
         </div>
@@ -501,7 +502,7 @@ window.selectTopup = async (id) => {
     qrImg.style.display = 'none';
     qrLoader.style.display = 'flex';
 
-    qrImg.onload = () => {
+        qrImg.onload = () => {
         qrLoader.style.display = 'none';
         qrImg.style.display = 'block';
     };
@@ -660,7 +661,7 @@ async function setupEventListeners() {
     if (orderForm) {
         orderForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser) return showToast("⚠️ Lỗi: Không tìm thấy phiên đăng nhập. Vui lòng F5.");
+            if (!currentUser) return showToast(t('common.error_auth', { msg: "F5" }));
 
             const { db, doc, collection, runTransaction, serverTimestamp } = window.firebase;
             const submitBtn = document.getElementById('order-submit-btn');
@@ -674,14 +675,14 @@ async function setupEventListeners() {
                 const charFile = document.getElementById('file-char').files[0];
                 const videoFile = document.getElementById('file-video').files[0];
 
-                if (!charFile || !videoFile) return showToast("Vui lòng chọn đầy đủ file.");
+                if (!charFile || !videoFile) return showToast(t('modals.order_subtitle'));
 
                 // Kiểm tra lại lần cuối trước khi upload
-                if (charFile.size > 10 * 1024 * 1024) return showToast("⚠️ Ảnh vượt quá 10MB.");
+                if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
 
                 // Show loading
                 submitBtn.disabled = true;
-                submitBtn.innerText = "⏳ Đang kiểm tra số dư...";
+                submitBtn.innerText = t('common.loading');
                 progressDiv.style.display = 'block';
 
                 // 1. Check coins first (Transaction)
@@ -691,7 +692,7 @@ async function setupEventListeners() {
                     const userDoc = await transaction.get(userRef);
                     const currentCoins = userDoc.data().coins || 0;
                     if (currentCoins < model.cost) {
-                        throw "Không đủ coin!";
+                        throw t('modals.insufficient_coins_title');
                     }
                     return currentCoins;
                 });
@@ -701,25 +702,25 @@ async function setupEventListeners() {
                 const maxWait = Math.floor(Math.random() * (25 - 20 + 1)) + 20; // 20-25
 
                 window.niceConfirm({
-                    title: "Xác nhận đơn hàng",
-                    message: `Hệ thống hiện đang có nhiều yêu cầu xử lý. Thời gian ước tính hoàn thành cho video của bạn là khoảng ${minWait}-${maxWait} phút. Bạn có đồng ý tiếp tục gửi yêu cầu và trừ ${model.cost} coin không?`,
+                    title: t('modals.confirm_order_title'),
+                    message: t('modals.confirm_order_msg', { min: minWait, max: maxWait, cost: model.cost }),
                     icon: "⏳",
                     onConfirm: async () => {
                         try {
                             console.log("Confirm Clicked - Starting process");
                             // 2. Upload Files
-                            showToast("⏳ Đang chuẩn bị tải file lên...");
-                            submitBtn.innerText = "Đang tải file...";
+                            showToast(t('common.loading'));
+                            submitBtn.innerText = t('modals.uploading');
                             submitBtn.disabled = true;
                             progressDiv.style.display = 'block';
 
                             console.log("📤 Đang tải ảnh nhân vật...");
                             const charUrl = await uploadFile(charFile, "characters");
-                            showToast("✅ Đã tải xong ảnh. Đang tải video...");
+                            showToast(t('common.success'));
 
                             console.log("📤 Đang tải video tham chiếu...");
                             const videoUrl = await uploadFile(videoFile, "motions");
-                            showToast("✅ Đã tải xong video. Đang tạo đơn hàng...");
+                            showToast(t('common.success'));
 
                             // 3. Finalize Transaction (Deduct coins and create order)
                             const orderId = await runTransaction(db, async (transaction) => {
@@ -752,7 +753,7 @@ async function setupEventListeners() {
                                 return orderRef.id;
                             });
 
-                            showToast("🚀 Đơn hàng đã được tạo thành công!");
+                            showToast(t('common.toast_order_created'));
                             closeModal('order-modal');
                             document.getElementById('order-form').reset();
                             document.getElementById('preview-char-container').innerHTML = '';
@@ -771,10 +772,10 @@ async function setupEventListeners() {
                             sendTelegramMessage(msg);
                         } catch (err) {
                             console.error("Order Creation Error:", err);
-                            showToast("❌ Lỗi khi tạo đơn: " + (err.message || err));
+                            showToast(t('common.error') + ": " + (err.message || err));
                         } finally {
                             submitBtn.disabled = false;
-                            submitBtn.innerText = `Thành video ngay (${model.cost} coin)`;
+                            submitBtn.innerText = t('modals.submit_order', { cost: model.cost });
                             progressDiv.style.display = 'none';
                         }
                     }
@@ -782,10 +783,10 @@ async function setupEventListeners() {
                 return; // Wait for confirmation callback
             } catch (error) {
                 console.error(error);
-                if (error === "Không đủ coin!") {
+                if (error === t('modals.insufficient_coins_title')) {
                     window.niceConfirm({
-                        title: "Số dư không đủ",
-                        message: "Số dư của bạn không đủ để thực hiện yêu cầu này. Bạn có muốn nạp thêm Coin ngay không?",
+                        title: t('modals.insufficient_coins_title'),
+                        message: t('modals.insufficient_coins_msg'),
                         icon: "💰",
                         onConfirm: () => {
                             closeModal('order-modal');
@@ -793,11 +794,11 @@ async function setupEventListeners() {
                         }
                     });
                 } else {
-                    showToast("Lỗi: " + error);
+                    showToast(t('common.error') + ": " + error);
                 }
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerText = `Thành video ngay (${model.cost} coin)`;
+                submitBtn.innerText = t('modals.submit_order', { cost: model.cost });
                 progressDiv.style.display = 'none';
             }
         });
@@ -830,7 +831,7 @@ function loadMyOrders() {
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-orders-list');
         if (snapshot.empty) {
-            list.innerHTML = `<tr><td colspan="3" style="text-align:center; opacity: 0.5; padding: 2rem;">Chưa có đơn hàng nào.</td></tr>`;
+            list.innerHTML = `<tr><td colspan="3" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_orders')}</td></tr>`;
             return;
         }
 
@@ -872,7 +873,7 @@ function loadMyOrders() {
                     </td>
                     <td>
                         <button class="btn-detail-view">
-                            <span>🔍 Xem</span>
+                            <span>${t('dashboard.action_view')}</span>
                         </button>
                     </td>
                 </tr>
@@ -909,7 +910,7 @@ function loadMyTopups() {
     onSnapshot(q, (snapshot) => {
         const list = document.getElementById('my-topups-list');
         if (snapshot.empty) {
-            list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">Chưa có yêu cầu nạp nào.</td></tr>`;
+            list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_topups')}</td></tr>`;
             return;
         }
 
@@ -1212,33 +1213,33 @@ window.openUserOrderDetail = async (orderId) => {
         ${timelineHtml}
         <div class="admin-info-grid">
             <div class="info-item">
-                <span class="info-label">🆔 Mã đơn hàng</span>
+                <span class="info-label">${t('modals.order_id')}</span>
                 <span class="info-value" style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${shortId}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">✨ Trạng thái</span>
+                <span class="info-label">${t('modals.order_status')}</span>
                 <span class="info-value"><span class="status-badge status-${d.status}">${statusLabel}</span></span>
             </div>
             <div class="info-item">
-                <span class="info-label">📦 Gói dịch vụ</span>
+                <span class="info-label">${t('modals.order_package')}</span>
                 <span class="info-value">${d.packageName} (${serviceLabel})</span>
             </div>
             <div class="info-item">
-                <span class="info-label">📏 Tỷ lệ khung hình</span>
+                <span class="info-label">${t('modals.order_aspect')}</span>
                 <span class="info-value">${d.aspectRatio || '16:9'}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">🖼️ Ảnh nhân vật</span>
+                <span class="info-label">${t('modals.order_char_img')}</span>
                 <div class="admin-preview-box" onclick="event.stopPropagation(); window.viewFullImage('${d.characterImageLink}')">
                     <img src="${d.characterImageLink}">
-                    <div class="preview-overlay">Phóng to</div>
+                    <div class="preview-overlay" data-i18n="modals.preview_expand">Phóng to</div>
                 </div>
             </div>
             <div class="info-item">
-                <span class="info-label">📹 Video tham chiếu</span>
+                <span class="info-label">${t('modals.order_ref_video')}</span>
                 <div class="admin-preview-box" onclick="event.stopPropagation(); window.open('${d.referenceVideoLink}', '_blank')">
                     <video src="${d.referenceVideoLink}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
-                    <div class="preview-overlay">Xem gốc</div>
+                    <div class="preview-overlay" data-i18n="modals.preview_view">Xem gốc</div>
                 </div>
             </div>
             ${(() => {
@@ -1248,15 +1249,15 @@ window.openUserOrderDetail = async (orderId) => {
             const downloadUrl = isWorkerLink ? finalResultLink + (finalResultLink.includes('?') ? '&' : '?') + 'download=1' : finalResultLink;
             return `
                 <div class="info-item" style="grid-column: span 2;">
-                    <span class="info-label">🎬 Kết quả video</span>
-                    <a href="${downloadUrl}" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 8px; text-decoration:none; width: 100%; font-weight: 600;">Tải Video Về Máy (7 Ngày)</a>
-                    <p style="font-size: 0.75rem; color: var(--danger); margin-top: 8px; text-align: center;">⚠️ Video sẽ bị xóa vĩnh viễn khỏi máy chủ sau 7 ngày.</p>
+                    <span class="info-label">${t('modals.order_result_video')}</span>
+                    <a href="${downloadUrl}" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 8px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
+                    <p style="font-size: 0.75rem; color: var(--danger); margin-top: 8px; text-align: center;">${t('modals.order_expiry_warn')}</p>
                 </div>
                 `;
         })()}
             ${d.adminNote ? `
             <div class="info-item" style="grid-column: span 2;">
-                <span class="info-label">💬 Ghi chú từ hệ thống</span>
+                <span class="info-label">${t('modals.order_system_note')}</span>
                 <div class="glass-card" style="padding: 1rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); border-radius: 8px; color: var(--text-dim); line-height: 1.5;">
                     ${d.adminNote}
                 </div>
@@ -1273,26 +1274,26 @@ window.handleAdminResultUpload = async () => {
     const statusDiv = document.getElementById('admin-upload-status');
     const btn = document.getElementById('btn-admin-upload');
 
-    if (!file) return showToast("Vui lòng chọn file video!");
+    if (!file) return showToast(t('admin.upload_video'));
 
     try {
         btn.disabled = true;
-        btn.innerText = "⏳ Đang tải lên...";
+        btn.innerText = t('admin.uploading');
         statusDiv.style.display = 'block';
-        statusDiv.innerText = "Bắt đầu tải video lên R2...";
+        statusDiv.innerText = t('admin.upload_start');
 
         const uploadedUrl = await uploadFile(file, "results");
 
         document.getElementById('admin-result-link').value = uploadedUrl;
-        statusDiv.innerHTML = `<span style="color: #27ae60;">✅ Tải lên thành công! Link đã được tự động điền.</span>`;
-        showToast("Đã tải video lên thành công!");
+        statusDiv.innerHTML = `<span style="color: #27ae60;">${t('admin.upload_success')}</span>`;
+        showToast(t('admin.toast_upload_success'));
     } catch (error) {
         console.error(error);
-        statusDiv.innerHTML = `<span style="color: #c0392b;">❌ Lỗi: ${error.message}</span>`;
-        showToast("Lỗi khi tải video lên.");
+        statusDiv.innerHTML = `<span style="color: #c0392b;">❌ ${t('common.error')}: ${error.message}</span>`;
+        showToast(t('admin.toast_upload_error'));
     } finally {
         btn.disabled = false;
-        btn.innerText = "🚀 Tải lên Worker";
+        btn.innerText = t('admin.btn_upload');
     }
 };
 
