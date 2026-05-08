@@ -674,56 +674,6 @@ button {
   color: white;
 }
 
-/* Download Actions in Dashboard */
-.download-pill-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  border: 1px solid var(--glass-border);
-  color: var(--text-main);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.download-pill-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.download-pill-btn:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.download-pill-btn.video-btn {
-  background: rgba(0, 210, 255, 0.1);
-  border-color: rgba(0, 210, 255, 0.2);
-  color: var(--accent);
-}
-
-.download-pill-btn.video-btn:hover {
-  background: var(--accent);
-  color: white;
-}
-
-.download-pill-btn.image-btn {
-  background: rgba(138, 43, 226, 0.1);
-  border-color: rgba(138, 43, 226, 0.2);
-  color: #a855f7;
-}
-
-.download-pill-btn.image-btn:hover {
-  background: #a855f7;
-  color: white;
-}
-
 .new-badge-float {
   position: absolute;
   top: 12px;
