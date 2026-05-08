@@ -415,7 +415,7 @@ async function handleUserLoggedIn(user) {
 
                 // Notify Telegram
                 const addedCoins = currentCoins - initialCoinsBeforeTopup;
-                sendTelegramMessage(`💰 *NẠP COIN THÀNH CÔNG!*\n👤 Khách: ${data.displayName}\n📧 Email: ${data.email}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
+                sendTelegramMessage(`💰 <b>NẠP COIN THÀNH CÔNG!</b>\n👤 Khách: ${escapeHTML(data.displayName)}\n📧 Email: ${escapeHTML(data.email)}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
 
             document.getElementById('coin-balance').innerText = currentCoins;
@@ -777,7 +777,7 @@ window.selectTopup = async (id) => {
         console.log("📝 Đã tạo bản ghi nạp tiền tự động:", transferContent);
 
         // Notify Telegram
-        const msg = `💳 *YÊU CẦU NẠP COIN MỚI*\n👤 Khách: ${currentUser.displayName}\n📧 Email: ${currentUser.email}\n📦 Gói: ${selectedTopupPackage.name}\n💰 Số tiền: ${selectedTopupPackage.price}\n🪙 Coin nhận: ${selectedTopupPackage.coins}\n📝 Nội dung: \`${transferContent}\``;
+        const msg = `💳 <b>YÊU CẦU NẠP COIN MỚI</b>\n👤 Khách: ${escapeHTML(currentUser.displayName)}\n📧 Email: ${escapeHTML(currentUser.email)}\n📦 Gói: ${selectedTopupPackage.name}\n💰 Số tiền: ${selectedTopupPackage.price}\n🪙 Coin nhận: ${selectedTopupPackage.coins}\n📝 Nội dung: <code>${transferContent}</code>`;
         sendTelegramMessage(msg);
     } catch (err) {
         console.error("Lỗi khi tạo bản ghi nạp tiền:", err);
@@ -1091,16 +1091,15 @@ async function setupEventListeners() {
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
                             showDashboard();
-                            const serviceLabel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
-                            const msg = `🚀 *ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}*\n\n` +
+                            const msg = `🚀 <b>ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}</b>\n\n` +
                                 `🆔 Mã đơn: #${orderId}\n` +
-                                `👤 Khách: ${currentUser.displayName}\n` +
-                                `📧 Email: ${currentUser.email}\n` +
-                                `🔧 Dịch vụ: *${serviceLabel}*\n` +
+                                `👤 Khách: ${escapeHTML(currentUser.displayName)}\n` +
+                                `📧 Email: ${escapeHTML(currentUser.email)}\n` +
+                                `🔧 Dịch vụ: <b>${serviceLabel}</b>\n` +
                                 `📦 Gói: ${model.name}\n` +
                                 `💰 Chi phí: ${model.cost} Coin\n` +
-                                `🖼 [Xem ảnh nhân vật](${charUrl})\n` +
-                                `📹 [Xem video tham chiếu](${videoUrl})`;
+                                `🖼 <a href="${charUrl}">Xem ảnh nhân vật</a>\n` +
+                                `📹 <a href="${videoUrl}">Xem video tham chiếu</a>`;
                             sendTelegramMessage(msg);
                         } catch (err) {
                             console.error("Order Creation Error:", err);
@@ -1792,19 +1791,44 @@ window.scrollToPricing = scrollToPricing;
 window.scrollToHow = scrollToHow;
 
 // --- Telegram Notification ---
+function escapeHTML(str) {
+    if (!str) return "";
+    return str.toString().replace(/[&<>"']/g, function (m) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m];
+    });
+}
+
 async function sendTelegramMessage(text) {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     try {
-        await fetch(url, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: TELEGRAM_CHAT_ID,
                 text: text,
-                parse_mode: 'Markdown'
+                parse_mode: 'HTML'
             })
         });
+        const data = await response.json();
+        if (!data.ok) {
+            console.error("Telegram Error:", data);
+        } else {
+            console.log("Telegram Notify Sent.");
+        }
     } catch (e) {
         console.error("Telegram Notify Error:", e);
     }
 }
+
+window.testTelegram = () => {
+    const msg = `🔔 <b>TEST THÔNG BÁO TELEGRAM</b>\n\n✅ Kết nối thành công!\n🕒 Thời gian: ${new Date().toLocaleString('vi-VN')}`;
+    sendTelegramMessage(msg);
+    showToast("Đã gửi tin nhắn test đến Telegram. Vui lòng kiểm tra!");
+};
