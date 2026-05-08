@@ -231,18 +231,46 @@ function syncVideos() {
     }, 1000);
 }
 
+// --- Video Interaction Helpers ---
+window.handleVideoHover = (video, isHover) => {
+    if (!video) return;
+
+    // Detect desktop: precise pointer (mouse) OR wide screen
+    const isDesktop = window.matchMedia('(pointer: fine)').matches || window.innerWidth > 1024;
+    if (!isDesktop) return;
+
+    if (isHover) {
+        // Try to play with sound
+        video.muted = false;
+        video.volume = 1.0;
+        
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                // Autoplay policy: play muted if unmuted is blocked
+                video.muted = true;
+                video.play();
+            });
+        }
+    } else {
+        video.pause();
+        video.muted = true;
+    }
+};
+
 // --- Auth Functions ---
 window.renderShowcase = () => {
     const gallery = document.getElementById('showcase-gallery');
     if (!gallery) return;
 
     gallery.innerHTML = TREND_VIDEOS.map(v => `
-        <div class="showcase-card" onclick="window.playOrderVideo(event, '${v.url}')">
+        <div class="showcase-card" 
+             onclick="window.playOrderVideo(event, '${v.url}')"
+             onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
+             onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
             <video class="showcase-video" 
                    src="${v.url}#t=1" 
-                   muted loop playsinline preload="metadata"
-                   onmouseover="this.play()" 
-                   onmouseout="this.pause()">
+                   muted loop playsinline preload="metadata">
             </video>
             <div class="showcase-play-overlay">
                 <div class="play-icon-central">
@@ -604,8 +632,11 @@ window.renderTemplates = () => {
     const grid = document.getElementById('template-library-grid');
     if (!grid) return;
     grid.innerHTML = TREND_VIDEOS.map(t => `
-        <div class="template-item" id="tpl-${t.id}" onclick="window.previewTemplate('${t.id}')">
-            <video class="template-video" src="${t.url}" poster="${t.thumb}" muted loop playsinline autoplay onmouseover="this.play()" onmouseout="this.pause()"></video>
+        <div class="template-item" id="tpl-${t.id}" 
+             onclick="window.previewTemplate('${t.id}')"
+             onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
+             onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
+            <video class="template-video" src="${t.url}" poster="${t.thumb}" muted loop playsinline preload="metadata"></video>
             <div class="template-overlay">${t.title}</div>
         </div>
     `).join('');
@@ -914,7 +945,7 @@ async function setupEventListeners() {
         radio.addEventListener('change', (e) => {
             const model = MODELS[e.target.value];
             document.getElementById('submit-cost').innerText = model.cost;
-            
+
             // Cập nhật dòng tóm tắt trên nút
             const summaryEl = document.getElementById('submit-summary-line');
             if (summaryEl) {

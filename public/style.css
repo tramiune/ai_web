@@ -2857,6 +2857,13 @@ section {
 }
 
 /* Trend Gallery Play Button */
+/* Hide play button on desktop since videos play on hover */
+@media (min-width: 1025px) {
+  .showcase-play-overlay {
+    display: none !important;
+  }
+}
+
 .showcase-play-overlay {
   position: absolute;
   top: 0;
@@ -2869,6 +2876,7 @@ section {
   background: rgba(0,0,0,0.1);
   transition: all 0.3s ease;
   z-index: 1;
+  pointer-events: none;
 }
 
 .showcase-card:hover .showcase-play-overlay {
