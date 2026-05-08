@@ -1161,6 +1161,7 @@ function loadMyOrders() {
                             <span class="order-date-text">${date}</span>
                         </div>
                         <div class="order-type-text">${d.serviceLabel || ''}</div>
+                        ${(d.systemNote || d.adminNote) ? `<div class="order-system-note">💬 ${d.systemNote || d.adminNote}</div>` : ''}
                         <div class="order-footer">
                             <div class="order-cost-tag">
                                 <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none">
