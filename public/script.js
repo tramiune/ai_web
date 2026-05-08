@@ -1549,14 +1549,44 @@ function loadAdminPanel() {
                 return;
             }
 
-            list.innerHTML = filteredDocs.map(doc => {
-                const d = doc.data();
+            // 1. Convert to objects and sort by time
+            let dataList = filteredDocs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // 2. Group by User (sort users by their latest request)
+            const userLatestTime = {};
+            dataList.forEach(d => {
+                const time = d.createdAt?.toMillis ? d.createdAt.toMillis() : (d.createdAt || 0);
+                if (!userLatestTime[d.userId] || time > userLatestTime[d.userId]) {
+                    userLatestTime[d.userId] = time;
+                }
+            });
+
+            dataList.sort((a, b) => {
+                if (a.userId !== b.userId) {
+                    return userLatestTime[b.userId] - userLatestTime[a.userId];
+                }
+                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                return timeB - timeA;
+            });
+
+            let lastUserId = null;
+            let groupColor = 'transparent';
+            const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
+            let colorIdx = 0;
+
+            list.innerHTML = dataList.map(d => {
+                if (d.userId !== lastUserId) {
+                    groupColor = groupColors[colorIdx % 2];
+                    colorIdx++;
+                    lastUserId = d.userId;
+                }
                 const safeUrl = d.proofLink ? d.proofLink.replace(/'/g, "\\'") : '';
                 return `
-                    <tr>
-                        <td>${d.userName || 'N/A'}<br><small>${d.userEmail || ''}</small></td>
-                        <td>${d.packageName || ''}<br><strong>${d.amount ? d.amount.toLocaleString() : 0}đ</strong></td>
-                        <td style="color: #ffde00; font-weight: 700;">${d.transferContent || ''}</td>
+                    <tr style="background: ${groupColor}; transition: background 0.3s ease;">
+                        <td>${escapeHTML(d.userName) || 'N/A'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
+                        <td>${escapeHTML(d.packageName) || ''}<br><strong>${d.amount ? d.amount.toLocaleString() : 0}đ</strong></td>
+                        <td style="color: #ffde00; font-weight: 700;">${escapeHTML(d.transferContent) || ''}</td>
                         <td>
                             <div class="proof-thumbnail" style="width: 50px; height: 50px; border-radius: 4px; overflow: hidden; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.viewFullImage('${safeUrl}')">
                                 <img src="${d.proofLink}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/50?text=Lỗi'">
@@ -1565,12 +1595,12 @@ function loadAdminPanel() {
                         <td>
                             <div style="display: flex; gap: 4px; align-items: center;">
                                 ${currentTopupStatus === 'pending' ? `
-                                    <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${doc.id}', '${d.userId}', ${d.coins})">Duyệt</button>
-                                    <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${doc.id}')">Hủy</button>
+                                    <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${d.id}', '${d.userId}', ${d.coins})">Duyệt</button>
+                                    <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${d.id}')">Hủy</button>
                                 ` : `
                                     <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
                                 `}
-                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${doc.id}')" title="Xóa">
+                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${d.id}')" title="Xóa">
                                     <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                                 </button>
                             </div>
@@ -1610,25 +1640,55 @@ function loadAdminPanel() {
                 return;
             }
 
-            list.innerHTML = filteredDocs.map(doc => {
-                const d = doc.data();
-                const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
+            // 1. Convert to objects and sort by time
+            let dataList = filteredDocs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // 2. Group by User (sort users by their latest request)
+            const userLatestTime = {};
+            dataList.forEach(d => {
+                const time = d.createdAt?.toMillis ? d.createdAt.toMillis() : (d.createdAt || 0);
+                if (!userLatestTime[d.userId] || time > userLatestTime[d.userId]) {
+                    userLatestTime[d.userId] = time;
+                }
+            });
+
+            dataList.sort((a, b) => {
+                if (a.userId !== b.userId) {
+                    return userLatestTime[b.userId] - userLatestTime[a.userId];
+                }
+                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                return timeB - timeA;
+            });
+
+            let lastUserId = null;
+            let groupColor = 'transparent';
+            const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
+            let colorIdx = 0;
+
+            list.innerHTML = dataList.map(d => {
+                if (d.userId !== lastUserId) {
+                    groupColor = groupColors[colorIdx % 2];
+                    colorIdx++;
+                    lastUserId = d.userId;
+                }
+                const orderId = d.id.substring(d.id.length - 6).toUpperCase();
                 return `
-                    <tr>
+                    <tr style="background: ${groupColor}; transition: background 0.3s ease;">
                         <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${orderId}</td>
-                        <td>${d.userName || 'Khách'}<br><small>${d.userEmail || ''}</small></td>
-                        <td>${d.packageName || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
+                        <td>${escapeHTML(d.userName) || 'Khách'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
+                        <td>${escapeHTML(d.packageName) || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
                         <td>${d.costCoins || 0} Coin</td>
                         <td>
                             <div style="display: flex; gap: 6px; align-items: center;">
-                                <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${doc.id}')">Cập nhật</button>
+                                <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${d.id}')">Cập nhật</button>
                                 <button class="download-pill-btn image-btn" style="padding: 4px; border-radius: 6px;" title="Tải ảnh" onclick="window.downloadUrl(event, '${d.characterImageLink}')">
                                     <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="21 15 16 10 5 21"></polyline></svg>
                                 </button>
                                 <button class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="Tải video mẫu" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
                                     <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
                                 </button>
-                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${doc.id}')" title="Xóa đơn hàng">
+                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${d.id}')" title="Xóa đơn hàng">
                                     <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                                 </button>
                             </div>
