@@ -590,7 +590,7 @@ window.renderTemplates = () => {
     if (!grid) return;
     grid.innerHTML = TREND_VIDEOS.map(t => `
         <div class="template-item" id="tpl-${t.id}" onclick="window.previewTemplate('${t.id}')">
-            <video class="template-video" src="${t.url}" poster="${t.thumb}" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
+            <video class="template-video" src="${t.url}" poster="${t.thumb}" muted loop playsinline autoplay onmouseover="this.play()" onmouseout="this.pause()"></video>
             <div class="template-overlay">${t.title}</div>
         </div>
     `).join('');
