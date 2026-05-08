@@ -237,7 +237,7 @@ window.renderShowcase = () => {
     
     gallery.innerHTML = TREND_VIDEOS.map(v => `
         <div class="showcase-card">
-            <video class="showcase-video" src="${v.url}" poster="${v.thumb}" muted loop playsinline onmouseover="this.muted=false; this.play()" onmouseout="this.pause()"></video>
+            <video class="showcase-video" src="${v.url}" poster="${v.thumb}" muted loop playsinline autoplay onmouseover="this.muted=false; this.play()" onmouseout="this.pause()"></video>
             <div class="showcase-info">
                 <div class="showcase-title">${v.title}</div>
                 <button class="use-trend-btn" onclick="window.useTrendShortcut('${v.id}', '${v.url}')">

@@ -2818,3 +2818,25 @@ section {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+@media (max-width: 768px) {
+  .showcase-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+    gap: 1rem !important;
+  }
+  .showcase-card {
+    border-radius: 12px !important;
+  }
+  .showcase-info {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+  .showcase-title {
+    font-size: 0.85rem !important;
+  }
+  .use-trend-btn {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.7rem !important;
+    gap: 4px !important;
+  }
+}
