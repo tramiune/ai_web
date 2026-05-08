@@ -347,6 +347,10 @@ async function handleUserLoggedIn(user) {
                 // Hiệu ứng pháo hoa hoặc rung nhẹ balance
                 document.getElementById('coin-balance').classList.add('coin-update-glow');
                 setTimeout(() => document.getElementById('coin-balance').classList.remove('coin-update-glow'), 2000);
+
+                // Notify Telegram
+                const addedCoins = currentCoins - initialCoinsBeforeTopup;
+                sendTelegramMessage(`💰 *NẠP COIN THÀNH CÔNG!*\n👤 Khách: ${data.displayName}\n📧 Email: ${data.email}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
 
             document.getElementById('coin-balance').innerText = currentCoins;
@@ -703,6 +707,10 @@ window.selectTopup = async (id) => {
             isAutomated: true // Đánh dấu đây là đơn tạo tự động
         });
         console.log("📝 Đã tạo bản ghi nạp tiền tự động:", transferContent);
+
+        // Notify Telegram
+        const msg = `💳 *YÊU CẦU NẠP COIN MỚI*\n👤 Khách: ${currentUser.displayName}\n📧 Email: ${currentUser.email}\n📦 Gói: ${selectedTopupPackage.name}\n💰 Số tiền: ${selectedTopupPackage.price}\n🪙 Coin nhận: ${selectedTopupPackage.coins}\n📝 Nội dung: \`${transferContent}\``;
+        sendTelegramMessage(msg);
     } catch (err) {
         console.error("Lỗi khi tạo bản ghi nạp tiền:", err);
         // Vẫn tiếp tục hiện QR cho khách, Admin có thể check tay nếu lỗi DB
