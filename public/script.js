@@ -27,12 +27,6 @@ const MODELS = {
     pro: { name: "Model Cao cấp", cost: 12 }
 };
 
-const SERVICE_TIERS = {
-    economy: { id: 'economy', name: "Tiết kiệm", cost: 6, time: "Trong 12h", quality: "Standard" },
-    priority: { id: 'priority', name: "Ưu tiên", cost: 10, time: "Trong 30p", quality: "High Quality", featured: true },
-    ultimate: { id: 'ultimate', name: "Siêu tốc 2K", cost: 20, time: "15-20p", quality: "2K Resolution" }
-};
-
 const SERVICE_PACKAGES = [
     { id: 'basic', name: 'Basic', cost: 6, features: ['Chất lượng SD', 'Xử lý 15-30p', '1 nhân vật'] },
     { id: 'plus', name: 'Plus', cost: 12, features: ['Chất lượng HD', 'Ưu tiên xử lý', 'Hỗ trợ sửa đổi'], featured: true },
@@ -930,148 +924,159 @@ async function setupEventListeners() {
     if (orderForm) {
         orderForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (!currentUser) return showToast(t('common.error_auth', { msg: "F5" }));
+
+            const { db, doc, collection, runTransaction, serverTimestamp } = window.firebase;
+            const submitBtn = document.getElementById('order-submit-btn');
+            const progressDiv = document.getElementById('upload-progress');
+
+            try {
+                const modelKey = document.querySelector('input[name="model-type"]:checked').value;
+                const serviceType = document.querySelector('input[name="service-type"]:checked').value;
+                const model = MODELS[modelKey];
+
+                const charFile = document.getElementById('file-char').files[0];
+                const videoFile = document.getElementById('file-video').files[0];
+                const templateUrl = document.getElementById('selected-template-url').value;
+
+                if (!charFile) return showToast(t('modals.char_placeholder'));
+                if (window.currentVideoSource === 'upload' && !videoFile) return showToast(t('modals.video_placeholder'));
+                if (window.currentVideoSource === 'library' && !templateUrl) return showToast(t('modals.video_placeholder'));
+
+                // Kiểm tra lại lần cuối trước khi upload
+                if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
+
+                // Show loading
+                submitBtn.disabled = true;
+                submitBtn.innerText = t('common.loading');
+                progressDiv.style.display = 'block';
+
+                // 1. Check coins first (Transaction)
+                // 1. Check coins first (Transaction)
+                const userRef = doc(db, "users", currentUser.uid);
+                const userSnap = await runTransaction(db, async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    const currentCoins = userDoc.data().coins || 0;
+                    if (currentCoins < model.cost) {
+                        throw t('modals.insufficient_coins_title');
+                    }
+                    return currentCoins;
+                });
+
+                // 1b. Show Queue/Wait Time Confirmation
+                const minWait = Math.floor(Math.random() * (15 - 10 + 1)) + 10; // 10-15
+                const maxWait = Math.floor(Math.random() * (25 - 20 + 1)) + 20; // 20-25
+
+                window.niceConfirm({
+                    title: t('modals.confirm_order_title'),
+                    message: t('modals.confirm_order_msg', { min: minWait, max: maxWait, cost: model.cost }),
+                    icon: "⏳",
+                    onConfirm: async () => {
+                        try {
+                            console.log("Confirm Clicked - Starting process");
+                            // 2. Upload Files
+                            showToast(t('common.loading'));
+                            submitBtn.innerText = t('modals.uploading');
+                            submitBtn.disabled = true;
+                            progressDiv.style.display = 'block';
+
+                            console.log("📤 Đang tải ảnh nhân vật...");
+                            const charUrl = await uploadFile(charFile, "characters");
+                            showToast(t('common.success'));
+
+                            let videoUrl = "";
+                            if (window.currentVideoSource === 'library') {
+                                videoUrl = document.getElementById('selected-template-url').value;
+                                if (!videoUrl) throw new Error("Vui lòng chọn 1 mẫu từ thư viện.");
+                                console.log("🔗 Sử dụng video mẫu từ thư viện:", videoUrl);
+                            } else {
+                                console.log("📤 Đang tải video tham chiếu...");
+                                videoUrl = await uploadFile(videoFile, "motions");
+                                showToast(t('common.success'));
+                            }
+
+                            // 3. Finalize Transaction (Deduct coins and create order)
+                            const orderId = await runTransaction(db, async (transaction) => {
+                                const userDoc = await transaction.get(userRef);
+                                const currentCoins = userDoc.data().coins;
+
+                                const aspectRatioEl = document.querySelector('input[name="aspect-ratio"]:checked');
+                                const aspectRatio = aspectRatioEl ? aspectRatioEl.value : '16:9';
+
+                                transaction.update(userRef, { coins: currentCoins - model.cost });
+
+                                const orderRef = doc(collection(db, "orders"));
+                                transaction.set(orderRef, {
+                                    userId: currentUser.uid,
+                                    userEmail: currentUser.email,
+                                    userName: currentUser.displayName,
+                                    packageName: model.name,
+                                    serviceType: serviceType,
+                                    serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
+                                    costCoins: model.cost,
+                                    characterImageLink: charUrl,
+                                    referenceVideoLink: videoUrl,
+                                    aspectRatio: aspectRatio,
+                                    status: "pending",
+                                    resultLink: "",
+                                    adminNote: "",
+                                    createdAt: serverTimestamp(),
+                                    updatedAt: serverTimestamp()
+                                });
+                                return orderRef.id;
+                            });
+
+                            showToast(t('common.toast_order_created'));
+                            closeModal('order-modal');
+                            document.getElementById('order-form').reset();
+                            document.getElementById('preview-char-container').innerHTML = '';
+                            document.getElementById('preview-video-container').innerHTML = '';
+                            showDashboard();
+                            const serviceLabel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
+                            const msg = `🚀 *ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}*\n\n` +
+                                `🆔 Mã đơn: #${orderId}\n` +
+                                `👤 Khách: ${currentUser.displayName}\n` +
+                                `📧 Email: ${currentUser.email}\n` +
+                                `🔧 Dịch vụ: *${serviceLabel}*\n` +
+                                `📦 Gói: ${model.name}\n` +
+                                `💰 Chi phí: ${model.cost} Coin\n` +
+                                `🖼 [Xem ảnh nhân vật](${charUrl})\n` +
+                                `📹 [Xem video tham chiếu](${videoUrl})`;
+                            sendTelegramMessage(msg);
+                        } catch (err) {
+                            console.error("Order Creation Error:", err);
+                            showToast(t('common.error') + ": " + (err.message || err));
+                        } finally {
+                            submitBtn.disabled = false;
+                            submitBtn.innerText = t('modals.submit_order', { cost: model.cost });
+                            progressDiv.style.display = 'none';
+                        }
+                    }
+                });
+                return; // Wait for confirmation callback
+            } catch (error) {
+                console.error(error);
+                if (error === t('modals.insufficient_coins_title')) {
+                    window.niceConfirm({
+                        title: t('modals.insufficient_coins_title'),
+                        message: t('modals.insufficient_coins_msg'),
+                        icon: "💰",
+                        onConfirm: () => {
+                            closeModal('order-modal');
+                            if (window.openPricingModal) window.openPricingModal();
+                        }
+                    });
+                } else {
+                    showToast(t('common.error') + ": " + error);
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = t('modals.submit_order', { cost: model.cost });
+                progressDiv.style.display = 'none';
+            }
         });
     }
 }
-
-window.submitOrder = async (tierId) => {
-    if (!currentUser) return showToast(t('common.error_auth', { msg: "F5" }));
-
-    const { db, doc, collection, runTransaction, serverTimestamp } = window.firebase;
-    const tier = SERVICE_TIERS[tierId];
-    if (!tier) return showToast("Gói dịch vụ không hợp lệ.");
-
-    const progressDiv = document.getElementById('upload-progress');
-    const progressBar = document.getElementById('progress-bar');
-    const progressVal = document.getElementById('progress-val');
-
-    // Get form data
-    const serviceType = document.querySelector('input[name="service-type"]:checked').value;
-    const charFile = document.getElementById('file-char').files[0];
-    const videoFile = document.getElementById('file-video').files[0];
-    const templateUrl = document.getElementById('selected-template-url').value;
-
-    // Validation
-    if (!charFile) return showToast(t('modals.char_placeholder'));
-    if (window.currentVideoSource === 'upload' && !videoFile) return showToast(t('modals.video_placeholder'));
-    if (window.currentVideoSource === 'library' && !templateUrl) return showToast(t('modals.video_placeholder'));
-    if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
-
-    // Disable all tier buttons
-    const allBtns = document.querySelectorAll('.tier-action-btn');
-    allBtns.forEach(b => b.disabled = true);
-
-    try {
-        // 1. Check coins first
-        const userRef = doc(db, "users", currentUser.uid);
-        const userData = await runTransaction(db, async (transaction) => {
-            const docSnap = await transaction.get(userRef);
-            return docSnap.data();
-        });
-
-        if ((userData.coins || 0) < tier.cost) {
-            throw t('modals.insufficient_coins_title');
-        }
-
-        // 1b. Show Confirmation
-        window.niceConfirm({
-            title: t('modals.confirm_order_title'),
-            message: t('modals.confirm_order_msg', { time: tier.time, cost: tier.cost }),
-            icon: "⏳",
-            onConfirm: async () => {
-                try {
-                    progressDiv.style.display = 'block';
-                    if (progressBar) progressBar.style.width = '0%';
-                    if (progressVal) progressVal.innerText = '0';
-                    showToast(t('common.loading'));
-
-                    console.log("📤 Uploading character...");
-                    const charUrl = await uploadFile(charFile, "characters");
-
-                    let videoUrl = "";
-                    if (window.currentVideoSource === 'library') {
-                        videoUrl = document.getElementById('selected-template-url').value;
-                    } else {
-                        console.log("📤 Uploading video...");
-                        videoUrl = await uploadFile(videoFile, "motions");
-                    }
-
-                    // 3. Finalize Order
-                    const orderId = await runTransaction(db, async (transaction) => {
-                        const userSnap = await transaction.get(userRef);
-                        const currentCoins = userSnap.data().coins;
-
-                        const aspectRatioEl = document.querySelector('input[name="aspect-ratio"]:checked');
-                        const aspectRatio = aspectRatioEl ? aspectRatioEl.value : '9:16';
-
-                        transaction.update(userRef, { coins: currentCoins - tier.cost });
-
-                        const orderRef = doc(collection(db, "orders"));
-                        transaction.set(orderRef, {
-                            userId: currentUser.uid,
-                            userEmail: currentUser.email,
-                            userName: currentUser.displayName,
-                            packageName: tier.name,
-                            tierId: tierId,
-                            serviceType: serviceType,
-                            serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
-                            costCoins: tier.cost,
-                            characterImageLink: charUrl,
-                            referenceVideoLink: videoUrl,
-                            aspectRatio: aspectRatio,
-                            status: "pending",
-                            createdAt: serverTimestamp(),
-                            updatedAt: serverTimestamp()
-                        });
-                        return orderRef.id;
-                    });
-
-                    showToast(t('common.toast_order_created'));
-                    closeModal('order-modal');
-                    document.getElementById('order-form').reset();
-                    document.getElementById('preview-char-container').innerHTML = '';
-                    document.getElementById('preview-video-container').innerHTML = '';
-                    showDashboard();
-
-                    const serviceLabel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
-                    const msg = `🚀 *ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}*\n\n` +
-                        `🆔 Mã đơn: #${orderId}\n` +
-                        `👤 Khách: ${currentUser.displayName}\n` +
-                        `📧 Email: ${currentUser.email}\n` +
-                        `📦 Gói: ${tier.name}\n` +
-                        `💰 Chi phí: ${tier.cost} Coin\n` +
-                        `🖼 [Xem ảnh nhân vật](${charUrl})\n` +
-                        `📹 [Xem video tham chiếu](${videoUrl})`;
-                    sendTelegramMessage(msg);
-                } catch (err) {
-                    console.error("Order Error:", err);
-                    showToast(t('common.error') + ": " + (err.message || err));
-                } finally {
-                    allBtns.forEach(b => b.disabled = false);
-                    progressDiv.style.display = 'none';
-                }
-            },
-            onCancel: () => {
-                allBtns.forEach(b => b.disabled = false);
-            }
-        });
-    } catch (error) {
-        if (error === t('modals.insufficient_coins_title')) {
-            window.niceConfirm({
-                title: t('modals.insufficient_coins_title'),
-                message: t('modals.insufficient_coins_msg'),
-                icon: "💰",
-                onConfirm: () => {
-                    closeModal('order-modal');
-                    if (window.openPricingModal) window.openPricingModal();
-                }
-            });
-        } else {
-            showToast(t('common.error') + ": " + error);
-        }
-        allBtns.forEach(b => b.disabled = false);
-    }
-};
 
 // --- Data Loading (Real-time) ---
 function loadMyOrders() {

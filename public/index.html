@@ -644,7 +644,49 @@
                         </div>
                     </div>
 
-                    <!-- Gói dịch vụ đã được chuyển thành nút bấm trực tiếp ở dưới -->
+                    <div class="form-group">
+                        <label data-i18n="modals.model_label">Chọn Model (Chất lượng)</label>
+                        <div class="grid-2">
+                            <label class="card compact-card" style="cursor: pointer;">
+                                <input type="radio" name="model-type" value="basic" checked>
+                                <div class="card-content-inline">
+                                    <div class="card-icon-sm">
+                                        <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                            <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                                            <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 0.9rem;" data-i18n="modals.model_basic">Model Tiêu chuẩn</div>
+                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
+                                            <span>6</span>
+                                            <span style="font-size: 0.7rem; opacity: 0.8;">Coins</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="card compact-card" style="cursor: pointer;">
+                                <input type="radio" name="model-type" value="pro">
+                                <div class="card-content-inline">
+                                    <div class="card-icon-sm">
+                                        <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                            <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                                            <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 0.9rem;" data-i18n="modals.model_pro">Model Cao cấp</div>
+                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
+                                            <span>12</span>
+                                            <span style="font-size: 0.7rem; opacity: 0.8;">Coins</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
 
                     <div class="form-group">
                         <label data-i18n="modals.aspect_ratio_label">Tỉ lệ video</label>
@@ -667,26 +709,19 @@
                     </div>
                 </div>
 
-                <div class="modal-footer" style="padding-top: 1.5rem; border-top: 1px solid var(--glass-border); text-align: center;">
-                    <label style="display: block; margin-bottom: 1.2rem; font-size: 0.85rem; opacity: 0.8; font-weight: 600;" data-i18n="modals.select_tier_action">Bấm chọn gói để tạo video ngay:</label>
-                    <div class="order-actions-grid">
-                        <button type="button" class="tier-action-btn economy" onclick="window.submitOrder('economy')">
-                            <span class="tier-action-name" data-i18n="modals.tier_economy">Tiết kiệm</span>
-                            <span class="tier-action-details">6 Coin • 12h</span>
-                        </button>
-                        <button type="button" class="tier-action-btn priority featured glow-premium" onclick="window.submitOrder('priority')">
-                            <span class="tier-action-badge">Best Seller</span>
-                            <span class="tier-action-name" data-i18n="modals.tier_priority">Ưu tiên</span>
-                            <span class="tier-action-details">10 Coin • 30p</span>
-                        </button>
-                        <button type="button" class="tier-action-btn ultimate" onclick="window.submitOrder('ultimate')">
-                            <span class="tier-action-name" data-i18n="modals.tier_ultimate">Siêu tốc 2K</span>
-                            <span class="tier-action-details">20 Coin • 15p</span>
-                        </button>
-                    </div>
-                    
-                    <div id="upload-progress" style="display: none; text-align:center; margin-top: 1.5rem; color: var(--accent); font-weight: 600;">
-                        🚀 <span data-i18n="modals.uploading">Đang tải file lên...</span> <span id="progress-val">0</span>%
+                <div class="modal-footer" style="padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
+                    <button type="submit" class="btn-primary" id="order-submit-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; height: 55px;">
+                        <span data-i18n="hero.cta_create">Tạo video ngay</span>
+                        <div class="btn-cost-tag">
+                            <svg class="coin-icon-mini" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                            </svg>
+                            <span id="submit-cost">6</span>
+                        </div>
+                    </button>
+                    <div id="upload-progress" style="display: none; text-align:center; margin-top: 1rem; color: var(--accent);">
+                        Đang tải file lên... <span id="progress-val">0</span>%
                     </div>
                 </div>
             </form>
