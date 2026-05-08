@@ -1217,6 +1217,20 @@ function loadMyOrders() {
                         </div>
                         <div class="order-type-text">${d.serviceLabel || ''}</div>
                         ${(d.systemNote || d.adminNote) ? `<div class="order-system-note">💬 ${d.systemNote || d.adminNote}</div>` : ''}
+                        
+                        <div class="order-download-actions" style="display: flex; gap: 8px; margin-top: 1rem; margin-bottom: 0.5rem;">
+                            ${isCompleted && d.resultLink ? `
+                                <a href="${d.resultLink}" target="_blank" download class="download-pill-btn video-btn" onclick="event.stopPropagation()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                    <span data-i18n="dashboard.download_video">Tải Video</span>
+                                </a>
+                            ` : ''}
+                            <a href="${d.characterImageLink}" target="_blank" download class="download-pill-btn image-btn" onclick="event.stopPropagation()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                <span data-i18n="dashboard.download_image">Tải Ảnh</span>
+                            </a>
+                        </div>
+
                         <div class="order-footer">
                             <div class="order-cost-tag">
                                 <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none">
@@ -1231,6 +1245,7 @@ function loadMyOrders() {
                 </div>
             `;
         }).join('');
+        applyTranslations();
     });
 }
 

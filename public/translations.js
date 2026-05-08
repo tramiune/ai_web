@@ -120,7 +120,9 @@ window.TRANSLATIONS = {
             col_date: "Ngày gửi",
             note_storage: "⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>",
             action_view: "🔍 Xem",
-            action_view_details: "Xem chi tiết"
+            action_view_details: "Xem chi tiết",
+            download_video: "Tải Video",
+            download_image: "Tải Ảnh"
         },
         modals: {
             topup_title: "Nạp Coin tự động",
@@ -330,7 +332,9 @@ window.TRANSLATIONS = {
             col_date: "Date Sent",
             note_storage: "⚠️ <i>Note: The system only stores result videos for 7 days. Please download early!</i>",
             action_view: "🔍 View",
-            action_view_details: "View Details"
+            action_view_details: "View Details",
+            download_video: "Download Video",
+            download_image: "Download Image"
         },
         modals: {
             topup_title: "Automated Top-up",
