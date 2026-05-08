@@ -13,7 +13,8 @@ window.TRANSLATIONS = {
             title: "Biến 1 ảnh thành video bắt trend",
             subtitle: "Tải lên ảnh nhân vật và video mẫu chuyển động. Chúng tôi tạo video AI mới, trong đó nhân vật của bạn thực hiện chuyển động theo video tham chiếu.",
             cta_create: "Tạo video ngay",
-            cta_how: "Xem cách hoạt động"
+            cta_how: "Xem cách hoạt động",
+            comparison: "✨ Chất lượng tương đương <b>Kling AI</b> nhưng giá <b>rẻ hơn gấp 5 lần</b>"
         },
         badges: {
             no_prompt: "Không cần prompt",
@@ -67,7 +68,11 @@ window.TRANSLATIONS = {
             subtitle: "Nạp coin một lần, sử dụng cho mọi dịch vụ.",
             service_title: "Gói dịch vụ Video",
             featured: "Bán chạy nhất",
-            select_pkg: "Chọn gói"
+            select_pkg: "Chọn gói",
+            buy_now: "Mua ngay",
+            instant_credit: "Coin cộng ngay lập tức",
+            high_quality: "Xử lý chất lượng cao",
+            no_expiry: "Coin không hết hạn"
         },
         faq: {
             title: "Câu hỏi thường gặp",
@@ -108,7 +113,8 @@ window.TRANSLATIONS = {
             col_coins: "Coin nhận",
             col_date: "Ngày gửi",
             note_storage: "⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>",
-            action_view: "🔍 Xem"
+            action_view: "🔍 Xem",
+            action_view_details: "Xem chi tiết"
         },
         modals: {
             topup_title: "Nạp Coin tự động",
@@ -207,7 +213,8 @@ window.TRANSLATIONS = {
             title: "Transform 1 Photo into Trending Video",
             subtitle: "Upload a character photo and a motion reference video. We create a new AI video where your character performs the reference motion.",
             cta_create: "Create Video Now",
-            cta_how: "See How It Works"
+            cta_how: "See How It Works",
+            comparison: "✨ Quality equivalent to <b>Kling AI</b> but <b>5x cheaper</b>"
         },
         badges: {
             no_prompt: "No prompt needed",
@@ -261,7 +268,11 @@ window.TRANSLATIONS = {
             subtitle: "Top up once, use for all services.",
             service_title: "Video Service Packages",
             featured: "Best Seller",
-            select_pkg: "Select Package"
+            select_pkg: "Select Package",
+            buy_now: "Buy Now",
+            instant_credit: "Instant coin credit",
+            high_quality: "High quality processing",
+            no_expiry: "Coins never expire"
         },
         faq: {
             title: "Frequently Asked Questions",
@@ -302,7 +313,8 @@ window.TRANSLATIONS = {
             col_coins: "Coins Received",
             col_date: "Date Sent",
             note_storage: "⚠️ <i>Note: The system only stores result videos for 7 days. Please download early!</i>",
-            action_view: "🔍 View"
+            action_view: "🔍 View",
+            action_view_details: "View Details"
         },
         modals: {
             topup_title: "Automated Top-up",

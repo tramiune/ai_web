@@ -149,6 +149,31 @@ button {
   filter: drop-shadow(0 0 5px var(--primary-glow));
 }
 
+.comparison-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(138, 43, 226, 0.08);
+  border: 1px solid rgba(138, 43, 226, 0.2);
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: #fff;
+  margin-bottom: 2rem;
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.1);
+  animation: float 3s ease-in-out infinite;
+}
+
+.comparison-badge b {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
 .auth-btn {
   background: var(--bg-card);
   border: 1px solid var(--glass-border);
@@ -259,6 +284,477 @@ button {
 .user-avatar-wrapper:hover {
   transform: scale(1.05);
 }
+
+/* Pricing Section */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.price-card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  padding: 2.5rem 1.5rem;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.price-card:hover {
+  transform: translateY(-10px);
+  border-color: var(--primary);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.price-card.featured {
+  border: 2px solid var(--primary);
+  background: rgba(138, 43, 226, 0.05);
+  box-shadow: 0 0 30px rgba(138, 43, 226, 0.2);
+}
+
+.featured-badge {
+  position: absolute;
+  top: 12px;
+  right: -35px;
+  background: var(--primary);
+  color: white;
+  padding: 4px 40px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  transform: rotate(45deg);
+  text-transform: uppercase;
+}
+
+.bonus-tag {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.price-card-header {
+  margin-bottom: 1.5rem;
+}
+
+.coin-amount-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--text-main);
+  margin-bottom: 0.2rem;
+}
+
+.coin-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+
+.price-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 2rem;
+}
+
+.pkg-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  text-align: left;
+}
+
+.pkg-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+
+.check-icon {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+/* Bank Details Styling */
+.bank-info-box {
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+  padding: 1.2rem;
+  border: 1px solid var(--glass-border);
+}
+
+.bank-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.bank-row:last-child {
+  border-bottom: none;
+}
+
+.copy-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Topup Info Card in Modal */
+.topup-info-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1.2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.topup-info-main {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.coin-visual-wrapper {
+  background: rgba(0, 242, 254, 0.1);
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  margin: 0 auto 1rem;
+}
+
+.price-card .coin-visual-wrapper {
+  width: auto;
+  height: auto;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+  gap: 12px;
+}
+
+.price-card .coin-visual-wrapper span {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+
+.premium-coin {
+  width: 32px;
+  height: 32px;
+  animation: float-coin 3s ease-in-out infinite;
+}
+
+@keyframes float-coin {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-5px) rotate(5deg); }
+}
+
+.package-details {
+  text-align: left;
+}
+
+.pkg-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.pkg-name {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.pkg-coins {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.topup-info-price {
+  text-align: right;
+}
+
+.price-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.price-val {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255,255,255,0.2);
+}
+
+/* Video Grid Layout */
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.order-card {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  border-color: var(--primary);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+}
+
+.order-thumb-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  overflow: hidden;
+}
+
+.order-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.order-card:hover .order-thumb {
+  transform: scale(1.1);
+}
+
+.order-status-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.order-info {
+  padding: 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.order-id-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.order-id-text {
+  font-family: 'Inter', monospace;
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+.order-date-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.order-type-text {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  font-weight: 500;
+  margin-bottom: 1.2rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.order-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.order-cost-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.order-view-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.order-card:hover .order-view-btn {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.new-badge-float {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--danger);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(255, 77, 77, 0.4);
+}
+
+.new-order-highlight {
+  border-color: var(--danger);
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.1);
+}
+
+.skeleton-card {
+  pointer-events: none;
+}/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.status-pending {
+  background: rgba(255, 145, 0, 0.2);
+  color: #ffb74d;
+  border-color: rgba(255, 145, 0, 0.3);
+}
+
+.status-processing {
+  background: rgba(0, 210, 255, 0.2);
+  color: #00d2ff;
+  border-color: rgba(0, 210, 255, 0.3);
+  animation: badge-pulse 2s infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.status-completed, .status-approved, .status-done {
+  background: rgba(0, 230, 118, 0.2);
+  color: #00e676;
+  border-color: rgba(0, 230, 118, 0.3);
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.2);
+}
+
+.status-failed, .status-rejected {
+  background: rgba(255, 23, 68, 0.2);
+  color: #ff1744;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+
+.play-button-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 54px;
+  height: 54px;
+  background: rgba(var(--primary-rgb), 0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 3;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.order-card:hover .play-button-overlay {
+  transform: translate(-50%, -50%) scale(1.2);
+  background: var(--primary);
+  border-color: white;
+  box-shadow: 0 0 30px var(--primary-glow);
+}
+
+.play-button-overlay svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  margin-left: 3px;
+}
+
+
 
 .card {
   background: var(--bg-card);

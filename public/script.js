@@ -438,6 +438,16 @@ window.handlePreview = (input, containerId) => {
     }
 };
 
+window.copyToClipboard = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast("✅ Đã sao chép vào bộ nhớ tạm!");
+    }).catch(err => {
+        console.error('Lỗi khi copy:', err);
+    });
+};
+
+
 // --- Rendering ---
 function renderPricing() {
     // Render into landing page section if it exists
@@ -446,12 +456,29 @@ function renderPricing() {
 
     const html = COIN_PACKAGES.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
-            ${pkg.featured ? `<div class="featured-badge">${t('pricing.featured')}</div>` : ''}
-            <h4>${pkg.name}</h4>
-            <div class="price-coins">${pkg.coins} 🪙</div>
+            ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured')}</div>` : ''}
+            ${pkg.note ? `<div class="bonus-tag">${pkg.note}</div>` : ''}
+            
+                <div class="coin-visual-wrapper">
+                    <svg class="coin-icon-svg" style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span>${pkg.coins}</span>
+                </div>
+
             <div class="price-value">${pkg.price}</div>
-            ${pkg.note ? `<div style="font-size: 0.75rem; color: var(--accent); margin-bottom: 1rem; font-weight: 600;">${pkg.note}</div>` : ''}
-            <button class="btn-primary" onclick="window.selectTopup('${pkg.id}')">${t('pricing.select_pkg')}</button>
+            
+            <ul class="pkg-features">
+                <li><span class="check-icon">✓</span> ${t('pricing.instant_credit')}</li>
+                <li><span class="check-icon">✓</span> ${t('pricing.high_quality')}</li>
+                <li><span class="check-icon">✓</span> ${t('pricing.no_expiry')}</li>
+            </ul>
+
+            <button class="btn-primary" onclick="window.selectTopup('${pkg.id}')" style="width: 100%; margin-top: auto;">
+                ${t('pricing.buy_now')}
+            </button>
         </div>
     `).join('');
 
@@ -460,6 +487,27 @@ function renderPricing() {
 }
 
 // --- Modals ---
+window.playOrderVideo = (event, videoUrl) => {
+    if (event) event.stopPropagation();
+    const modal = document.getElementById('video-viewer-modal');
+    const video = document.getElementById('full-res-video');
+    if (modal && video) {
+        video.src = videoUrl;
+        modal.style.display = 'flex';
+        video.play();
+    }
+};
+
+window.closeVideoModal = () => {
+    const modal = document.getElementById('video-viewer-modal');
+    const video = document.getElementById('full-res-video');
+    if (modal && video) {
+        video.pause();
+        video.src = '';
+        modal.style.display = 'none';
+    }
+};
+
 window.openModal = (id) => {
     document.getElementById(id).style.display = 'flex';
 };
@@ -513,17 +561,28 @@ window.selectTopup = async (id) => {
     }
 
     document.getElementById('topup-package-info').innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <div style="font-size: 0.8rem; opacity: 0.7;">${t('dashboard.col_package')}</div>
-                <div style="font-weight: 700;">${selectedTopupPackage.name}</div>
+        <div class="topup-info-card">
+            <div class="topup-info-main">
+                <div class="coin-visual-wrapper">
+                    <svg class="coin-icon-svg premium-coin" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="package-details">
+                    <div class="pkg-label">${t('dashboard.col_package')}</div>
+                    <div class="pkg-name">${selectedTopupPackage.name}</div>
+                    <div class="pkg-coins">+${selectedTopupPackage.coins} Coins</div>
+                </div>
             </div>
-            <div style="text-align: right;">
-                <div style="font-size: 0.8rem; opacity: 0.7;">${t('dashboard.col_amount')}</div>
-                <div style="color: var(--accent); font-weight: 800;">${selectedTopupPackage.price}</div>
+            <div class="topup-info-price">
+                <div class="price-label">${t('dashboard.col_amount')}</div>
+                <div class="price-val">${selectedTopupPackage.price}</div>
             </div>
         </div>
     `;
+
 
     document.getElementById('transfer-code').innerText = transferContent;
 
@@ -845,80 +904,89 @@ function loadMyOrders() {
         where("userId", "==", currentUser.uid)
     );
 
-    const list = document.getElementById('my-orders-list');
-    if (list) {
-        list.innerHTML = Array(3).fill(0).map(() => `
-            <tr>
-                <td><div class="skeleton" style="width:44px; height:44px; border-radius:8px;"></div></td>
-                <td>
-                    <div class="skeleton" style="width:100px; height:16px; margin-bottom:8px;"></div>
-                    <div class="skeleton" style="width:60px; height:12px;"></div>
-                </td>
-                <td><div class="skeleton" style="width:70px; height:20px; border-radius:10px;"></div></td>
-                <td><div class="skeleton" style="width:30px; height:20px; border-radius:4px;"></div></td>
-            </tr>
+    const grid = document.getElementById('my-orders-grid');
+    const countText = document.getElementById('orders-count-text');
+
+    if (grid) {
+        grid.innerHTML = Array(4).fill(0).map(() => `
+            <div class="order-card skeleton-card">
+                <div class="skeleton" style="width:100%; aspect-ratio: 16/9; border-radius:12px;"></div>
+                <div style="padding: 1rem;">
+                    <div class="skeleton" style="width:60%; height:16px; margin-bottom:8px;"></div>
+                    <div class="skeleton" style="width:40%; height:12px;"></div>
+                </div>
+            </div>
         `).join('');
     }
 
     onSnapshot(q, (snapshot) => {
-        const list = document.getElementById('my-orders-list');
+        if (!grid) return;
+        
         if (snapshot.empty) {
-            list.innerHTML = `<tr><td colspan="3" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_orders')}</td></tr>`;
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🎬</div>
+                <div>${t('status.no_orders')}</div>
+            </div>`;
+            if (countText) countText.innerText = '';
             return;
         }
 
-        // Sắp xếp thủ công trên client để tránh lỗi Index Firestore
+        // Manual sort by time
         const sortedDocs = [...snapshot.docs].sort((a, b) => {
             const timeA = a.data().createdAt?.seconds || 0;
             const timeB = b.data().createdAt?.seconds || 0;
             return timeB - timeA;
         });
 
-        list.innerHTML = sortedDocs.map(doc => {
+        if (countText) countText.innerText = `${sortedDocs.length} Videos`;
+
+        grid.innerHTML = sortedDocs.map(doc => {
             const d = doc.data();
             const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
             const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
-            const fullDate = d.createdAt ? d.createdAt.toDate().toLocaleDateString('vi-VN') : '';
             const statusVN = STATUS_MAP()[d.status] || d.status;
-
-            // Kiểm tra xem đơn hàng có phải là "Mới" (trong vòng 5 phút) không
             const isNew = d.createdAt && (Date.now() - d.createdAt.toDate().getTime() < 5 * 60 * 1000);
-            const rowClass = isNew ? 'new-order-highlight' : '';
+            const isCompleted = d.status === 'completed' || d.status === 'done';
 
             return `
-                <tr onclick="window.openUserOrderDetail('${doc.id}')" class="${rowClass}" style="cursor: pointer;">
-                    <td>
-                        <div style="width: 44px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); background: #000;">
-                            <img src="${d.characterImageLink}" style="width: 100%; height: 100%; object-fit: cover;">
+                <div class="order-card ${isNew ? 'new-order-highlight' : ''}" onclick="${isCompleted && d.resultLink ? `window.playOrderVideo(event, '${d.resultLink}')` : `window.openUserOrderDetail('${doc.id}')`}">
+                    <div class="order-thumb-wrapper">
+                        <img src="${d.characterImageLink}" class="order-thumb">
+                        
+                        ${isCompleted && d.resultLink ? `
+                            <div class="play-button-overlay">
+                                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                        ` : ''}
+
+                        <div class="order-status-overlay">
+                            <span class="status-badge status-${d.status}">${statusVN}</span>
                         </div>
-                    </td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-family: monospace; font-weight: bold; color: var(--accent-primary); font-size: 1rem;">#${orderId}</span>
-                            ${isNew ? '<span class="new-badge">MỚI</span>' : ''}
+                        ${isNew ? '<span class="new-badge-float">NEW</span>' : ''}
+                    </div>
+                    <div class="order-info">
+                        <div class="order-id-row">
+                            <span class="order-id-text">#${orderId}</span>
+                            <span class="order-date-text">${date}</span>
                         </div>
-                        <div style="font-size: 0.75rem; opacity: 0.6; margin-top: 2px;">${date} - ${fullDate}</div>
-                    </td>
-                    <td>
-                        <span class="status-badge status-${d.status}">${statusVN}</span>
-                        ${d.resultLink ? '<div style="font-size: 0.7rem; color: #2ecc71; margin-top: 4px; font-weight: 600;">✅ Xong</div>' : ''}
-                    </td>
-                    <td>
-                        <button class="btn-detail-view">
-                            <span>${t('dashboard.action_view')}</span>
-                        </button>
-                    </td>
-                </tr>
+                        <div class="order-type-text">${d.serviceLabel || ''}</div>
+                        <div class="order-footer">
+                            <div class="order-cost-tag">
+                                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                    <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                                </svg>
+                                <span>${d.costCoins}</span>
+                            </div>
+                            <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${doc.id}')">${t('dashboard.action_view_details')}</button>
+                        </div>
+                    </div>
+                </div>
             `;
         }).join('');
-    }, (error) => {
-        console.error("Orders Listener Error:", error);
-        // Nếu lỗi do thiếu index, in ra thông báo cho user
-        if (error.code === 'failed-precondition') {
-            console.warn("⚠️ Cần tạo Index cho Firestore. Hãy kiểm tra Console để nhấn vào link tạo index.");
-        }
     });
 }
+
 
 function loadMyTopups() {
     const { db, collection, query, where, onSnapshot } = window.firebase;

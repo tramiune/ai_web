@@ -45,7 +45,11 @@
                         </div>
                         <hr class="dropdown-divider">
                         <a href="javascript:void(0)" class="dropdown-item" onclick="window.openTopupModal()">
-                            <svg class="nav-icon coin-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                            <svg class="nav-icon coin-icon-svg" style="width:18px; height:18px;" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                                <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
                             <span data-i18n="dashboard.topup">Nạp thêm</span>
                         </a>
                         <hr class="dropdown-divider">
@@ -113,6 +117,9 @@
         <!-- Hero Section -->
         <section class="hero" style="padding-top: 3rem;">
             <div class="hero-content">
+                <div class="comparison-badge" data-i18n="hero.comparison">
+                    ✨ Chất lượng tương đương <b>Kling AI</b> nhưng giá <b>rẻ hơn gấp 5 lần</b>
+                </div>
                 <h1 data-i18n="hero.title">Biến 1 ảnh thành video bắt trend</h1>
                 <p data-i18n="hero.subtitle">Tải lên ảnh nhân vật và video mẫu chuyển động. Chúng tôi tạo video AI mới, trong đó nhân vật của bạn
                     thực hiện chuyển động theo video tham chiếu.</p>
@@ -282,7 +289,13 @@
             </div>
             
             <div class="wallet-card">
-                <div class="wallet-icon">🪙</div>
+                <div class="wallet-icon">
+                    <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
                 <div class="wallet-info">
                     <span class="wallet-label" data-i18n="dashboard.balance">Số dư Coin</span>
                     <div class="wallet-value"><span id="coin-balance">0</span></div>
@@ -297,27 +310,16 @@
             <button class="btn-primary" onclick="window.openOrderModal()" data-i18n="dashboard.create_new">+ Tạo video mới</button>
         </div>
 
-        <div class="section-header" style="text-align: left; margin-bottom: 0.5rem;">
+        <div class="section-header" style="text-align: left; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
             <h2 data-i18n="dashboard.my_videos">Video của tôi</h2>
+            <div style="font-size: 0.8rem; color: var(--text-muted);" id="orders-count-text"></div>
         </div>
-        <p
-            style="font-size: 0.85rem; color: #ff4d4d; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;" data-i18n="dashboard.note_storage">
+        <p style="font-size: 0.85rem; color: #ffde00; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;" data-i18n="dashboard.note_storage">
             ⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>
         </p>
-        <div class="data-table-container" style="background: var(--bg-card); border-radius: var(--radius-md);">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th data-i18n="dashboard.col_image">Ảnh</th>
-                        <th data-i18n="dashboard.col_video_date">Video & Ngày</th>
-                        <th data-i18n="dashboard.col_status">Trạng thái</th>
-                        <th data-i18n="dashboard.col_action">Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="my-orders-list">
-                    <!-- Orders will be rendered here -->
-                </tbody>
-            </table>
+        
+        <div id="my-orders-grid" class="orders-grid">
+            <!-- Cards will be rendered here -->
         </div>
 
         <div class="section-header" style="text-align: left; margin-bottom: 1.5rem; margin-top: 3rem;">
@@ -480,34 +482,30 @@
                 animation-delay: 1s;
             }
 
-            @keyframes dot-flashing {
-                0% {
-                    background-color: var(--accent);
-                }
+            .bank-info-box { border: 1px solid var(--glass-border); border-radius: 8px; margin: 1.5rem 0; background: rgba(0,0,0,0.2); }
+            .bank-row { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem; border-bottom: 1px solid var(--glass-border); }
+            .copy-btn { background: var(--accent); color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
 
-                50%,
-                100% {
-                    background-color: rgba(0, 242, 254, 0.2);
-                }
+            @keyframes dot-flashing {
+                0% { background-color: var(--accent); }
+                50%, 100% { background-color: rgba(0, 242, 254, 0.2); }
             }
         </style>
         <div class="modal-content" style="max-width: 500px; width: 95%;">
             <span class="modal-close" onclick="closeModal('topup-modal')" data-i18n="modals.close">&times;</span>
             <div class="modal-header">
                 <h2 style="margin-bottom: 0.5rem;" data-i18n="modals.topup_title">Nạp Coin tự động</h2>
-                <p style="color: var(--text-muted); font-size: 0.9rem;" data-i18n="modals.topup_subtitle">Hệ thống tự động cộng coin sau khi nhận được
-                    thanh toán.</p>
+                <p style="color: var(--text-muted); font-size: 0.9rem;" data-i18n="modals.topup_subtitle">Hệ thống tự động cộng coin sau khi nhận được thanh toán.</p>
             </div>
 
-            <div class="modal-body" style="padding: 1.5rem; text-align: center;">
-                <div
-                    style="background: var(--bg-card-hover); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
-                    <h4
-                        style="margin-bottom: 1.5rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;" data-i18n="modals.qr_mb_bank">
-                        Quét mã QR MB Bank</h4>
+            <div class="modal-body" style="padding: 1rem; text-align: center;">
+                <div class="topup-qr-container" style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+                    <div class="bank-header" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 1.5rem;">
+                        <img src="https://img.vietqr.io/image/MB-logo.png" style="height: 24px; filter: brightness(0) invert(1);" alt="MB Bank">
+                        <h4 style="color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;" data-i18n="modals.qr_mb_bank">Quét mã QR MB Bank</h4>
+                    </div>
 
-                    <div
-                        style="margin-bottom: 1.5rem; position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center;">
+                    <div style="margin-bottom: 1.5rem; position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center;">
                         <div id="qr-loader" class="qr-loader-container">
                             <div class="spinner-ring"></div>
                             <div class="loading-text" data-i18n="modals.generating_qr">Đang tạo mã QR...</div>
@@ -516,31 +514,33 @@
                             style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
                     </div>
 
-                    <div id="topup-package-info"
-                        style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 1.1rem;">
+                    <div id="topup-package-info" style="margin-bottom: 1.5rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 1.1rem;">
                     </div>
 
-                    <div
-                        style="font-size: 0.85rem; line-height: 1.6; text-align: left; background: rgba(0,0,0,0.2); padding: 1.2rem; border-radius: 8px;">
-                        <div
-                            style="margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                            <span style="opacity: 0.6; font-size: 0.75rem;" data-i18n="modals.acc_no">Số tài khoản:</span><br>
-                            <strong style="letter-spacing: 1px; font-size: 1.1rem;">0965951536</strong>
+                    <div class="bank-info-box">
+                        <div class="bank-row">
+                            <div style="text-align: left;">
+                                <span style="opacity: 0.6; font-size: 0.7rem;" data-i18n="modals.acc_no">Số tài khoản:</span><br>
+                                <strong style="letter-spacing: 1px; font-size: 1rem;">0965951536</strong>
+                            </div>
+                            <button class="copy-btn" onclick="window.copyToClipboard('0965951536')">Copy</button>
                         </div>
-                        <div
-                            style="margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px;">
-                            <span style="opacity: 0.6; font-size: 0.75rem;" data-i18n="modals.acc_name">Chủ tài khoản:</span><br>
-                            <strong style="font-size: 1.1rem;">VĂN ĐÌNH HOÀNG</strong>
+                        <div class="bank-row">
+                            <div style="text-align: left;">
+                                <span style="opacity: 0.6; font-size: 0.7rem;" data-i18n="modals.acc_name">Chủ tài khoản:</span><br>
+                                <strong style="font-size: 1rem;">VĂN ĐÌNH HOÀNG</strong>
+                            </div>
                         </div>
-                        <div>
-                            <span style="opacity: 0.6; font-size: 0.75rem;" data-i18n="modals.transfer_note">Nội dung chuyển khoản (Bắt buộc):</span><br>
-                            <strong id="transfer-code"
-                                style="color: #ffde00; font-size: 1.1rem; letter-spacing: 1px;"></strong>
+                        <div class="bank-row" style="border-bottom: none;">
+                            <div style="text-align: left;">
+                                <span style="opacity: 0.6; font-size: 0.7rem;" data-i18n="modals.transfer_note">Nội dung (Bắt buộc):</span><br>
+                                <strong id="transfer-code" style="color: #ffde00; font-size: 1rem; letter-spacing: 1px;"></strong>
+                            </div>
+                            <button class="copy-btn" onclick="window.copyToClipboard(document.getElementById('transfer-code').innerText)">Copy</button>
                         </div>
                     </div>
 
-                    <div
-                        style="margin-top: 2rem; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); font-size: 0.85rem;">
+                    <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); font-size: 0.85rem;">
                         <div class="dot-flashing"></div>
                         <span data-i18n="modals.waiting_payment">Đang chờ xác nhận thanh toán...</span>
                     </div>
@@ -618,10 +618,18 @@
                             <label class="card compact-card" style="cursor: pointer;">
                                 <input type="radio" name="model-type" value="basic" checked>
                                 <div class="card-content-inline">
-                                    <span class="card-icon-sm">⭐</span>
+                                    <div class="card-icon-sm">
+                                        <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                            <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                                            <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
                                     <div>
                                         <div style="font-weight: 700; font-size: 0.9rem;" data-i18n="modals.model_basic">Model Tiêu chuẩn</div>
-                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem;">6 Coins
+                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
+                                            <span>6</span>
+                                            <span style="font-size: 0.7rem; opacity: 0.8;">Coins</span>
                                         </div>
                                     </div>
                                 </div>
@@ -629,10 +637,18 @@
                             <label class="card compact-card" style="cursor: pointer;">
                                 <input type="radio" name="model-type" value="pro">
                                 <div class="card-content-inline">
-                                    <span class="card-icon-sm">💎</span>
+                                    <div class="card-icon-sm">
+                                        <svg style="width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                                            <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                                            <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
                                     <div>
                                         <div style="font-weight: 700; font-size: 0.9rem;" data-i18n="modals.model_pro">Model Cao cấp</div>
-                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem;">12 Coins
+                                        <div style="color: var(--accent); font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
+                                            <span>12</span>
+                                            <span style="font-size: 0.7rem; opacity: 0.8;">Coins</span>
                                         </div>
                                     </div>
                                 </div>
@@ -812,6 +828,14 @@
         <div style="max-width: 90%; max-height: 90%; display: flex; align-items: center; justify-content: center;">
             <img id="full-res-image" src=""
                 style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 0 50px rgba(0,0,0,0.8);">
+        </div>
+    </div>
+
+    <!-- Video Viewer Modal -->
+    <div id="video-viewer-modal" class="modal-overlay" onclick="window.closeVideoModal()">
+        <div style="max-width: 90%; max-height: 90%; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative;" onclick="event.stopPropagation()">
+            <span class="modal-close" style="position: absolute; top: -40px; right: 0; font-size: 30px; color: white; cursor: pointer;" onclick="window.closeVideoModal()">&times;</span>
+            <video id="full-res-video" controls autoplay style="max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,0.8); background: #000;"></video>
         </div>
     </div>
 
