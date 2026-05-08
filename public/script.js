@@ -13,26 +13,23 @@ const COIN_PACKAGES = [
     { id: 'pro-studio', name: 'Pro Studio', coins: 300, price: '200.000đ', amount: 200000, note: 'Tặng 100 Coin' }
 ];
 
-const VIDEO_TEMPLATES = [
-    { id: 't1', name: 'AI Dance K-Pop', category: 'Dance', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 't2', name: 'Fashion Catwalk', category: 'Fashion', thumb: 'https://placehold.co/100x150/000/fff?text=Fashion+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
-    { id: 't3', name: 'Funny Shuffle', category: 'Dance', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+2', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 't4', name: 'Martial Arts', category: 'Action', thumb: 'https://placehold.co/100x150/000/fff?text=Action+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' }
-];
-
-const SHOWCASE_VIDEOS = [
-    { id: 's1', title: 'Cyberpunk Dance', author: '@alex_ai', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 's2', title: 'Street Fashion', author: '@style_gen', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
-    { id: 's3', title: 'Future Walk', author: '@motion_pro', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 's4', title: 'Magic Shuffle', author: '@dance_master', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
-    { id: 's5', title: 'Action Hero', author: '@vfx_king', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 's6', title: 'Vintage Vibe', author: '@retro_ai', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' }
+const TREND_VIDEOS = [
+    { id: 't1', title: 'AI Dance K-Pop', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 't2', title: 'Fashion Catwalk', thumb: 'https://placehold.co/100x150/000/fff?text=Fashion+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
+    { id: 't3', title: 'Funny Shuffle', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+2', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 't4', title: 'Martial Arts', thumb: 'https://placehold.co/100x150/000/fff?text=Action+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' }
 ];
 
 const MODELS = {
     basic: { name: "Model Tiêu chuẩn", cost: 6 },
     pro: { name: "Model Cao cấp", cost: 12 }
 };
+
+const SERVICE_PACKAGES = [
+    { id: 'basic', name: 'Basic', cost: 6, features: ['Chất lượng SD', 'Xử lý 15-30p', '1 nhân vật'] },
+    { id: 'plus', name: 'Plus', cost: 12, features: ['Chất lượng HD', 'Ưu tiên xử lý', 'Hỗ trợ sửa đổi'], featured: true },
+    { id: 'viral', name: 'Viral', cost: 25, features: ['Chất lượng 4K', 'Xử lý siêu tốc', 'Sửa đổi tối đa 3 lần'] }
+];
 
 let currentUser = null;
 let selectedTopupPackage = null;
@@ -188,7 +185,6 @@ export function initAppLogic() {
     renderShowcase();
     renderPricing();
     renderServicePackages();
-    renderFAQ();
     initPremiumEffects();
     setupEventListeners();
     syncVideos();
@@ -237,18 +233,27 @@ window.renderShowcase = () => {
     const gallery = document.getElementById('showcase-gallery');
     if (!gallery) return;
     
-    gallery.innerHTML = SHOWCASE_VIDEOS.map(v => `
-        <div class="showcase-card" onclick="window.playOrderVideo(null, '${v.url}')">
+    gallery.innerHTML = TREND_VIDEOS.map(v => `
+        <div class="showcase-card">
             <video class="showcase-video" src="${v.url}" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
             <div class="showcase-info">
                 <div class="showcase-title">${v.title}</div>
-                <div class="showcase-author">${v.author}</div>
-            </div>
-            <div class="showcase-play-hint">
-                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <button class="use-trend-btn" onclick="window.useTrendShortcut('${v.id}', '${v.url}')">
+                    ${window.t('showcase.use_this')}
+                </button>
             </div>
         </div>
     `).join('');
+};
+
+window.useTrendShortcut = (id, url) => {
+    window.openOrderModal();
+    window.switchVideoSource('library');
+    setTimeout(() => {
+        window.selectTemplate(id, url);
+        const el = document.getElementById(`tpl-${id}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
 };
 
 async function login() {
@@ -524,6 +529,32 @@ function renderPricing() {
     if (modalCoinGrid) modalCoinGrid.innerHTML = html;
 }
 
+function renderServicePackages() {
+    const grid = document.getElementById('service-packages');
+    if (!grid) return;
+    
+    grid.innerHTML = SERVICE_PACKAGES.map(pkg => `
+        <div class="price-card ${pkg.featured ? 'featured' : ''}">
+            ${pkg.featured ? `<div class="featured-badge">🔥 Hot</div>` : ''}
+            <h3>${pkg.name}</h3>
+            <div class="coin-visual-wrapper">
+                <svg class="coin-icon-svg" style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                    <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                    <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>${pkg.cost} Coin</span>
+            </div>
+            <ul class="pkg-features">
+                ${pkg.features.map(f => `<li><span class="check-icon">✓</span> ${f}</li>`).join('')}
+            </ul>
+            <button class="btn-primary" onclick="window.openOrderModal()" style="width: 100%; margin-top: auto;">
+                Bắt đầu ngay
+            </button>
+        </div>
+    `).join('');
+}
+
 // --- Video Library ---
 // --- Video Library ---
 window.switchVideoSource = (type) => {
@@ -551,16 +582,16 @@ window.switchVideoSource = (type) => {
 window.renderTemplates = () => {
     const grid = document.getElementById('template-library-grid');
     if (!grid) return;
-    grid.innerHTML = VIDEO_TEMPLATES.map(t => `
+    grid.innerHTML = TREND_VIDEOS.map(t => `
         <div class="template-item" id="tpl-${t.id}" onclick="window.previewTemplate('${t.id}')">
             <img src="${t.thumb}" class="template-thumb">
-            <div class="template-overlay">${t.name}</div>
+            <div class="template-overlay">${t.title}</div>
         </div>
     `).join('');
 };
 
 window.previewTemplate = (id) => {
-    const template = VIDEO_TEMPLATES.find(t => t.id === id);
+    const template = TREND_VIDEOS.find(t => t.id === id);
     if (!template) return;
 
     const modal = document.getElementById('template-preview-modal');
@@ -570,7 +601,7 @@ window.previewTemplate = (id) => {
 
     if (modal && video) {
         video.src = template.url;
-        nameText.innerText = template.name;
+        nameText.innerText = template.title;
         modal.style.display = 'flex';
         video.play();
 
@@ -597,7 +628,8 @@ window.selectTemplate = (id, url) => {
     if (item) item.classList.add('active');
     document.getElementById('selected-template-url').value = url;
     window.currentVideoSource = 'library';
-    showToast("✅ Đã chọn mẫu: " + VIDEO_TEMPLATES.find(t => t.id === id).name);
+    const trend = TREND_VIDEOS.find(t => t.id === id);
+    showToast("✅ Đã chọn trend: " + (trend ? trend.title : id));
 };
 
 window.currentVideoSource = 'upload';

@@ -17,9 +17,10 @@ window.TRANSLATIONS = {
             comparison: "✨ Chất lượng tương đương <b>Kling AI</b> nhưng giá <b>rẻ hơn gấp 5 lần</b>"
         },
         showcase: {
-            title: "Sáng tạo nổi bật",
-            subtitle: "Khám phá những video AI ấn tượng được tạo bởi cộng đồng MotionAI.",
-            cta: "Khám phá thêm & Tạo ngay"
+            title: "Thư viện Trend hot",
+            subtitle: "Chọn ngay một trend đang viral để bắt đầu sáng tạo video của riêng bạn.",
+            cta: "Tải lên video của bạn",
+            use_this: "⚡ Dùng trend này"
         },
         badges: {
             no_prompt: "Không cần prompt",
@@ -222,9 +223,10 @@ window.TRANSLATIONS = {
             comparison: "✨ Quality equivalent to <b>Kling AI</b> but <b>5x cheaper</b>"
         },
         showcase: {
-            title: "Featured Creations",
-            subtitle: "Discover impressive AI videos created by the MotionAI community.",
-            cta: "Explore More & Create Now"
+            title: "Hot Trend Library",
+            subtitle: "Select a viral trend to start creating your own AI video immediately.",
+            cta: "Upload your own video",
+            use_this: "⚡ Use this Trend"
         },
         badges: {
             no_prompt: "No prompt needed",
