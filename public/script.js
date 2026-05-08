@@ -110,7 +110,7 @@ export function applyTranslations() {
         const key = el.getAttribute('data-i18n-title');
         el.title = t(key);
     });
-    
+
     // Update current lang flag
     const flagMap = { vi: '🇻🇳', en: '🇺🇸' };
     const flagEl = document.getElementById('current-lang-flag');
@@ -137,7 +137,7 @@ window.switchLanguage = (lang) => {
     window.currentLang = lang;
     localStorage.setItem('app_lang', lang);
     applyTranslations();
-    
+
     // Close lang menu after switch
     const langMenu = document.getElementById('lang-menu');
     if (langMenu) langMenu.classList.remove('show');
@@ -234,7 +234,7 @@ function syncVideos() {
 window.renderShowcase = () => {
     const gallery = document.getElementById('showcase-gallery');
     if (!gallery) return;
-    
+
     gallery.innerHTML = TREND_VIDEOS.map(v => `
         <div class="showcase-card" onclick="window.playOrderVideo(event, '${v.url}')">
             <video class="showcase-video" 
@@ -552,7 +552,7 @@ function renderPricing() {
 function renderServicePackages() {
     const grid = document.getElementById('service-packages');
     if (!grid) return;
-    
+
     grid.innerHTML = SERVICE_PACKAGES.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
             ${pkg.featured ? `<div class="featured-badge">🔥 Hot</div>` : ''}
@@ -765,7 +765,7 @@ window.selectTopup = async (id) => {
     qrImg.style.display = 'none';
     qrLoader.style.display = 'flex';
 
-        qrImg.onload = () => {
+    qrImg.onload = () => {
         qrLoader.style.display = 'none';
         qrImg.style.display = 'block';
     };
@@ -1115,7 +1115,7 @@ function loadMyOrders() {
                     // To be sure it's a status change, we could compare or just notify on any mod.
                     const orderId = change.doc.id.substring(change.doc.id.length - 6).toUpperCase();
                     const statusVN = STATUS_MAP()[data.status] || data.status;
-                    
+
                     if (data.status === 'completed') {
                         showToast(`🎉 Đơn hàng #${orderId} đã hoàn thành!`);
                         // Optional: play sound
@@ -1126,7 +1126,7 @@ function loadMyOrders() {
             });
         }
         isFirstLoad = false;
-        
+
         if (snapshot.empty) {
             grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">🎬</div>
@@ -1223,7 +1223,7 @@ function loadMyTopups() {
                 if (change.type === "modified") {
                     const data = change.doc.data();
                     const statusVN = STATUS_MAP()[data.status] || data.status;
-                    
+
                     if (data.status === 'approved') {
                         showToast(`✨ Đơn nạp ${data.packageName} đã được DUYỆT!`);
                     } else if (data.status === 'rejected') {
@@ -1513,7 +1513,7 @@ window.openUserOrderDetail = async (orderId) => {
     // Timeline Steps logic
     const steps = ['pending', 'processing', 'completed'];
     const currentStepIdx = steps.indexOf(d.status) === -1 ? 0 : steps.indexOf(d.status);
-    
+
     const timelineHtml = `
         <div class="status-timeline">
             <div class="timeline-step ${currentStepIdx >= 0 ? 'active' : ''}">
