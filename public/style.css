@@ -24,6 +24,25 @@
   --container-max: 1200px;
 }
 
+.card-icon-sm {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* Specific grid for model selection in order modal */
+.model-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .model-selection-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -1396,10 +1415,6 @@ section {
   text-align: left;
 }
 
-.card-icon-sm {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
 
 .card:hover {
   transform: translateY(-5px);

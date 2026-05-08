@@ -23,8 +23,9 @@ const TREND_VIDEOS = [
 ];
 
 const MODELS = {
-    basic: { name: "Model Tiêu chuẩn", cost: 6 },
-    pro: { name: "Model Cao cấp", cost: 12 }
+    basic: { name: "Model Tiêu chuẩn", cost: 6, time: "12h" },
+    fast: { name: "Model Nhanh", cost: 10, time: "30p" },
+    turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p" }
 };
 
 const SERVICE_PACKAGES = [
@@ -911,8 +912,15 @@ async function setupEventListeners() {
     // Model Selection change cost
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
-            const cost = MODELS[e.target.value].cost;
-            document.getElementById('submit-cost').innerText = cost;
+            const model = MODELS[e.target.value];
+            document.getElementById('submit-cost').innerText = model.cost;
+            
+            // Cập nhật dòng tóm tắt trên nút
+            const summaryEl = document.getElementById('submit-summary-line');
+            if (summaryEl) {
+                const desc = t(`modals.model_${e.target.value}_desc`);
+                summaryEl.innerText = desc;
+            }
         });
     });
 
