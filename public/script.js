@@ -1163,7 +1163,7 @@ function loadAdminPanel() {
                     <tr>
                         <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${orderId}</td>
                         <td>${d.userName || 'Khách'}<br><small>${d.userEmail || ''}</small></td>
-                        <td>${d.packageName || ''} (${d.serviceType || ''})</td>
+                        <td>${d.packageName || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
                         <td>${d.costCoins || 0} Coin</td>
                         <td><button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${doc.id}')">Cập nhật</button></td>
                     </tr>
@@ -1206,6 +1206,8 @@ window.openUserOrderDetail = async (orderId) => {
         </div>
     `;
 
+    const serviceLabel = SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType;
+
     document.getElementById('user-order-info').innerHTML = `
         ${timelineHtml}
         <div class="admin-info-grid">
@@ -1215,11 +1217,11 @@ window.openUserOrderDetail = async (orderId) => {
             </div>
             <div class="info-item">
                 <span class="info-label">✨ Trạng thái</span>
-                <span class="info-value"><span class="status-badge status-${d.status}">${statusVN}</span></span>
+                <span class="info-value"><span class="status-badge status-${d.status}">${statusLabel}</span></span>
             </div>
             <div class="info-item">
                 <span class="info-label">📦 Gói dịch vụ</span>
-                <span class="info-value">${d.packageName} (${d.serviceType})</span>
+                <span class="info-value">${d.packageName} (${serviceLabel})</span>
             </div>
             <div class="info-item">
                 <span class="info-label">📏 Tỷ lệ khung hình</span>

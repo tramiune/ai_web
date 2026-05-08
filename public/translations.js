@@ -20,16 +20,20 @@ window.TRANSLATIONS = {
             high_quality: "Chất lượng 4K"
         },
         status: {
-            pending: "Đang chờ",
+            pending: "Đang chờ xử lý",
             approved: "Đã duyệt",
             rejected: "Bị từ chối",
-            processing: "Đang xử lý",
-            completed: "Hoàn thành",
+            processing: "Đang thực hiện tạo video",
+            completed: "Đã xong",
             failed: "Thất bại",
             new: "MỚI",
             done: "Xong",
             empty_orders_msg: "Chưa có đơn hàng nào trong mục này",
             empty_topups_msg: "Không có dữ liệu đơn nạp"
+        },
+        services: {
+            char_to_video: "Lồng người vào Video",
+            motion_to_char: "Copy chuyển động vào Ảnh"
         },
         dashboard: {
             greeting: "Chào mừng, {name}! ✨",
@@ -92,13 +96,17 @@ window.TRANSLATIONS = {
             pending: "Pending",
             approved: "Approved",
             rejected: "Rejected",
-            processing: "Processing",
-            completed: "Completed",
+            processing: "Generating video",
+            completed: "Done",
             failed: "Failed",
             new: "NEW",
             done: "Done",
             empty_orders_msg: "No orders found in this category",
             empty_topups_msg: "No top-up data found"
+        },
+        services: {
+            char_to_video: "Insert Character into Video",
+            motion_to_char: "Copy Motion to Image"
         },
         dashboard: {
             greeting: "Welcome, {name}! ✨",
