@@ -96,20 +96,37 @@ export function applyTranslations() {
         el.title = t(key);
     });
     
-    // Update language switcher active state
-    const langBtns = document.querySelectorAll('.lang-btn');
-    langBtns.forEach(btn => {
-        const btnLang = (btn.getAttribute('data-lang') || '').trim();
-        const isActive = btnLang === currentLang.trim();
-        btn.classList.toggle('active', isActive);
-    });
+    // Update current lang flag
+    const flagMap = { vi: '🇻🇳', en: '🇺🇸' };
+    const flagEl = document.getElementById('current-lang-flag');
+    if (flagEl) flagEl.innerText = flagMap[currentLang] || '🇻🇳';
 }
+
+window.toggleLangMenu = (e) => {
+    if (e) e.stopPropagation();
+    document.getElementById('lang-menu').classList.toggle('show');
+};
+
+window.toggleNavMenu = (e) => {
+    if (e) e.stopPropagation();
+    document.getElementById('nav-menu').classList.toggle('show');
+};
+
+window.toggleUserMenu = (e) => {
+    if (e) e.stopPropagation();
+    document.getElementById('dropdown-menu').classList.toggle('show');
+};
 
 window.switchLanguage = (lang) => {
     currentLang = lang;
     window.currentLang = lang;
     localStorage.setItem('app_lang', lang);
     applyTranslations();
+    
+    // Close lang menu after switch
+    const langMenu = document.getElementById('lang-menu');
+    if (langMenu) langMenu.classList.remove('show');
+
     if (currentUser) {
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.innerText = t('dashboard.greeting', { name: currentUser.displayName });
@@ -229,9 +246,17 @@ async function handleUserLoggedIn(user) {
     document.getElementById('dropdown-user-name').innerText = user.displayName;
     document.getElementById('dropdown-user-email').innerText = user.email;
 
-    // Hiển thị Dashboard link trong dropdown
+    // Hiển thị Dashboard link và Hamburger menu
     const dbItem = document.getElementById('db-dropdown-item');
     if (dbItem) dbItem.style.display = 'flex';
+    const navHamburger = document.getElementById('nav-hamburger-menu');
+    if (navHamburger) navHamburger.style.display = 'block';
+
+    // Toggle Dashboard sub-elements
+    const dashIn = document.getElementById('dashboard-logged-in');
+    const dashOut = document.getElementById('dashboard-auth-placeholder');
+    if (dashIn) dashIn.style.display = 'block';
+    if (dashOut) dashOut.style.display = 'none';
 
     // Xử lý hành động đang chờ (ví dụ: mở modal tạo đơn sau khi login)
     if (window.pendingAction === 'openOrderModal') {
@@ -312,6 +337,14 @@ function handleUserLoggedOut() {
 
     const dbItem = document.getElementById('db-dropdown-item');
     if (dbItem) dbItem.style.display = 'none';
+    const navHamburger = document.getElementById('nav-hamburger-menu');
+    if (navHamburger) navHamburger.style.display = 'none';
+
+    // Toggle Dashboard sub-elements
+    const dashIn = document.getElementById('dashboard-logged-in');
+    const dashOut = document.getElementById('dashboard-auth-placeholder');
+    if (dashIn) dashIn.style.display = 'none';
+    if (dashOut) dashOut.style.display = 'block';
 
     showLanding();
 }
@@ -358,15 +391,14 @@ window.navTo = (target) => {
     }
 };
 
-window.toggleUserMenu = (e) => {
-    if (e) e.stopPropagation();
-    document.getElementById('dropdown-menu').classList.toggle('show');
-};
-
 // Đóng menu khi click ra ngoài
 window.addEventListener('click', () => {
-    const menu = document.getElementById('dropdown-menu');
-    if (menu) menu.classList.remove('show');
+    const userMenu = document.getElementById('dropdown-menu');
+    if (userMenu) userMenu.classList.remove('show');
+    const langMenu = document.getElementById('lang-menu');
+    if (langMenu) langMenu.classList.remove('show');
+    const navMenu = document.getElementById('nav-menu');
+    if (navMenu) navMenu.classList.remove('show');
 });
 
 window.logout = logout;

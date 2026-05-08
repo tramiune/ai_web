@@ -29,25 +29,11 @@
                 <span class="logo-text">MotionAI Studio</span>
             </a>
 
-            <div id="auth-section" style="display: flex; align-items: center; gap: 1rem;">
-                <!-- Language Switcher -->
-                <div class="lang-switcher">
-                    <button class="lang-btn" data-lang="vi" onclick="window.switchLanguage('vi')">VN</button>
-                    <button class="lang-btn" data-lang="en" onclick="window.switchLanguage('en')">EN</button>
-                </div>
-
-                <!-- Logged Out State -->
-                <div id="login-section">
-                    <button class="auth-btn" id="login-btn" onclick="window.loginUser()">
-                        <span data-i18n="navbar.login">Đăng nhập</span>
-                    </button>
-                </div>
-
-                <!-- Logged In State -->
+            <div id="auth-section" style="display: flex; align-items: center; gap: 0.8rem;">
+                <!-- 1. Logged In State (Avatar) -->
                 <div id="user-profile-menu" class="user-profile-dropdown" style="display: none;">
                     <div class="user-avatar-wrapper" onclick="window.toggleUserMenu(event)">
                         <img id="user-avatar" class="user-avatar" src="" alt="User">
-                        <span class="dropdown-arrow">▼</span>
                     </div>
                     <div id="dropdown-menu" class="dropdown-content">
                         <div class="dropdown-user-info">
@@ -55,21 +41,57 @@
                             <span id="dropdown-user-email">email@gmail.com</span>
                         </div>
                         <hr class="dropdown-divider">
-
-                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('landing-page')">
-                            <span class="nav-icon">🏠</span> <span data-i18n="navbar.home">Home</span>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.openTopupModal()">
+                            <svg class="nav-icon coin-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                            <span data-i18n="dashboard.topup">Nạp thêm</span>
                         </a>
-                        <a href="javascript:void(0)" id="db-dropdown-item" class="dropdown-item"
-                            onclick="window.navTo('user-dashboard')" style="display: none;">
-                            <span class="nav-icon">📊</span> <span data-i18n="navbar.dashboard">Dashboard</span>
-                        </a>
-
                         <hr class="dropdown-divider">
-                        <a href="javascript:void(0)" class="dropdown-item" style="color: var(--danger);"
-                            onclick="window.logout()">
-                            <span class="nav-icon">🚪</span> <span data-i18n="navbar.logout">Đăng xuất</span>
+                        <a href="javascript:void(0)" class="dropdown-item" style="color: var(--danger);" onclick="window.logout()">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                            <span data-i18n="navbar.logout">Đăng xuất</span>
                         </a>
                     </div>
+                </div>
+
+                <!-- 2. Language Switcher Dropdown (Flag) -->
+                <div class="lang-dropdown" id="lang-dropdown">
+                    <div class="lang-current" onclick="window.toggleLangMenu(event)">
+                        <span id="current-lang-flag">🇻🇳</span>
+                    </div>
+                    <div id="lang-menu" class="dropdown-content">
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('vi')">
+                            <span class="lang-flag">🇻🇳</span> Tiếng Việt
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('en')">
+                            <span class="lang-flag">🇺🇸</span> English
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. Navigation Hamburger (3 lines) -->
+                <div id="nav-hamburger-menu" class="nav-hamburger-dropdown" style="display: none;">
+                    <div class="hamburger-btn" onclick="window.toggleNavMenu(event)">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div id="nav-menu" class="dropdown-content">
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('landing-page')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                            <span data-i18n="navbar.home">Home</span>
+                        </a>
+                        <a href="javascript:void(0)" id="db-dropdown-item" class="dropdown-item" onclick="window.navTo('user-dashboard')" style="display: none;">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                            <span data-i18n="navbar.dashboard">Dashboard</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 4. Logged Out State (Login button) -->
+                <div id="login-section">
+                    <button class="auth-btn" id="login-btn" onclick="window.loginUser()">
+                        <span data-i18n="navbar.login">Đăng nhập</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -92,7 +114,10 @@
                 <p data-i18n="hero.subtitle">Tải lên ảnh nhân vật và video mẫu chuyển động. Chúng tôi tạo video AI mới, trong đó nhân vật của bạn
                     thực hiện chuyển động theo video tham chiếu.</p>
                 <div class="cta-group">
-                    <button class="btn-primary" onclick="openOrderModal()" data-i18n="hero.cta_create">Tạo video ngay</button>
+                    <button class="btn-primary" onclick="openOrderModal()">
+                        <svg class="nav-icon" style="stroke: white; width: 20px; height: 20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path><path d="m5 3 1 2"></path><path d="m19 21 1-2"></path><path d="m5 21 1-2"></path><path d="m19 3 1-2"></path></svg>
+                        <span data-i18n="hero.cta_create">Tạo video ngay</span>
+                    </button>
                     <button class="btn-secondary" onclick="scrollToHow()" data-i18n="hero.cta_how">Xem cách hoạt động</button>
                 </div>
             </div>
@@ -235,9 +260,19 @@
         </section>
     </main>
 
-    <!-- User Dashboard (Hidden when logged out) -->
+    <!-- User Dashboard -->
     <div id="user-dashboard" class="dashboard">
-        <div class="db-header">
+        <!-- If Not Logged In -->
+        <div class="auth-placeholder" id="dashboard-auth-placeholder" style="text-align: center; padding: 4rem 2rem;">
+            <svg style="width: 80px; height: 80px; margin-bottom: 1.5rem; stroke: var(--text-muted); opacity: 0.3;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <h2 data-i18n="dashboard.login_required_title">Yêu cầu đăng nhập</h2>
+            <p data-i18n="dashboard.login_required_desc">Vui lòng đăng nhập để truy cập tính năng này.</p>
+            <button class="btn-primary" onclick="window.loginUser()" data-i18n="navbar.login">Đăng nhập</button>
+        </div>
+
+        <!-- If Logged In -->
+        <div id="dashboard-logged-in" style="display: none;">
+            <div class="db-header">
             <div class="user-info-section">
                 <h1 id="user-greeting">Chào mừng, User! ✨</h1>
                 <p id="user-email" style="opacity: 0.6; font-size: 0.9rem;"></p>
@@ -302,6 +337,7 @@
             </table>
         </div>
     </div>
+</div>
 
     <!-- Admin Panel (Hidden for normal users) -->
     <div id="admin-panel" class="admin-panel" style="display: none;">
@@ -794,6 +830,15 @@
         <span class="fab-tooltip">Chat với chúng tôi ✨</span>
     </a>
 
+    <!-- SVG Gradients -->
+    <svg style="width:0; height:0; position:absolute;" aria-hidden="true" focusable="false">
+        <defs>
+            <linearGradient id="coin-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f2fe" />
+                <stop offset="100%" stop-color="#a855f7" />
+            </linearGradient>
+        </defs>
+    </svg>
 </body>
 
 </html>
