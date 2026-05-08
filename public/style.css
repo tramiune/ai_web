@@ -2909,3 +2909,25 @@ section {
   fill: white;
   margin-left: 3px;
 }
+.btn-delete {
+  padding: 6px;
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  color: #ff3b30;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-delete:hover {
+  background: #ff3b30;
+  color: white;
+  transform: scale(1.05);
+}
+
+.admin-controls input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}

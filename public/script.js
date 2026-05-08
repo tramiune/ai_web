@@ -1486,9 +1486,44 @@ window.switchOrderSubTab = (status) => {
     loadAdminPanel();
 };
 
+window.deleteOrder = async (event, orderId) => {
+    event.stopPropagation();
+    if (!confirm("Bạn có chắc chắn muốn xóa đơn hàng này không? Hành động này không thể hoàn tác.")) return;
+    const { db, doc, deleteDoc } = window.firebase;
+    try {
+        await deleteDoc(doc(db, "orders", orderId));
+        showToast("Đã xóa đơn hàng.");
+    } catch (e) {
+        console.error(e);
+        showToast("Lỗi khi xóa đơn hàng.");
+    }
+};
+
+window.deleteTopup = async (event, topupId) => {
+    event.stopPropagation();
+    if (!confirm("Bạn có chắc chắn muốn xóa yêu cầu nạp coin này không? Hành động này không thể hoàn tác.")) return;
+    const { db, doc, deleteDoc } = window.firebase;
+    try {
+        await deleteDoc(doc(db, "topups", topupId));
+        showToast("Đã xóa yêu cầu nạp.");
+    } catch (e) {
+        console.error(e);
+        showToast("Lỗi khi xóa yêu cầu nạp.");
+    }
+};
+
 function loadAdminPanel() {
     console.log("Loading Admin Panel...");
-    const { db, collection, query, where, onSnapshot } = window.firebase;
+    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
+
+    // Add search listener if not already added
+    if (!window.adminSearchInited) {
+        document.getElementById('admin-search-input')?.addEventListener('input', () => {
+            loadAdminPanel();
+        });
+        window.adminSearchInited = true;
+    }
 
     // 1. Load Filtered Topups
     const qTopups = query(collection(db, "topups"), where("status", "==", currentTopupStatus));
@@ -1503,7 +1538,18 @@ function loadAdminPanel() {
                 return;
             }
 
-            list.innerHTML = snapshot.docs.map(doc => {
+            const filteredDocs = snapshot.docs.filter(doc => {
+                const d = doc.data();
+                const text = `${d.userName} ${d.userEmail} ${d.transferContent} ${d.packageName}`.toLowerCase();
+                return text.includes(searchVal);
+            });
+
+            if (filteredDocs.length === 0) {
+                list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+                return;
+            }
+
+            list.innerHTML = filteredDocs.map(doc => {
                 const d = doc.data();
                 const safeUrl = d.proofLink ? d.proofLink.replace(/'/g, "\\'") : '';
                 return `
@@ -1517,12 +1563,17 @@ function loadAdminPanel() {
                             </div>
                         </td>
                         <td>
-                            ${currentTopupStatus === 'pending' ? `
-                                <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${doc.id}', '${d.userId}', ${d.coins})">Duyệt</button>
-                                <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${doc.id}')">Hủy</button>
-                            ` : `
-                                <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
-                            `}
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                                ${currentTopupStatus === 'pending' ? `
+                                    <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${doc.id}', '${d.userId}', ${d.coins})">Duyệt</button>
+                                    <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${doc.id}')">Hủy</button>
+                                ` : `
+                                    <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
+                                `}
+                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${doc.id}')" title="Xóa">
+                                    <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -1547,7 +1598,19 @@ function loadAdminPanel() {
                 return;
             }
 
-            list.innerHTML = snapshot.docs.map(doc => {
+            const filteredDocs = snapshot.docs.filter(doc => {
+                const d = doc.data();
+                const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
+                const text = `${orderId} ${d.userName} ${d.userEmail} ${d.packageName} ${d.serviceType}`.toLowerCase();
+                return text.includes(searchVal);
+            });
+
+            if (filteredDocs.length === 0) {
+                list.innerHTML = '<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+                return;
+            }
+
+            list.innerHTML = filteredDocs.map(doc => {
                 const d = doc.data();
                 const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
                 return `
@@ -1564,6 +1627,9 @@ function loadAdminPanel() {
                                 </button>
                                 <button class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="Tải video mẫu" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
                                     <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
+                                </button>
+                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${doc.id}')" title="Xóa đơn hàng">
+                                    <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                                 </button>
                             </div>
                         </td>
