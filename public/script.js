@@ -14,12 +14,12 @@ const COIN_PACKAGES = [
 ];
 
 const TREND_VIDEOS = [
-    { id: 't5', title: 'Sexy Dance', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Sexy+Dance', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
-    { id: 't6', title: 'Trend L S Mix', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Trend+LS', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
-    { id: 't7', title: 'Trend Ngọc Anh', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Ngoc+Anh', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4' },
-    { id: 't8', title: 'What Do You Want', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=What+Do+You+Want', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
-    { id: 't9', title: 'Trend Nhạc Hay', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Nhac+Hay', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%A3c%20hay.mp4' },
-    { id: 't10', title: 'Anh tên là Bằng', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Anh+Ten+Bang', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/anh%20te%CC%82n%20la%CC%80%20ba%CC%86%CC%80ng.mp4' }
+    { id: 't5', title: 'Sexy Dance', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
+    { id: 't6', title: 'Trend L S Mix', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
+    { id: 't7', title: 'Trend Ngọc Anh', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4' },
+    { id: 't8', title: 'What Do You Want', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
+    { id: 't9', title: 'Trend Nhạc Hay', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%A3c%20hay.mp4' },
+    { id: 't10', title: 'Anh tên là Bằng', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/anh%20te%CC%82n%20la%CC%80%20ba%CC%86%CC%80ng.mp4' }
 ];
 
 const MODELS = {
@@ -236,17 +236,31 @@ window.renderShowcase = () => {
     if (!gallery) return;
     
     gallery.innerHTML = TREND_VIDEOS.map(v => `
-        <div class="showcase-card">
-            <video class="showcase-video" src="${v.url}" poster="${v.thumb}" muted loop playsinline autoplay onmouseover="this.muted=false; this.play()" onmouseout="this.pause()"></video>
+        <div class="showcase-card" onclick="window.playOrderVideo(event, '${v.url}')">
+            <video class="showcase-video" 
+                   src="${v.url}#t=1" 
+                   muted loop playsinline preload="metadata"
+                   onmouseover="this.play()" 
+                   onmouseout="this.pause()">
+            </video>
+            <div class="showcase-play-overlay">
+                <div class="play-icon-central">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+            </div>
             <div class="showcase-info">
                 <div class="showcase-title">${v.title}</div>
-                <button class="use-trend-btn" onclick="window.useTrendShortcut('${v.id}', '${v.url}')">
+                <button class="use-trend-btn" onclick="event.stopPropagation(); window.useTrendShortcut('${v.id}', '${v.url}')">
                     ${window.t('showcase.use_this')}
                 </button>
             </div>
         </div>
     `).join('');
+
+    initPremiumEffects();
 };
+
+// Removed playLazyVideo and initLazyVideos as we're using preload=metadata and #t=1 trick
 
 window.useTrendShortcut = (id, url) => {
     window.openOrderModal();
