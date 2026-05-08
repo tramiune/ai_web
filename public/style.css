@@ -890,7 +890,36 @@ button {
   filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.8));
 }
 
+.coin-icon-mini {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
 
+.btn-cost-tag {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.service-price-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 /* Highlights & Badges */
 .new-order-highlight {
@@ -2509,4 +2538,178 @@ section {
 
 .timeline-step.active .step-label {
   color: white;
+}
+
+/* Video Tabs & Template Library */
+.video-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.video-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  color: var(--text-muted);
+}
+
+.video-tab.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 10px var(--primary-glow);
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+/* Custom Scrollbar for Template Grid */
+.template-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.template-grid::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
+}
+
+.template-item {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 9/16;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-item.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.template-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.template-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  font-size: 0.7rem;
+  color: white;
+  font-weight: 600;
+}
+
+.template-item.active .template-overlay {
+  background: var(--primary);
+}
+
+/* Showcase Gallery */
+.showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 2rem;
+}
+
+.showcase-card {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  aspect-ratio: 9/16;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.showcase-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  border-color: var(--primary);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px var(--primary-glow);
+}
+
+.showcase-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.5s ease;
+}
+
+.showcase-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.9));
+  z-index: 2;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+  opacity: 0.9;
+}
+
+.showcase-card:hover .showcase-info {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.showcase-title {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.showcase-author {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.showcase-play-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.showcase-card:hover .showcase-play-hint {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.showcase-play-hint svg {
+  width: 30px;
+  height: 30px;
+  fill: white;
+  margin-left: 4px;
 }

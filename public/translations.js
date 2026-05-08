@@ -16,6 +16,11 @@ window.TRANSLATIONS = {
             cta_how: "Xem cách hoạt động",
             comparison: "✨ Chất lượng tương đương <b>Kling AI</b> nhưng giá <b>rẻ hơn gấp 5 lần</b>"
         },
+        showcase: {
+            title: "Sáng tạo nổi bật",
+            subtitle: "Khám phá những video AI ấn tượng được tạo bởi cộng đồng MotionAI.",
+            cta: "Khám phá thêm & Tạo ngay"
+        },
         badges: {
             no_prompt: "Không cần prompt",
             support_tiktok: "Hỗ trợ TikTok/Reels",
@@ -215,6 +220,11 @@ window.TRANSLATIONS = {
             cta_create: "Create Video Now",
             cta_how: "See How It Works",
             comparison: "✨ Quality equivalent to <b>Kling AI</b> but <b>5x cheaper</b>"
+        },
+        showcase: {
+            title: "Featured Creations",
+            subtitle: "Discover impressive AI videos created by the MotionAI community.",
+            cta: "Explore More & Create Now"
         },
         badges: {
             no_prompt: "No prompt needed",

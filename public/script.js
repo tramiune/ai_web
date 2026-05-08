@@ -13,6 +13,22 @@ const COIN_PACKAGES = [
     { id: 'pro-studio', name: 'Pro Studio', coins: 300, price: '200.000đ', amount: 200000, note: 'Tặng 100 Coin' }
 ];
 
+const VIDEO_TEMPLATES = [
+    { id: 't1', name: 'AI Dance K-Pop', category: 'Dance', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 't2', name: 'Fashion Catwalk', category: 'Fashion', thumb: 'https://placehold.co/100x150/000/fff?text=Fashion+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
+    { id: 't3', name: 'Funny Shuffle', category: 'Dance', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+2', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 't4', name: 'Martial Arts', category: 'Action', thumb: 'https://placehold.co/100x150/000/fff?text=Action+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' }
+];
+
+const SHOWCASE_VIDEOS = [
+    { id: 's1', title: 'Cyberpunk Dance', author: '@alex_ai', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 's2', title: 'Street Fashion', author: '@style_gen', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
+    { id: 's3', title: 'Future Walk', author: '@motion_pro', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 's4', title: 'Magic Shuffle', author: '@dance_master', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
+    { id: 's5', title: 'Action Hero', author: '@vfx_king', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
+    { id: 's6', title: 'Vintage Vibe', author: '@retro_ai', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' }
+];
+
 const MODELS = {
     basic: { name: "Model Tiêu chuẩn", cost: 6 },
     pro: { name: "Model Cao cấp", cost: 12 }
@@ -168,10 +184,14 @@ export function initAppLogic() {
         }
     });
 
-    setupEventListeners();
+    // Render public content
+    renderShowcase();
     renderPricing();
-    syncVideos();
+    renderServicePackages();
+    renderFAQ();
     initPremiumEffects();
+    setupEventListeners();
+    syncVideos();
     // Call again after dynamic parts are rendered
     applyTranslations();
 }
@@ -213,6 +233,24 @@ function syncVideos() {
 }
 
 // --- Auth Functions ---
+window.renderShowcase = () => {
+    const gallery = document.getElementById('showcase-gallery');
+    if (!gallery) return;
+    
+    gallery.innerHTML = SHOWCASE_VIDEOS.map(v => `
+        <div class="showcase-card" onclick="window.playOrderVideo(null, '${v.url}')">
+            <video class="showcase-video" src="${v.url}" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
+            <div class="showcase-info">
+                <div class="showcase-title">${v.title}</div>
+                <div class="showcase-author">${v.author}</div>
+            </div>
+            <div class="showcase-play-hint">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+        </div>
+    `).join('');
+};
+
 async function login() {
     const { auth, GoogleAuthProvider, signInWithPopup } = window.firebase;
     const provider = new GoogleAuthProvider();
@@ -485,6 +523,84 @@ function renderPricing() {
     if (coinGrid) coinGrid.innerHTML = html;
     if (modalCoinGrid) modalCoinGrid.innerHTML = html;
 }
+
+// --- Video Library ---
+// --- Video Library ---
+window.switchVideoSource = (type) => {
+    const uploadBtn = document.getElementById('tab-upload');
+    const libraryBtn = document.getElementById('tab-library');
+    const uploadSection = document.getElementById('video-upload-section');
+    const librarySection = document.getElementById('video-library-section');
+
+    if (type === 'upload') {
+        uploadBtn.classList.add('active');
+        libraryBtn.classList.remove('active');
+        uploadSection.style.display = 'block';
+        librarySection.style.display = 'none';
+        window.currentVideoSource = 'upload';
+    } else {
+        uploadBtn.classList.remove('active');
+        libraryBtn.classList.add('active');
+        uploadSection.style.display = 'none';
+        librarySection.style.display = 'block';
+        window.currentVideoSource = 'library';
+        renderTemplates();
+    }
+};
+
+window.renderTemplates = () => {
+    const grid = document.getElementById('template-library-grid');
+    if (!grid) return;
+    grid.innerHTML = VIDEO_TEMPLATES.map(t => `
+        <div class="template-item" id="tpl-${t.id}" onclick="window.previewTemplate('${t.id}')">
+            <img src="${t.thumb}" class="template-thumb">
+            <div class="template-overlay">${t.name}</div>
+        </div>
+    `).join('');
+};
+
+window.previewTemplate = (id) => {
+    const template = VIDEO_TEMPLATES.find(t => t.id === id);
+    if (!template) return;
+
+    const modal = document.getElementById('template-preview-modal');
+    const video = document.getElementById('template-preview-video');
+    const nameText = document.getElementById('template-preview-name');
+    const confirmBtn = document.getElementById('template-confirm-btn');
+
+    if (modal && video) {
+        video.src = template.url;
+        nameText.innerText = template.name;
+        modal.style.display = 'flex';
+        video.play();
+
+        confirmBtn.onclick = () => {
+            window.selectTemplate(template.id, template.url);
+            window.closeTemplatePreview();
+        };
+    }
+};
+
+window.closeTemplatePreview = () => {
+    const modal = document.getElementById('template-preview-modal');
+    const video = document.getElementById('template-preview-video');
+    if (modal && video) {
+        video.pause();
+        video.src = '';
+        modal.style.display = 'none';
+    }
+};
+
+window.selectTemplate = (id, url) => {
+    document.querySelectorAll('.template-item').forEach(el => el.classList.remove('active'));
+    const item = document.getElementById(`tpl-${id}`);
+    if (item) item.classList.add('active');
+    document.getElementById('selected-template-url').value = url;
+    window.currentVideoSource = 'library';
+    showToast("✅ Đã chọn mẫu: " + VIDEO_TEMPLATES.find(t => t.id === id).name);
+};
+
+window.currentVideoSource = 'upload';
 
 // --- Modals ---
 window.playOrderVideo = (event, videoUrl) => {
@@ -765,8 +881,11 @@ async function setupEventListeners() {
 
                 const charFile = document.getElementById('file-char').files[0];
                 const videoFile = document.getElementById('file-video').files[0];
+                const templateUrl = document.getElementById('selected-template-url').value;
 
-                if (!charFile || !videoFile) return showToast(t('modals.order_subtitle'));
+                if (!charFile) return showToast(t('modals.char_placeholder'));
+                if (window.currentVideoSource === 'upload' && !videoFile) return showToast(t('modals.video_placeholder'));
+                if (window.currentVideoSource === 'library' && !templateUrl) return showToast(t('modals.video_placeholder'));
 
                 // Kiểm tra lại lần cuối trước khi upload
                 if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
@@ -809,9 +928,16 @@ async function setupEventListeners() {
                             const charUrl = await uploadFile(charFile, "characters");
                             showToast(t('common.success'));
 
-                            console.log("📤 Đang tải video tham chiếu...");
-                            const videoUrl = await uploadFile(videoFile, "motions");
-                            showToast(t('common.success'));
+                            let videoUrl = "";
+                            if (window.currentVideoSource === 'library') {
+                                videoUrl = document.getElementById('selected-template-url').value;
+                                if (!videoUrl) throw new Error("Vui lòng chọn 1 mẫu từ thư viện.");
+                                console.log("🔗 Sử dụng video mẫu từ thư viện:", videoUrl);
+                            } else {
+                                console.log("📤 Đang tải video tham chiếu...");
+                                videoUrl = await uploadFile(videoFile, "motions");
+                                showToast(t('common.success'));
+                            }
 
                             // 3. Finalize Transaction (Deduct coins and create order)
                             const orderId = await runTransaction(db, async (transaction) => {
