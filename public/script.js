@@ -14,10 +14,12 @@ const COIN_PACKAGES = [
 ];
 
 const TREND_VIDEOS = [
-    { id: 't1', title: 'AI Dance K-Pop', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 't2', title: 'Fashion Catwalk', thumb: 'https://placehold.co/100x150/000/fff?text=Fashion+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' },
-    { id: 't3', title: 'Funny Shuffle', thumb: 'https://placehold.co/100x150/000/fff?text=Dance+2', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4' },
-    { id: 't4', title: 'Martial Arts', thumb: 'https://placehold.co/100x150/000/fff?text=Action+1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4' }
+    { id: 't5', title: 'Sexy Dance', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Sexy+Dance', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
+    { id: 't6', title: 'Trend L S Mix', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Trend+LS', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
+    { id: 't7', title: 'Trend Ngọc Anh', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Ngoc+Anh', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4' },
+    { id: 't8', title: 'What Do You Want', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=What+Do+You+Want', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
+    { id: 't9', title: 'Trend Nhạc Hay', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Nhac+Hay', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%A3c%20hay.mp4' },
+    { id: 't10', title: 'Anh tên là Bằng', thumb: 'https://placehold.co/200x300/1a1a2e/ffffff?text=Anh+Ten+Bang', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/anh%20te%CC%82n%20la%CC%80%20ba%CC%86%CC%80ng.mp4' }
 ];
 
 const MODELS = {
@@ -235,7 +237,7 @@ window.renderShowcase = () => {
     
     gallery.innerHTML = TREND_VIDEOS.map(v => `
         <div class="showcase-card">
-            <video class="showcase-video" src="${v.url}" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
+            <video class="showcase-video" src="${v.url}" loop playsinline onmouseover="this.muted=false; this.play()" onmouseout="this.pause()"></video>
             <div class="showcase-info">
                 <div class="showcase-title">${v.title}</div>
                 <button class="use-trend-btn" onclick="window.useTrendShortcut('${v.id}', '${v.url}')">
@@ -588,7 +590,7 @@ window.renderTemplates = () => {
     if (!grid) return;
     grid.innerHTML = TREND_VIDEOS.map(t => `
         <div class="template-item" id="tpl-${t.id}" onclick="window.previewTemplate('${t.id}')">
-            <img src="${t.thumb}" class="template-thumb">
+            <video class="template-video" src="${t.url}" muted loop playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
             <div class="template-overlay">${t.title}</div>
         </div>
     `).join('');

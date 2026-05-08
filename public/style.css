@@ -1287,15 +1287,23 @@ section {
   right: 10px;
   background: var(--primary);
   color: white;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: bold;
-  z-index: 2;
+  z-index: 10;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  border: 2px solid var(--bg-card);
+}
+
+/* If the card has a price badge, move the checkmark so it doesn't overlap */
+.card.service-card:has(input[type="radio"]:checked)::after {
+  top: auto;
+  bottom: 10px;
 }
 
 .card input[type="radio"] {
@@ -2570,10 +2578,11 @@ section {
 .template-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  max-height: 300px;
+  gap: 1.5rem;
+  max-height: 450px;
   overflow-y: auto;
-  padding: 5px;
+  padding: 10px;
+  align-items: start;
 }
 
 /* Custom Scrollbar for Template Grid */
@@ -2595,12 +2604,93 @@ section {
   transition: all 0.2s;
 }
 
-.template-item.active {
-  border-color: var(--primary);
-  box-shadow: 0 0 15px var(--primary-glow);
+/* Showcase Gallery */
+.showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
 }
 
-.template-thumb {
+.showcase-card {
+  position: relative;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.showcase-card:hover {
+  transform: translateY(-10px);
+  border-color: var(--primary);
+  box-shadow: 0 20px 40px rgba(138, 43, 226, 0.3);
+}
+
+.showcase-video {
+  width: 100%;
+  aspect-ratio: 9/16;
+  object-fit: cover;
+  display: block;
+}
+
+.showcase-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  opacity: 0.9;
+  transition: opacity 0.3s;
+}
+
+.showcase-card:hover .showcase-info {
+  opacity: 1;
+}
+
+.showcase-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.use-trend-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.2rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px var(--primary-glow);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.use-trend-btn:hover {
+  background: white;
+  color: var(--primary);
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
+}
+
+.use-trend-btn:active {
+  transform: scale(0.95);
+}
+
+.template-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
