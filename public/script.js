@@ -1406,6 +1406,10 @@ window.openAdminDetail = async (orderId) => {
                     <img src="${d.characterImageLink}">
                     <div class="preview-overlay">Phóng to</div>
                 </div>
+                <a href="${d.characterImageLink}" target="_blank" download class="download-pill-btn image-btn" style="margin-top: 10px; width: fit-content;" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    Tải Ảnh Gốc
+                </a>
             </div>
             <div class="info-item">
                 <span class="info-label">📹 Video tham chiếu</span>
@@ -1413,6 +1417,10 @@ window.openAdminDetail = async (orderId) => {
                     <video src="${d.referenceVideoLink}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
                     <div class="preview-overlay">Xem video</div>
                 </div>
+                <a href="${d.referenceVideoLink}" target="_blank" download class="download-pill-btn video-btn" style="margin-top: 10px; width: fit-content;" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Tải Video Mẫu
+                </a>
             </div>
         </div>
     `;
@@ -1531,7 +1539,17 @@ function loadAdminPanel() {
                         <td>${d.userName || 'Khách'}<br><small>${d.userEmail || ''}</small></td>
                         <td>${d.packageName || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
                         <td>${d.costCoins || 0} Coin</td>
-                        <td><button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${doc.id}')">Cập nhật</button></td>
+                        <td>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${doc.id}')">Cập nhật</button>
+                                <a href="${d.characterImageLink}" target="_blank" download class="download-pill-btn image-btn" style="padding: 4px; border-radius: 6px;" title="Tải ảnh">
+                                    <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                </a>
+                                <a href="${d.referenceVideoLink}" target="_blank" download class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="Tải video mẫu">
+                                    <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
+                                </a>
+                            </div>
+                        </td>
                     </tr>
                 `;
             }).join('');
