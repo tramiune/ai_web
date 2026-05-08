@@ -7,10 +7,10 @@ const TELEGRAM_CHAT_ID = '6067707939';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
-    { id: 'starter', name: 'Starter', coins: 10, price: '10.000đ', amount: 10000 },
     { id: 'creator', name: 'Creator', coins: 55, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 5 Coin' },
-    { id: 'studio', name: 'Studio', coins: 120, price: '100.000đ', amount: 100000, note: 'Tặng 20 Coin' },
-    { id: 'pro-studio', name: 'Pro Studio', coins: 300, price: '200.000đ', amount: 200000, note: 'Tặng 100 Coin' }
+    { id: 'starter', name: 'Starter', coins: 20, price: '20.000đ', amount: 20000 },
+    { id: 'studio', name: 'Studio', coins: 120, price: '110.000đ', amount: 110000, note: 'Tặng 10 Coin' },
+    { id: 'pro-studio', name: 'Pro Studio', coins: 300, price: '250.000đ', amount: 250000, note: 'Tặng 50 Coin' }
 ];
 
 const TREND_VIDEOS = [
@@ -27,7 +27,7 @@ const TREND_VIDEOS = [
 
 const MODELS = {
     basic: { name: "Model Tiêu chuẩn", cost: 6, time: "12h" },
-    fast: { name: "Model Nhanh", cost: 10, time: "30p" },
+    fast: { name: "Model Nhanh", cost: 11, time: "30p" },
     turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p" }
 };
 
