@@ -7,6 +7,7 @@ const TELEGRAM_CHAT_ID = '6067707939';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
+    { id: 'trial', name: 'Gói Thử Nghiệm', coins: 4, price: '4.000đ', amount: 4000, note: 'Chỉ dành cho đơn đầu' },
     { id: 'creator', name: 'Creator', coins: 67, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 17 Coin' },
     { id: 'starter', name: 'Starter', coins: 15, price: '20.000đ', amount: 20000 },
     { id: 'studio', name: 'Studio', coins: 450, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
@@ -39,6 +40,7 @@ const SERVICE_PACKAGES = [
 
 let currentUser = null;
 let selectedTopupPackage = null;
+let isFirstTimeUser = false; // Flag for special offer
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
 // --- i18n Logic ---
@@ -990,10 +992,6 @@ async function setupEventListeners() {
             const progressDiv = document.getElementById('upload-progress');
 
             try {
-                const modelKey = document.querySelector('input[name="model-type"]:checked').value;
-                const serviceType = document.querySelector('input[name="service-type"]:checked').value;
-                const model = MODELS[modelKey];
-
                 const charFile = document.getElementById('file-char').files[0];
                 const videoFile = document.getElementById('file-video').files[0];
                 const templateUrl = document.getElementById('selected-template-url').value;
@@ -1011,16 +1009,26 @@ async function setupEventListeners() {
                 progressDiv.style.display = 'block';
 
                 // 1. Check coins first (Transaction)
-                // 1. Check coins first (Transaction)
                 const userRef = doc(db, "users", currentUser.uid);
                 const userSnap = await runTransaction(db, async (transaction) => {
                     const userDoc = await transaction.get(userRef);
-                    const currentCoins = userDoc.data().coins || 0;
-                    if (currentCoins < model.cost) {
+                    const modelKey = document.querySelector('input[name="model-type"]:checked').value;
+                    const serviceType = document.querySelector('input[name="service-type"]:checked').value;
+                    let model = { ...MODELS[modelKey] };
+
+                    // Apply First Order Offer
+                    if (isFirstTimeUser) {
+                        model.cost = 4;
+                        console.log("🎁 Áp dụng ưu đãi đơn hàng đầu tiên: 4 Coin");
+                    }
+
+                    if (userDoc.data().coins < model.cost) {
                         throw t('modals.insufficient_coins_title');
                     }
-                    return currentCoins;
+                    return { currentCoins: userDoc.data().coins, model, serviceType };
                 });
+
+                const { model, serviceType } = userSnap;
 
                 // 1b. Show Queue/Wait Time Confirmation
                 const minWait = Math.floor(Math.random() * (15 - 10 + 1)) + 10; // 10-15
@@ -1184,6 +1192,12 @@ function loadMyOrders() {
             });
         }
         isFirstLoad = false;
+
+        isFirstTimeUser = snapshot.empty;
+        const offerBanner = document.getElementById('first-order-offer-banner');
+        if (offerBanner) {
+            offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
+        }
 
         if (snapshot.empty) {
             grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
