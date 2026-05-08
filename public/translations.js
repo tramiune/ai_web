@@ -156,8 +156,11 @@ window.TRANSLATIONS = {
             uploading: "Đang tải file lên...",
             
             confirm_order_title: "Xác nhận đơn hàng",
-            confirm_order_msg: "Hệ thống hiện đang có nhiều yêu cầu xử lý. Thời gian ước tính hoàn thành cho video của bạn là khoảng {min}-{max} phút. Bạn có đồng ý tiếp tục gửi yêu cầu và trừ {cost} coin không?",
-            
+            confirm_order_msg: "Hệ thống hiện đang có nhiều yêu cầu xử lý. Thời gian ước tính hoàn thành cho video của bạn là khoảng {time}. Bạn có đồng ý tiếp tục gửi yêu cầu và trừ {cost} coin không?",
+            tier_economy: "Tiết kiệm",
+            tier_priority: "Ưu tiên (Nên dùng)",
+            tier_ultimate: "Siêu tốc 2K",
+            select_tier_action: "Chọn gói để tạo ngay:",
             insufficient_coins_title: "Số dư không đủ",
             insufficient_coins_msg: "Số dư của bạn không đủ để thực hiện yêu cầu này. Bạn có muốn nạp thêm Coin ngay không?",
             
@@ -362,8 +365,11 @@ window.TRANSLATIONS = {
             uploading: "Uploading files...",
             
             confirm_order_title: "Confirm Order",
-            confirm_order_msg: "System is currently busy. Estimated time to complete your video is {min}-{max} minutes. Do you agree to proceed and deduct {cost} coins?",
-            
+            confirm_order_msg: "System is currently busy. Estimated completion time: {time}. Do you agree to proceed and deduct {cost} coins?",
+            tier_economy: "Economy",
+            tier_priority: "Priority (Best)",
+            tier_ultimate: "Ultimate 2K",
+            select_tier_action: "Select tier to create:",
             insufficient_coins_title: "Insufficient Balance",
             insufficient_coins_msg: "Your balance is not enough. Would you like to top up now?",
             
