@@ -14,7 +14,9 @@ const COIN_PACKAGES = [
 ];
 
 const TREND_VIDEOS = [
+    { id: 't1', title: 'Nhảy vui nhộn', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%89y%20vui%20nho%CC%A3%CC%82n.mp4' },
     { id: 't5', title: 'Sexy Dance', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
+    { id: 't2', title: 'Hot Trend', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/hot%20trend.mp4' },
     { id: 't6', title: 'Trend L S Mix', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
     { id: 't7', title: 'Trend Ngọc Anh', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4' },
     { id: 't8', title: 'What Do You Want', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
