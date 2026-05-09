@@ -1071,7 +1071,10 @@ async function setupEventListeners() {
                             console.log("Confirm Clicked - Starting process");
                             // 2. Upload Files
                             showToast(t('common.loading'));
-                            submitBtn.innerText = t('modals.uploading');
+                            
+                            const mainText = submitBtn.querySelector('[data-i18n="hero.cta_create"]');
+                            if (mainText) mainText.innerText = t('modals.uploading');
+                            
                             submitBtn.disabled = true;
                             progressDiv.style.display = 'block';
 
@@ -1148,7 +1151,9 @@ async function setupEventListeners() {
                             showToast(t('common.error') + ": " + (err.message || err));
                         } finally {
                             submitBtn.disabled = false;
-                            submitBtn.innerText = t('modals.submit_order', { cost: model.cost });
+                            const mainText = submitBtn.querySelector('[data-i18n="hero.cta_create"]');
+                            if (mainText) mainText.innerText = t('hero.cta_create');
+                            updateFirstOrderUI();
                             progressDiv.style.display = 'none';
                         }
                     }
