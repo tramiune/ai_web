@@ -923,6 +923,11 @@ function updateFirstOrderUI() {
     if (offerBanner) offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
     if (guestOfferBar) guestOfferBar.style.display = showOffer ? 'block' : 'none';
     
+    const modelGroupEl = document.getElementById('model-selection-group');
+    if (modelGroupEl) {
+        modelGroupEl.style.display = isFirstTimeUser ? 'none' : 'block';
+    }
+
     if (costEl) {
         if (isFirstTimeUser) {
             costEl.innerText = '4';
