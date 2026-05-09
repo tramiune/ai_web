@@ -841,6 +841,19 @@ window.openOrderModal = () => {
         window.pendingAction = 'openOrderModal';
         return login();
     }
+    
+    // Set default cost display
+    const costEl = document.getElementById('submit-cost');
+    if (costEl) {
+        if (isFirstTimeUser) {
+            costEl.innerText = '4';
+        } else {
+            const checkedModel = document.querySelector('input[name="model-type"]:checked');
+            const modelKey = checkedModel ? checkedModel.value : 'fast';
+            costEl.innerText = MODELS[modelKey].cost;
+        }
+    }
+
     window.openModal('order-modal');
 };
 
@@ -966,7 +979,11 @@ async function setupEventListeners() {
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             const model = MODELS[e.target.value];
-            document.getElementById('submit-cost').innerText = model.cost;
+            if (isFirstTimeUser) {
+                document.getElementById('submit-cost').innerText = '4';
+            } else {
+                document.getElementById('submit-cost').innerText = model.cost;
+            }
 
             // Cập nhật dòng tóm tắt trên nút
             const summaryEl = document.getElementById('submit-summary-line');
