@@ -2,7 +2,7 @@ console.log("translations.js loaded");
 window.TRANSLATIONS = {
     vi: {
         navbar: {
-            dashboard: "Bảng điều khiển",
+            dashboard: "Video của tôi",
             logout: "Đăng xuất",
             login: "Đăng nhập",
             terms: "Điều khoản",
@@ -216,7 +216,7 @@ window.TRANSLATIONS = {
     },
     en: {
         navbar: {
-            dashboard: "Dashboard",
+            dashboard: "My Videos",
             logout: "Logout",
             login: "Login",
             terms: "Terms",

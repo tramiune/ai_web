@@ -362,6 +362,8 @@ async function handleUserLoggedIn(user) {
     if (dbItem) dbItem.style.display = 'flex';
     const navHamburger = document.getElementById('nav-hamburger-menu');
     if (navHamburger) navHamburger.style.display = 'block';
+    const topupItem = document.getElementById('topup-dropdown-item');
+    if (topupItem) topupItem.style.display = 'flex';
 
     // Toggle Dashboard sub-elements
     const dashIn = document.getElementById('dashboard-logged-in');
@@ -413,29 +415,46 @@ async function handleUserLoggedIn(user) {
                 showToast(t('common.toast_coins_added'));
                 closeModal('topup-modal');
                 // Hiệu ứng pháo hoa hoặc rung nhẹ balance
-                document.getElementById('coin-balance').classList.add('coin-update-glow');
-                setTimeout(() => document.getElementById('coin-balance').classList.remove('coin-update-glow'), 2000);
+                document.querySelectorAll('.coin-balance-text').forEach(el => {
+                    el.classList.add('coin-update-glow');
+                    setTimeout(() => el.classList.remove('coin-update-glow'), 2000);
+                });
 
                 // Notify Telegram
                 const addedCoins = currentCoins - initialCoinsBeforeTopup;
                 sendTelegramMessage(`💰 <b>NẠP COIN THÀNH CÔNG!</b>\n👤 Khách: ${escapeHTML(data.displayName)}\n📧 Email: ${escapeHTML(data.email)}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
 
-            document.getElementById('coin-balance').innerText = currentCoins;
-            document.getElementById('user-greeting').innerText = t('dashboard.greeting', { name: data.displayName });
-            document.getElementById('user-email').innerText = data.email;
+            document.querySelectorAll('.coin-balance-text').forEach(el => el.innerText = currentCoins);
+            document.querySelectorAll('.user-greeting-text').forEach(el => el.innerText = t('dashboard.greeting', { name: data.displayName }));
+            document.querySelectorAll('.user-email-text').forEach(el => el.innerText = data.email);
 
             // Check Admin Rights từ Database
             const isAdmin = data.role === 'admin' || data.role === 'super-admin';
             const isSuperAdmin = data.role === 'super-admin';
 
             if (isAdmin) {
-                document.getElementById('admin-panel').style.display = 'block';
+                // Show Admin Panel nav links
+                const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
+                if (adminProfileItem) adminProfileItem.style.display = 'flex';
+                const adminDivider = document.getElementById('admin-dropdown-divider');
+                if (adminDivider) adminDivider.style.display = 'block';
+                const adminNavItem = document.getElementById('admin-dropdown-item-nav');
+                if (adminNavItem) adminNavItem.style.display = 'flex';
+
                 loadAdminPanel();
                 if (isSuperAdmin) {
                     document.getElementById('tab-users').style.display = 'block';
                 }
             } else {
+                // Hide Admin Panel nav links
+                const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
+                if (adminProfileItem) adminProfileItem.style.display = 'none';
+                const adminDivider = document.getElementById('admin-dropdown-divider');
+                if (adminDivider) adminDivider.style.display = 'none';
+                const adminNavItem = document.getElementById('admin-dropdown-item-nav');
+                if (adminNavItem) adminNavItem.style.display = 'none';
+                
                 document.getElementById('admin-panel').style.display = 'none';
             }
         }
@@ -461,6 +480,17 @@ function handleUserLoggedOut() {
     if (dashIn) dashIn.style.display = 'none';
     if (dashOut) dashOut.style.display = 'block';
 
+    const topupPage = document.getElementById('topup-history-page');
+    if (topupPage) topupPage.style.display = 'none';
+    const topupItem = document.getElementById('topup-dropdown-item');
+    if (topupItem) topupItem.style.display = 'none';
+    const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
+    if (adminProfileItem) adminProfileItem.style.display = 'none';
+    const adminDivider = document.getElementById('admin-dropdown-divider');
+    if (adminDivider) adminDivider.style.display = 'none';
+    const adminNavItem = document.getElementById('admin-dropdown-item-nav');
+    if (adminNavItem) adminNavItem.style.display = 'none';
+
     isFirstTimeUser = false;
     updateFirstOrderUI();
 
@@ -468,15 +498,34 @@ function handleUserLoggedOut() {
 }
 
 function showDashboard() {
-    document.getElementById('landing-page').style.display = 'none';
+    hideAllPages();
     document.getElementById('user-dashboard').style.display = 'block';
     window.scrollTo(0, 0);
 }
 
+function showTopupHistory() {
+    hideAllPages();
+    document.getElementById('topup-history-page').style.display = 'block';
+    window.scrollTo(0, 0);
+}
+
+function showAdminPanel() {
+    hideAllPages();
+    document.getElementById('admin-panel').style.display = 'block';
+    window.scrollTo(0, 0);
+}
+
 function showLanding() {
+    hideAllPages();
     document.getElementById('landing-page').style.display = 'block';
-    document.getElementById('user-dashboard').style.display = 'none';
-    document.getElementById('admin-panel').style.display = 'none';
+}
+
+function hideAllPages() {
+    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel'];
+    pages.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
 }
 
 window.toggleDashboard = () => {
@@ -496,6 +545,10 @@ window.showDashboard = showDashboard;
 window.navTo = (target) => {
     if (target === 'user-dashboard') {
         showDashboard();
+    } else if (target === 'topup-history-page') {
+        showTopupHistory();
+    } else if (target === 'admin-panel') {
+        showAdminPanel();
     } else if (target === 'landing-page') {
         showLanding();
         window.scrollTo({ top: 0, behavior: 'smooth' });
