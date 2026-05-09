@@ -602,32 +602,30 @@ function renderPricing() {
     if (modalCoinGrid) modalCoinGrid.innerHTML = html;
 }
 
-    const showOffer = !currentUser || isFirstTimeUser;
-    
-    grid.innerHTML = SERVICE_PACKAGES.map(pkg => {
-        const displayCost = showOffer ? 4 : pkg.cost;
-        return `
-            <div class="price-card ${pkg.featured ? 'featured' : ''}">
-                ${pkg.featured ? `<div class="featured-badge">🔥 Hot</div>` : ''}
-                ${showOffer ? `<div class="bonus-tag" style="background: #ffde00; color: #000;">Ưu đãi đơn đầu</div>` : ''}
-                <h3>${pkg.name}</h3>
-                <div class="coin-visual-wrapper">
-                    <svg class="coin-icon-svg" style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
-                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
-                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    <span>${displayCost} Coin</span>
-                </div>
-                <ul class="pkg-features">
-                    ${pkg.features.map(f => `<li><span class="check-icon">✓</span> ${f}</li>`).join('')}
-                </ul>
-                <button class="btn-primary" onclick="window.openOrderModal()" style="width: 100%; margin-top: auto;">
-                    Bắt đầu ngay
-                </button>
+function renderServicePackages() {
+    const grid = document.getElementById('service-packages');
+    if (!grid) return;
+
+    grid.innerHTML = SERVICE_PACKAGES.map(pkg => `
+        <div class="price-card ${pkg.featured ? 'featured' : ''}">
+            ${pkg.featured ? `<div class="featured-badge">🔥 Hot</div>` : ''}
+            <h3>${pkg.name}</h3>
+            <div class="coin-visual-wrapper">
+                <svg class="coin-icon-svg" style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                    <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                    <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span>${pkg.cost} Coin</span>
             </div>
-        `;
-    }).join('');
+            <ul class="pkg-features">
+                ${pkg.features.map(f => `<li><span class="check-icon">✓</span> ${f}</li>`).join('')}
+            </ul>
+            <button class="btn-primary" onclick="window.openOrderModal()" style="width: 100%; margin-top: auto;">
+                Bắt đầu ngay
+            </button>
+        </div>
+    `).join('');
 }
 
 // --- Video Library ---
@@ -859,8 +857,6 @@ function updateFirstOrderUI() {
     
     if (offerBanner) offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
     
-    renderServicePackages();
-
     if (costEl) {
         if (isFirstTimeUser) {
             costEl.innerText = '4';
