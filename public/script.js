@@ -1132,6 +1132,7 @@ async function setupEventListeners() {
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
                             showDashboard();
+                            const serviceLabel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
                             const msg = `🚀 <b>ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}</b>\n\n` +
                                 `🆔 Mã đơn: #${orderId}\n` +
                                 `👤 Khách: ${escapeHTML(currentUser.displayName)}\n` +
