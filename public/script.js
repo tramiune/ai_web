@@ -195,6 +195,8 @@ export function initAppLogic() {
     initPremiumEffects();
     setupEventListeners();
     syncVideos();
+    // Initial UI update for first order offer
+    updateFirstOrderUI();
     // Call again after dynamic parts are rendered
     applyTranslations();
 }
@@ -852,10 +854,13 @@ function updateFirstOrderUI() {
     const costEl = document.getElementById('submit-cost');
     const tagEl = document.getElementById('first-order-tag');
     const offerBanner = document.getElementById('first-order-offer-banner');
+    const guestOfferBar = document.getElementById('guest-offer-bar');
     
-    console.log("🎁 updateFirstOrderUI: isFirstTimeUser =", isFirstTimeUser);
+    const showOffer = !currentUser || isFirstTimeUser;
+    console.log("🎁 updateFirstOrderUI: showOffer =", showOffer, "(isFirstTimeUser:", isFirstTimeUser, ")");
     
     if (offerBanner) offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
+    if (guestOfferBar) guestOfferBar.style.display = showOffer ? 'block' : 'none';
     
     if (costEl) {
         if (isFirstTimeUser) {
