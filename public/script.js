@@ -822,6 +822,14 @@ window.openTopupModal = () => {
 window.openPricingModal = () => {
     if (!currentUser) return login();
     window.openModal('pricing-modal');
+    
+    // TikTok Pixel: ViewContent (Viewing Topup Packages)
+    if (typeof ttq !== 'undefined') {
+        ttq.track('ViewContent', {
+            content_name: 'Topup Packages',
+            content_type: 'product_group'
+        });
+    }
 };
 
 window.selectTopup = async (id) => {
@@ -930,6 +938,14 @@ window.openOrderModal = () => {
     
     updateFirstOrderUI();
     window.openModal('order-modal');
+    
+    // TikTok Pixel: ViewContent (Viewing AI Service)
+    if (typeof ttq !== 'undefined') {
+        ttq.track('ViewContent', {
+            content_name: 'AI Video Service',
+            content_type: 'product'
+        });
+    }
 };
 
 function updateFirstOrderUI() {
