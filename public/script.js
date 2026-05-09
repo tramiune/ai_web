@@ -509,6 +509,12 @@ function showTopupHistory() {
     window.scrollTo(0, 0);
 }
 
+function showBuildChannel() {
+    hideAllPages();
+    document.getElementById('build-channel-page').style.display = 'block';
+    window.scrollTo(0, 0);
+}
+
 function showAdminPanel() {
     hideAllPages();
     document.getElementById('admin-panel').style.display = 'block';
@@ -521,7 +527,7 @@ function showLanding() {
 }
 
 function hideAllPages() {
-    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel'];
+    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel', 'build-channel-page'];
     pages.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -547,6 +553,8 @@ window.navTo = (target) => {
         showDashboard();
     } else if (target === 'topup-history-page') {
         showTopupHistory();
+    } else if (target === 'build-channel-page') {
+        showBuildChannel();
     } else if (target === 'admin-panel') {
         showAdminPanel();
     } else if (target === 'landing-page') {

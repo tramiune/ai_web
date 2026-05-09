@@ -7,7 +7,8 @@ window.TRANSLATIONS = {
             login: "Đăng nhập",
             terms: "Điều khoản",
             privacy: "Bảo mật",
-            home: "Trang chủ"
+            home: "Trang chủ",
+            build_channel: "Xây kênh 1000 fl / 21 ngày"
         },
         hero: {
             title: "Biến 1 ảnh thành video bắt trend",
@@ -109,6 +110,7 @@ window.TRANSLATIONS = {
             topup: "Nạp thêm",
             create_new: "+ Tạo video mới",
             my_videos: "Video của tôi",
+            build_channel: "Xây kênh 1000 fl / 21 ngày",
             topup_history: "Lịch sử nạp coin",
             col_image: "Ảnh",
             col_video_date: "Video & Ngày",
@@ -221,7 +223,8 @@ window.TRANSLATIONS = {
             login: "Login",
             terms: "Terms",
             privacy: "Privacy",
-            home: "Home"
+            home: "Home",
+            build_channel: "1k Followers / 21 days"
         },
         hero: {
             title: "Transform 1 Photo into Trending Video",
@@ -323,6 +326,7 @@ window.TRANSLATIONS = {
             topup: "Top-up",
             create_new: "+ Create New Video",
             my_videos: "My Videos",
+            build_channel: "1k Followers / 21 days",
             topup_history: "Top-up History",
             col_image: "Image",
             col_video_date: "Video & Date",

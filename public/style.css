@@ -1004,6 +1004,37 @@ button {
   stroke: var(--text-main);
 }
 
+.premium-nav-item {
+  background: linear-gradient(90deg, rgba(255, 222, 0, 0.1) 0%, rgba(255, 140, 0, 0.1) 100%);
+  border-left: 3px solid #ffde00;
+  color: #ffde00 !important;
+  font-weight: 700;
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-nav-item::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shine 3s infinite;
+}
+
+.premium-nav-item:hover {
+  background: linear-gradient(90deg, rgba(255, 222, 0, 0.2) 0%, rgba(255, 140, 0, 0.2) 100%);
+}
+
+.premium-nav-item .nav-icon {
+  stroke: #ffde00 !important;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  20% { left: 200%; }
+  100% { left: 200%; }
+}
+
 .coin-icon-svg {
   stroke: url(#coin-gradient) !important;
   filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.8));

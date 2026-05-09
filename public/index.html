@@ -44,6 +44,13 @@
                             <span id="dropdown-user-email">email@gmail.com</span>
                         </div>
                         <hr class="dropdown-divider">
+                        <a href="javascript:void(0)" class="dropdown-item premium-nav-item" onclick="window.navTo('build-channel-page')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                            </svg>
+                            <span data-i18n="navbar.build_channel">Xây kênh 1000 fl / 21 ngày</span>
+                        </a>
+                        <hr class="dropdown-divider">
                         <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('topup-history-page')">
                             <svg class="nav-icon" style="width:18px; height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
@@ -116,6 +123,13 @@
                             </svg>
                             <span data-i18n="navbar.dashboard">Dashboard</span>
                         </a>
+                        <a href="javascript:void(0)" class="dropdown-item premium-nav-item" onclick="window.navTo('build-channel-page')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                            </svg>
+                            <span data-i18n="navbar.build_channel">Xây kênh 1000 fl / 21 ngày</span>
+                        </a>
+
                         <a href="javascript:void(0)" id="topup-dropdown-item" class="dropdown-item"
                             onclick="window.navTo('topup-history-page')" style="display: none;">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -477,6 +491,49 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Build Channel Page -->
+    <div id="build-channel-page" class="dashboard" style="display: none;">
+        <div class="db-header">
+            <div class="user-info-section">
+                <h1 class="user-greeting-text">Chào mừng, User! ✨</h1>
+                <p class="user-email-text" style="opacity: 0.6; font-size: 0.9rem;"></p>
+            </div>
+
+            <div class="wallet-card">
+                <div class="wallet-icon">
+                    <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)"
+                            fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2" />
+                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)" />
+                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div class="wallet-info">
+                    <span class="wallet-label" data-i18n="dashboard.balance">Số dư Coin</span>
+                    <div class="wallet-value"><span class="coin-balance-text">0</span></div>
+                </div>
+                <button class="topup-pill-btn" onclick="window.openTopupModal()">
+                    <span>+</span> <span data-i18n="dashboard.topup">Nạp thêm</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="section-header" style="text-align: left; margin-bottom: 1.5rem; margin-top: 2rem; display: flex; align-items: center; justify-content: space-between;">
+            <h2 data-i18n="navbar.build_channel">Xây kênh 1000 fl / 21 ngày</h2>
+            <button class="btn-secondary" onclick="window.navTo('user-dashboard')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">
+                <span data-i18n="modals.back">Quay lại</span>
+            </button>
+        </div>
+        
+        <div class="glass-card" style="padding: 4rem 2rem; text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">🚀</div>
+            <h2 style="color: #ffde00; margin-bottom: 1rem;">Tính năng đang phát triển</h2>
+            <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; line-height: 1.6;">
+                Chúng tôi đang xây dựng lộ trình chi tiết giúp bạn đạt 1000 followers trên TikTok chỉ trong 21 ngày. Vui lòng quay lại sau!
+            </p>
         </div>
     </div>
 
