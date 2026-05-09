@@ -38,10 +38,26 @@ export const webhookHandler = {
         const match = description.match(/(\d+)\s*COIN\s*([A-Z0-9]{4,6})/);
         if (match) {
           const coins = parseInt(match[1]);
-          const code = match[0];
+          // Chuẩn hóa khoảng cách để khớp chính xác với Firestore (1 khoảng trắng)
+          // VD: Khách nhập "100   COIN   ABCD" -> "100 COIN ABCD"
+          const code = `${coins} COIN ${match[2]}`;
 
           const topup = await findTopup(accessToken, code);
           if (topup && topup.status === "pending") {
+             // KIỂM TRA BẢO MẬT: Xác minh số tiền chuyển khoản thực tế có đủ không
+             if (topup.amount && amount < topup.amount) {
+                 console.warn(`[CẢNH BÁO] Nạp thiếu tiền: Yêu cầu ${topup.amount}, nhận ${amount}`);
+                 const message = `⚠️ *CẢNH BÁO NẠP THIẾU TIỀN!*\n\n` +
+                                 `👤 Khách: ${topup.userName || 'N/A'}\n` +
+                                 `💵 Số tiền nhận: ${amount.toLocaleString()}đ\n` +
+                                 `📉 Yêu cầu: ${topup.amount.toLocaleString()}đ\n` +
+                                 `🪙 Đơn: ${coins} Coin\n` +
+                                 `📝 Nội dung: ${code}\n` +
+                                 `*Lưu ý:* Hệ thống KHÔNG cộng coin tự động cho giao dịch này.`;
+                 await notifyTelegram(message);
+                 continue; // Bỏ qua, không cộng coin
+             }
+
              await grantCoins(accessToken, topup.userId, coins, topup.id);
              console.log(`Successfully granted ${coins} coins to user ${topup.userId}`);
              
@@ -140,7 +156,8 @@ async function findTopup(token, content) {
       userId: fields.userId.stringValue, 
       status: fields.status.stringValue,
       userName: fields.userName?.stringValue || 'Khách',
-      userEmail: fields.userEmail?.stringValue || ''
+      userEmail: fields.userEmail?.stringValue || '',
+      amount: parseInt(fields.amount?.integerValue || fields.amount?.doubleValue || fields.amount?.stringValue || 0)
     };
   }
   return null;
