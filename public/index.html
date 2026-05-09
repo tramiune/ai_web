@@ -512,8 +512,27 @@
 
         <!-- Tab: Users -->
         <div id="admin-tab-users" class="admin-tab-content">
+            <div class="admin-section" style="margin-bottom: 3rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0;">Danh sách Thành viên</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Thành viên</th>
+                                <th>Số dư Coin</th>
+                                <th>Quyền</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-users-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="admin-section">
-                <h2>Phân quyền Admin</h2>
+                <h2>Cấp quyền Admin nhanh</h2>
                 <div class="glass-card" style="padding: 1.5rem; max-width: 500px;">
                     <div class="form-group">
                         <label>Email người dùng</label>

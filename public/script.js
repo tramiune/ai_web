@@ -1373,6 +1373,10 @@ window.switchAdminTab = (tabName) => {
     const btn = document.querySelector(`button[onclick*="switchAdminTab('${tabName}')"]`);
     if (btn) btn.classList.add('active');
     document.getElementById(`admin-tab-${tabName}`).classList.add('active');
+
+    if (tabName === 'users') {
+        window.loadAdminUsers();
+    }
 };
 
 window.makeAdmin = async () => {
@@ -1389,6 +1393,76 @@ window.makeAdmin = async () => {
     await updateDoc(doc(db, "users", userDoc.id), { role: 'admin' });
     showToast(`Đã cấp quyền Admin cho ${email}`);
     document.getElementById('user-admin-email').value = '';
+};
+
+window.loadAdminUsers = () => {
+    const { db, collection, onSnapshot, query, orderBy } = window.firebase;
+    const list = document.getElementById('admin-users-list');
+    if (!list) return;
+
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const searchVal = document.getElementById('admin-search-input').value.toLowerCase();
+
+    onSnapshot(q, (snapshot) => {
+        const filteredDocs = snapshot.docs.filter(doc => {
+            const d = doc.data();
+            const text = `${d.displayName} ${d.email}`.toLowerCase();
+            return text.includes(searchVal);
+        });
+
+        list.innerHTML = filteredDocs.map(doc => {
+            const d = doc.data();
+            return `
+                <tr>
+                    <td>
+                        <div style="font-weight:600;">${escapeHTML(d.displayName || 'Khách')}</div>
+                        <div style="font-size:0.75rem; opacity:0.6;">${escapeHTML(d.email || '')}</div>
+                    </td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input type="number" value="${d.coins || 0}" 
+                                   style="width: 80px; padding: 4px 8px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white;"
+                                   id="user-coins-${doc.id}">
+                            <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem;" 
+                                    onclick="window.updateUserCoins('${doc.id}')">Lưu</button>
+                        </div>
+                    </td>
+                    <td><span class="status-badge" style="background: ${d.role === 'admin' ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}">${d.role || 'user'}</span></td>
+                    <td>
+                        <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="window.makeAdminDirect('${doc.id}', '${d.role}')">
+                            ${d.role === 'admin' ? 'Gỡ Admin' : 'Làm Admin'}
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    });
+};
+
+window.updateUserCoins = async (userId) => {
+    const { db, doc, updateDoc } = window.firebase;
+    const input = document.getElementById(`user-coins-${userId}`);
+    const newAmount = parseInt(input.value);
+    
+    if (isNaN(newAmount)) return showToast("Vui lòng nhập số hợp lệ.");
+
+    try {
+        await updateDoc(doc(db, "users", userId), { coins: newAmount });
+        showToast("Đã cập nhật số dư Coin.");
+    } catch (e) {
+        showToast("Lỗi: " + e.message);
+    }
+};
+
+window.makeAdminDirect = async (userId, currentRole) => {
+    const { db, doc, updateDoc } = window.firebase;
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    try {
+        await updateDoc(doc(db, "users", userId), { role: newRole });
+        showToast(`Đã chuyển thành ${newRole}`);
+    } catch (e) {
+        showToast("Lỗi: " + e.message);
+    }
 };
 
 window.approveTopup = async (topupId, userId, coins) => {
