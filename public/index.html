@@ -789,33 +789,7 @@
                         style="margin-bottom: 1.5rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 1.1rem;">
                     </div>
 
-                    <div class="bank-info-box">
-                        <div class="bank-row">
-                            <div style="text-align: left;">
-                                <span style="opacity: 0.6; font-size: 0.7rem;" data-i18n="modals.acc_no">Số tài
-                                    khoản:</span><br>
-                                <strong style="letter-spacing: 1px; font-size: 1rem;">0965951536</strong>
-                            </div>
-                            <button class="copy-btn" onclick="window.copyToClipboard('0965951536')">Copy</button>
-                        </div>
-                        <div class="bank-row">
-                            <div style="text-align: left;">
-                                <span style="opacity: 0.6; font-size: 0.7rem;" data-i18n="modals.acc_name">Chủ tài
-                                    khoản:</span><br>
-                                <strong style="font-size: 1rem;">VĂN ĐÌNH HOÀNG</strong>
-                            </div>
-                        </div>
-                        <div class="bank-row" style="border-bottom: none;">
-                            <div style="text-align: left;">
-                                <span style="opacity: 0.6; font-size: 0.7rem;" data-i18n="modals.transfer_note">Nội dung
-                                    (Bắt buộc):</span><br>
-                                <strong id="transfer-code"
-                                    style="color: #ffde00; font-size: 1rem; letter-spacing: 1px;"></strong>
-                            </div>
-                            <button class="copy-btn"
-                                onclick="window.copyToClipboard(document.getElementById('transfer-code').innerText)">Copy</button>
-                        </div>
-                    </div>
+                    <span id="transfer-code" style="display: none;"></span>
 
                     <div
                         style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); font-size: 0.85rem;">
