@@ -7,7 +7,6 @@ const TELEGRAM_CHAT_ID = '6067707939';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
-    { id: 'trial', name: 'Gói Thử Nghiệm', coins: 4, price: '4.000đ', amount: 4000, note: 'Chỉ dành cho đơn đầu' },
     { id: 'creator', name: 'Creator', coins: 55, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 17 Coin' },
     { id: 'starter', name: 'Starter', coins: 15, price: '20.000đ', amount: 20000 },
     { id: 'studio', name: 'Studio', coins: 450, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
