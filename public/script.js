@@ -425,9 +425,12 @@ async function handleUserLoggedIn(user) {
 
                 // TikTok Pixel: CompletePayment
                 if (typeof ttq !== 'undefined') {
+                    const vndValue = selectedTopupPackage ? selectedTopupPackage.amount : addedCoins * 1000;
+                    const contentId = selectedTopupPackage ? selectedTopupPackage.id : 'topup';
                     ttq.track('CompletePayment', {
-                        value: addedCoins,
-                        currency: 'VND'
+                        value: vndValue,
+                        currency: 'VND',
+                        content_id: contentId
                     });
                 }
 
@@ -834,8 +837,9 @@ window.selectTopup = async (id) => {
     // TikTok Pixel: InitiateCheckout
     if (typeof ttq !== 'undefined') {
         ttq.track('InitiateCheckout', {
-            value: selectedTopupPackage.price, // Dạng chuỗi text, nhưng TTQ có thể tự convert hoặc ghi nhận dạng string. Nếu muốn int thì truyền amount
-            currency: 'VND'
+            value: selectedTopupPackage.amount,
+            currency: 'VND',
+            content_id: selectedTopupPackage.id
         });
     }
 
@@ -1226,7 +1230,7 @@ async function setupEventListeners() {
                             // TikTok Pixel: PlaceAnOrder
                             if (typeof ttq !== 'undefined') {
                                 ttq.track('PlaceAnOrder', {
-                                    value: model.cost,
+                                    value: model.cost * 1000,
                                     currency: 'VND',
                                     content_name: serviceLabelPixel,
                                     content_id: orderId
