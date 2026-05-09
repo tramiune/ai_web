@@ -459,6 +459,9 @@ function handleUserLoggedOut() {
     if (dashIn) dashIn.style.display = 'none';
     if (dashOut) dashOut.style.display = 'block';
 
+    isFirstTimeUser = false;
+    updateFirstOrderUI();
+
     showLanding();
 }
 
@@ -841,9 +844,19 @@ window.openOrderModal = () => {
         return login();
     }
     
-    // Set default cost display
+    updateFirstOrderUI();
+    window.openModal('order-modal');
+};
+
+function updateFirstOrderUI() {
     const costEl = document.getElementById('submit-cost');
     const tagEl = document.getElementById('first-order-tag');
+    const offerBanner = document.getElementById('first-order-offer-banner');
+    
+    console.log("🎁 updateFirstOrderUI: isFirstTimeUser =", isFirstTimeUser);
+    
+    if (offerBanner) offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
+    
     if (costEl) {
         if (isFirstTimeUser) {
             costEl.innerText = '4';
@@ -851,13 +864,13 @@ window.openOrderModal = () => {
         } else {
             const checkedModel = document.querySelector('input[name="model-type"]:checked');
             const modelKey = checkedModel ? checkedModel.value : 'fast';
-            costEl.innerText = MODELS[modelKey].cost;
+            if (MODELS[modelKey]) {
+                costEl.innerText = MODELS[modelKey].cost;
+            }
             if (tagEl) tagEl.style.display = 'none';
         }
     }
-
-    window.openModal('order-modal');
-};
+}
 
 window.niceConfirm = ({ title, message, icon, onConfirm }) => {
     document.getElementById('confirm-title').innerText = title;
@@ -981,14 +994,7 @@ async function setupEventListeners() {
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             const model = MODELS[e.target.value];
-            const tagEl = document.getElementById('first-order-tag');
-            if (isFirstTimeUser) {
-                document.getElementById('submit-cost').innerText = '4';
-                if (tagEl) tagEl.style.display = 'block';
-            } else {
-                document.getElementById('submit-cost').innerText = model.cost;
-                if (tagEl) tagEl.style.display = 'none';
-            }
+            updateFirstOrderUI();
 
             // Cập nhật dòng tóm tắt trên nút
             const summaryEl = document.getElementById('submit-summary-line');
@@ -1216,10 +1222,8 @@ function loadMyOrders() {
         isFirstLoad = false;
 
         isFirstTimeUser = snapshot.empty;
-        const offerBanner = document.getElementById('first-order-offer-banner');
-        if (offerBanner) {
-            offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
-        }
+        console.log("🔍 loadMyOrders: snapshot.empty =", snapshot.empty, "=> isFirstTimeUser =", isFirstTimeUser);
+        updateFirstOrderUI();
 
         if (snapshot.empty) {
             grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
