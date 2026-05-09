@@ -1123,6 +1123,11 @@ async function setupEventListeners() {
 
                             showToast(t('common.toast_order_created'));
                             closeModal('order-modal');
+                            
+                            // Reset first time offer immediately
+                            isFirstTimeUser = false;
+                            updateFirstOrderUI();
+
                             document.getElementById('order-form').reset();
                             document.getElementById('preview-char-container').innerHTML = '';
                             document.getElementById('preview-video-container').innerHTML = '';
