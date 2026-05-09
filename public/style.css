@@ -61,7 +61,7 @@
 /* --- Special Offer Bar --- */
 .offer-bar {
     position: sticky;
-    top: 70px;
+    top: 80px;
     z-index: 99;
     background: linear-gradient(90deg, #ffde00, #ff8c00);
     color: #000;
