@@ -827,7 +827,8 @@ window.openPricingModal = () => {
     if (typeof ttq !== 'undefined') {
         ttq.track('ViewContent', {
             content_name: 'Topup Packages',
-            content_type: 'product_group'
+            content_type: 'product_group',
+            content_id: 'all_packages'
         });
     }
 };
@@ -943,7 +944,8 @@ window.openOrderModal = () => {
     if (typeof ttq !== 'undefined') {
         ttq.track('ViewContent', {
             content_name: 'AI Video Service',
-            content_type: 'product'
+            content_type: 'product',
+            content_id: 'ai_video_generation'
         });
     }
 };
