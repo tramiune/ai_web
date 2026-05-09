@@ -1033,7 +1033,8 @@ async function setupEventListeners() {
 
                 // Show loading
                 submitBtn.disabled = true;
-                submitBtn.innerText = t('common.loading');
+                const mainTextInitial = submitBtn.querySelector('[data-i18n="hero.cta_create"]');
+                if (mainTextInitial) mainTextInitial.innerText = t('common.loading');
                 progressDiv.style.display = 'block';
 
                 // 1. Check coins first (Transaction)
@@ -1176,7 +1177,9 @@ async function setupEventListeners() {
                 }
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerText = t('modals.submit_order', { cost: model.cost });
+                const mainTextOuter = submitBtn.querySelector('[data-i18n="hero.cta_create"]');
+                if (mainTextOuter) mainTextOuter.innerText = t('hero.cta_create');
+                updateFirstOrderUI();
                 progressDiv.style.display = 'none';
             }
         });
