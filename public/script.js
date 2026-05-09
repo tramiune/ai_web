@@ -422,6 +422,15 @@ async function handleUserLoggedIn(user) {
 
                 // Notify Telegram
                 const addedCoins = currentCoins - initialCoinsBeforeTopup;
+
+                // TikTok Pixel: CompletePayment
+                if (typeof ttq !== 'undefined') {
+                    ttq.track('CompletePayment', {
+                        value: addedCoins,
+                        currency: 'VND'
+                    });
+                }
+
                 sendTelegramMessage(`💰 <b>NẠP COIN THÀNH CÔNG!</b>\n👤 Khách: ${escapeHTML(data.displayName)}\n📧 Email: ${escapeHTML(data.email)}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
 
@@ -822,6 +831,14 @@ window.selectTopup = async (id) => {
     // Close pricing modal if open
     closeModal('pricing-modal');
 
+    // TikTok Pixel: InitiateCheckout
+    if (typeof ttq !== 'undefined') {
+        ttq.track('InitiateCheckout', {
+            value: selectedTopupPackage.price, // Dạng chuỗi text, nhưng TTQ có thể tự convert hoặc ghi nhận dạng string. Nếu muốn int thì truyền amount
+            currency: 'VND'
+        });
+    }
+
     // Generate unique random code: [CoinAmount] COIN [RandomStr]
     const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
     const transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
@@ -1205,6 +1222,17 @@ async function setupEventListeners() {
                             showToast(t('common.toast_order_created'));
                             closeModal('order-modal');
                             
+                            const serviceLabelPixel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
+                            // TikTok Pixel: PlaceAnOrder
+                            if (typeof ttq !== 'undefined') {
+                                ttq.track('PlaceAnOrder', {
+                                    value: model.cost,
+                                    currency: 'VND',
+                                    content_name: serviceLabelPixel,
+                                    content_id: orderId
+                                });
+                            }
+
                             // Reset first time offer immediately
                             isFirstTimeUser = false;
                             updateFirstOrderUI();
