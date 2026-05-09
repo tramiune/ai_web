@@ -120,7 +120,10 @@ window.TRANSLATIONS = {
             col_date: "Ngày gửi",
             note_storage: "⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>",
             action_view: "🔍 Xem",
-            action_view_details: "Xem chi tiết"
+            action_view_details: "Xem chi tiết",
+            first_order_offer_title: "Ưu đãi trải nghiệm đặc biệt! 🎁",
+            first_order_offer_desc: "Video AI đầu tiên của bạn chỉ tốn <b>4 Coin (~4.000đ)</b>. Cơ hội duy nhất để trải nghiệm công nghệ AI đỉnh cao!",
+            first_order_offer_cta: "Thử ngay"
         },
         modals: {
             topup_title: "Nạp Coin tự động",
@@ -179,7 +182,8 @@ window.TRANSLATIONS = {
             
             back: "Quay lại",
             agree: "Đồng ý",
-            close: "&times;"
+            close: "&times;",
+            first_order_tag: "ƯU ĐÃI ĐƠN ĐẦU"
         },
         footer: {
             rights: "&copy; 2026 MotionAI Studio. All rights reserved.",
@@ -330,7 +334,10 @@ window.TRANSLATIONS = {
             col_date: "Date Sent",
             note_storage: "⚠️ <i>Note: The system only stores result videos for 7 days. Please download early!</i>",
             action_view: "🔍 View",
-            action_view_details: "View Details"
+            action_view_details: "View Details",
+            first_order_offer_title: "Special Experience Offer! 🎁",
+            first_order_offer_desc: "Your first AI video costs only <b>4 Coins (~$0.15)</b>. A unique chance to try premium AI technology!",
+            first_order_offer_cta: "Try Now"
         },
         modals: {
             topup_title: "Automated Top-up",
@@ -389,7 +396,8 @@ window.TRANSLATIONS = {
             
             back: "Back",
             agree: "Agree",
-            close: "&times;"
+            close: "&times;",
+            first_order_tag: "FIRST ORDER OFFER"
         },
         footer: {
             rights: "&copy; 2026 MotionAI Studio. All rights reserved.",
