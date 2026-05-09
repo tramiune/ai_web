@@ -856,7 +856,7 @@ function updateFirstOrderUI() {
     const offerBanner = document.getElementById('first-order-offer-banner');
     const guestOfferBar = document.getElementById('guest-offer-bar');
     
-    const showOffer = !currentUser || isFirstTimeUser;
+    const showOffer = (!currentUser || isFirstTimeUser) && !sessionStorage.getItem('offer_bar_dismissed');
     console.log("🎁 updateFirstOrderUI: showOffer =", showOffer, "(isFirstTimeUser:", isFirstTimeUser, ")");
     
     if (offerBanner) offerBanner.style.display = isFirstTimeUser ? 'block' : 'none';
@@ -876,6 +876,12 @@ function updateFirstOrderUI() {
         }
     }
 }
+
+window.closeOfferBar = () => {
+    const bar = document.getElementById('guest-offer-bar');
+    if (bar) bar.style.display = 'none';
+    sessionStorage.setItem('offer_bar_dismissed', 'true');
+};
 
 window.niceConfirm = ({ title, message, icon, onConfirm }) => {
     document.getElementById('confirm-title').innerText = title;
