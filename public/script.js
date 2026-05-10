@@ -1163,8 +1163,8 @@ async function setupEventListeners() {
 
                     // Apply First Order Offer
                     if (isFirstTimeUser) {
-                        model.cost = 4;
-                        console.log("🎁 Áp dụng ưu đãi đơn hàng đầu tiên: 4 Coin");
+                        model.cost = 1;
+                        console.log("🎁 Áp dụng ưu đãi đơn hàng đầu tiên: 1 Coin");
                     }
 
                     if (userDoc.data().coins < model.cost) {
