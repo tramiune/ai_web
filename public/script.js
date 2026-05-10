@@ -735,7 +735,7 @@ window.renderTemplates = () => {
              onclick="window.previewTemplate('${t.id}')"
              onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
              onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
-            <video class="template-video" src="${t.url}" poster="${t.thumb}" muted loop playsinline preload="metadata"></video>
+            <video class="template-video" src="${t.url}#t=1" poster="${t.thumb}" muted loop playsinline preload="metadata"></video>
             <div class="template-overlay">${t.title}</div>
         </div>
     `).join('');
