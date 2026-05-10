@@ -969,7 +969,7 @@ function updateFirstOrderUI() {
 
     if (costEl) {
         if (isFirstTimeUser) {
-            costEl.innerText = '4';
+            costEl.innerText = '1';
             if (tagEl) tagEl.style.display = 'block';
         } else {
             const checkedModel = document.querySelector('input[name="model-type"]:checked');

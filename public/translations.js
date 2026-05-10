@@ -124,7 +124,7 @@ window.TRANSLATIONS = {
             action_view: "🔍 Xem",
             action_view_details: "Xem chi tiết",
             first_order_offer_title: "Ưu đãi trải nghiệm đặc biệt! 🎁",
-            first_order_offer_desc: "Giảm ngay <b>60%</b> cho video AI đầu tiên của bạn chỉ còn <b>4 Coin (~4.000đ)</b>. Trải nghiệm công nghệ AI đỉnh cao ngay!",
+            first_order_offer_desc: "Giảm ngay <b>90%</b> cho video AI đầu tiên của bạn chỉ còn <b>1 Coin (~1.000đ)</b>. Trải nghiệm công nghệ AI đỉnh cao ngay!",
             first_order_offer_cta: "Thử ngay"
         },
         modals: {
@@ -341,7 +341,7 @@ window.TRANSLATIONS = {
             action_view: "🔍 View",
             action_view_details: "View Details",
             first_order_offer_title: "Special Experience Offer! 🎁",
-            first_order_offer_desc: "Get <b>60% OFF</b> your first AI video for only <b>4 Coins (~$0.15)</b>. Experience premium AI technology now!",
+            first_order_offer_desc: "Get <b>90% OFF</b> your first AI video for only <b>1 Coin (~$0.04)</b>. Experience premium AI technology now!",
             first_order_offer_cta: "Try Now"
         },
         modals: {
