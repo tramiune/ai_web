@@ -1627,9 +1627,15 @@ window.loadAdminUsers = () => {
                     </td>
                     <td><span class="status-badge" style="background: ${d.role === 'admin' ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}">${d.role || 'user'}</span></td>
                     <td>
-                        <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="window.makeAdminDirect('${doc.id}', '${d.role}')">
-                            ${d.role === 'admin' ? 'Gỡ Admin' : 'Làm Admin'}
-                        </button>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; white-space:nowrap;" onclick="window.makeAdminDirect('${doc.id}', '${d.role}')">
+                                ${d.role === 'admin' ? 'Gỡ Admin' : 'Làm Admin'}
+                            </button>
+                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; color: #ff1744; border-color: rgba(255, 23, 68, 0.3);"
+                                    onclick="window.deleteUserAdmin('${doc.id}')">
+                                Xoá
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -1658,6 +1664,17 @@ window.makeAdminDirect = async (userId, currentRole) => {
     try {
         await updateDoc(doc(db, "users", userId), { role: newRole });
         showToast(`Đã chuyển thành ${newRole}`);
+    } catch (e) {
+        showToast("Lỗi: " + e.message);
+    }
+};
+
+window.deleteUserAdmin = async (userId) => {
+    if (!confirm("Bạn có chắc chắn muốn xoá người dùng này? Thao tác này không thể hoàn tác.")) return;
+    const { db, doc, deleteDoc } = window.firebase;
+    try {
+        await deleteDoc(doc(db, "users", userId));
+        showToast("Đã xoá người dùng.");
     } catch (e) {
         showToast("Lỗi: " + e.message);
     }
