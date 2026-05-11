@@ -26,13 +26,11 @@ const TREND_VIDEOS = [
 ];
 
 const MODELS = {
-    basic: { name: "Model Tiêu chuẩn", cost: 6, time: "12h" },
-    fast: { name: "Model Nhanh", cost: 11, time: "30p" },
+    fast: { name: "Model Nhanh", cost: 10, time: "30p" },
     turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p" }
 };
 
 const SERVICE_PACKAGES = [
-    { id: 'basic', name: 'Basic', cost: 6, features: ['Chất lượng SD', 'Xử lý 15-30p', '1 nhân vật'] },
     { id: 'plus', name: 'Plus', cost: 12, features: ['Chất lượng HD', 'Ưu tiên xử lý', 'Hỗ trợ sửa đổi'], featured: true },
     { id: 'viral', name: 'Viral', cost: 25, features: ['Chất lượng 4K', 'Xử lý siêu tốc', 'Sửa đổi tối đa 3 lần'] }
 ];
