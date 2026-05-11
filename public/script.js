@@ -418,6 +418,9 @@ async function handleUserLoggedIn(user) {
             createdAt: window.firebase.serverTimestamp(),
             updatedAt: window.firebase.serverTimestamp()
         });
+
+        // Gửi thông báo Telegram khi có user mới đăng ký
+        sendTelegramMessage(`🆕 <b>USER MỚI ĐĂNG KÝ!</b>\n👤 Tên: ${escapeHTML(user.displayName)}\n📧 Email: ${escapeHTML(user.email)}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`);
     } else {
         // Nếu đã có user nhưng email thuộc list bootstrap mà chưa có role admin thì cập nhật
         const userData = userSnap.data();
