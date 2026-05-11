@@ -292,8 +292,8 @@ window.renderShowcase = () => {
              onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
              onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
             <video class="showcase-video" 
-                   src="${v.url}#t=1" 
-                   muted loop playsinline preload="metadata">
+                   data-src="${v.url}#t=1" 
+                   muted loop playsinline preload="none">
             </video>
             <div class="showcase-play-overlay">
                 <div class="play-icon-central">
@@ -309,10 +309,26 @@ window.renderShowcase = () => {
         </div>
     `).join('');
 
+    // Lazy load videos when they scroll into view
+    const lazyVideos = gallery.querySelectorAll('video[data-src]');
+    const videoObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const video = entry.target;
+                video.src = video.dataset.src;
+                video.preload = 'metadata';
+                delete video.dataset.src;
+                videoObserver.unobserve(video);
+            }
+        });
+    }, { rootMargin: '200px' });
+
+    lazyVideos.forEach(v => videoObserver.observe(v));
+
     initPremiumEffects();
 };
 
-// Removed playLazyVideo and initLazyVideos as we're using preload=metadata and #t=1 trick
+// Lazy loading handled by IntersectionObserver in renderShowcase
 
 window.useTrendShortcut = (id, url) => {
     window.openOrderModal();
