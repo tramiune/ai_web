@@ -195,6 +195,8 @@ export function initAppLogic() {
     syncVideos();
     // Initial UI update for first order offer
     updateFirstOrderUI();
+    // Check maintenance status
+    checkMaintenance();
     // Call again after dynamic parts are rendered
     applyTranslations();
 }
@@ -1419,6 +1421,9 @@ function loadMyOrders() {
             const isNew = d.createdAt && (Date.now() - d.createdAt.toDate().getTime() < 5 * 60 * 1000);
             const isCompleted = d.status === 'completed' || d.status === 'done';
 
+            const isPendingLong = d.status === 'pending' && d.createdAt && (Date.now() - d.createdAt.toDate().getTime() > 10 * 60 * 1000);
+            const delayNote = isPendingLong ? `<div class="order-delay-note">💬 Đơn hàng đang được điều phối xử lý, bạn vui lòng đợi thêm chút nhé!</div>` : '';
+
             return `
                 <div class="order-card ${isNew ? 'new-order-highlight' : ''}" onclick="${isCompleted && d.resultLink ? `window.playOrderVideo(event, '${d.resultLink}')` : `window.openUserOrderDetail('${doc.id}')`}">
                     <div class="order-thumb-wrapper">
@@ -1441,6 +1446,7 @@ function loadMyOrders() {
                             <span class="order-date-text">${date}</span>
                         </div>
                         <div class="order-type-text">${d.serviceLabel || ''}</div>
+                        ${delayNote}
                         ${(d.systemNote || d.adminNote) ? `<div class="order-system-note">💬 ${d.systemNote || d.adminNote}</div>` : ''}
                         <div class="order-footer">
                             <div class="order-cost-tag">
@@ -1535,6 +1541,27 @@ window.viewFullImage = (url) => {
     img.src = url;
     modal.style.display = 'flex';
 };
+
+function checkMaintenance() {
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const totalMinutes = hour * 60 + minute;
+
+    // Maintenance from 00:30 to 07:00
+    const maintenanceStart = 0 * 60 + 30; // 00:30
+    const maintenanceEnd = 7 * 60; // 07:00
+
+    const isMaintenance = totalMinutes >= maintenanceStart && totalMinutes < maintenanceEnd;
+
+    const banner = document.getElementById('maintenance-banner');
+    if (banner) {
+        banner.style.display = isMaintenance ? 'flex' : 'none';
+    }
+}
+
+// Check every minute
+setInterval(checkMaintenance, 60000);
 
 // --- Admin Dashboard Logic ---
 window.switchAdminTab = (tabName) => {

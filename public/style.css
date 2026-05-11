@@ -1,3 +1,45 @@
+/* Maintenance & Delay Styles */
+.maintenance-banner {
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid rgba(255, 152, 0, 0.2);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-bottom: 2rem;
+    color: #ff9800;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: fadeIn 0.5s ease;
+}
+
+.maintenance-icon {
+    font-size: 1.5rem;
+}
+
+.maintenance-content {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.order-delay-note {
+    color: #ffde00;
+    font-size: 0.75rem;
+    margin-top: 0.8rem;
+    font-style: italic;
+    background: rgba(255, 222, 0, 0.05);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 222, 0, 0.2);
+    line-height: 1.4;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Original contents below */
 :root {
   /* Color Palette - Deeper & More Vibrant */
   --primary: #8a2be2;
@@ -2275,7 +2317,49 @@ section {
 /* --- Responsive Design --- */
 
 @media (max-width: 1024px) {
-  :root {
+  /* Maintenance & Delay Styles */
+.maintenance-banner {
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid rgba(255, 152, 0, 0.2);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-bottom: 2rem;
+    color: #ff9800;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: fadeIn 0.5s ease;
+}
+
+.maintenance-icon {
+    font-size: 1.5rem;
+}
+
+.maintenance-content {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.order-delay-note {
+    color: #ffde00;
+    font-size: 0.75rem;
+    margin-top: 0.8rem;
+    font-style: italic;
+    background: rgba(255, 222, 0, 0.05);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 222, 0, 0.2);
+    line-height: 1.4;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Original contents below */
+:root {
     --container-max: 95%;
   }
   
