@@ -350,6 +350,10 @@ async function logout() {
 async function handleUserLoggedIn(user) {
     const { db, doc, getDoc, setDoc, onSnapshot } = window.firebase;
 
+    // Ẩn Auth Modal bắt buộc
+    const authModal = document.getElementById('auth-modal');
+    if (authModal) authModal.style.display = 'none';
+
     // Hiển thị Profile Menu thay vì ghi đè HTML
     document.getElementById('login-btn').style.display = 'none';
     document.getElementById('user-profile-menu').style.display = 'block';
@@ -478,6 +482,10 @@ async function handleUserLoggedIn(user) {
 }
 
 function handleUserLoggedOut() {
+    // Hiện Auth Modal bắt buộc
+    const authModal = document.getElementById('auth-modal');
+    if (authModal) authModal.style.display = 'flex';
+
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
 
