@@ -345,9 +345,11 @@ async function login() {
     const provider = new GoogleAuthProvider();
     try {
         await signInWithPopup(auth, provider);
+        window.focus(); // Đưa focus về lại tab hiện tại sau khi popup đóng
         showToast(t('common.toast_login_success'));
     } catch (error) {
         console.error("Login Error", error);
+        window.focus(); // Đưa focus về ngay cả khi lỗi
         showToast(t('common.toast_login_failed'));
     }
 }
