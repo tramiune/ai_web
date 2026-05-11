@@ -125,7 +125,9 @@ window.TRANSLATIONS = {
             action_view_details: "Xem chi tiết",
             first_order_offer_title: "Ưu đãi trải nghiệm đặc biệt! 🎁",
             first_order_offer_desc: "Giảm ngay <b>90%</b> cho video AI đầu tiên của bạn chỉ còn <b>1 Coin (~1.000đ)</b>. Trải nghiệm công nghệ AI đỉnh cao ngay!",
-            first_order_offer_cta: "Thử ngay"
+            first_order_offer_cta: "Thử ngay",
+            maintenance_msg: "Hệ thống đang bảo trì định kỳ từ 00:30 đến 07:00. Các đơn hàng trong thời gian này sẽ được xử lý sau 07:00 sáng.",
+            delay_note: "💬 Đơn hàng đang được điều phối xử lý, bạn vui lòng đợi thêm chút nhé!"
         },
         modals: {
             topup_title: "Nạp Coin tự động",
@@ -342,7 +344,9 @@ window.TRANSLATIONS = {
             action_view_details: "View Details",
             first_order_offer_title: "Special Experience Offer! 🎁",
             first_order_offer_desc: "Get <b>90% OFF</b> your first AI video for only <b>1 Coin (~$0.04)</b>. Experience premium AI technology now!",
-            first_order_offer_cta: "Try Now"
+            first_order_offer_cta: "Try Now",
+            maintenance_msg: "System is under scheduled maintenance from 00:30 to 07:00. Orders during this time will be processed after 07:00 AM.",
+            delay_note: "💬 Your order is being dispatched for processing, please wait a moment!"
         },
         modals: {
             topup_title: "Automated Top-up",

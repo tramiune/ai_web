@@ -43,7 +43,7 @@ const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.c
 // --- i18n Logic ---
 let currentLang = localStorage.getItem('app_lang');
 if (!['vi', 'en'].includes(currentLang)) {
-    currentLang = navigator.language.startsWith('en') ? 'en' : 'vi';
+    currentLang = 'vi';
 }
 window.currentLang = currentLang;
 
@@ -1422,7 +1422,7 @@ function loadMyOrders() {
             const isCompleted = d.status === 'completed' || d.status === 'done';
 
             const isPendingLong = d.status === 'pending' && d.createdAt && (Date.now() - d.createdAt.toDate().getTime() > 10 * 60 * 1000);
-            const delayNote = isPendingLong ? `<div class="order-delay-note">💬 Đơn hàng đang được điều phối xử lý, bạn vui lòng đợi thêm chút nhé!</div>` : '';
+            const delayNote = isPendingLong ? `<div class="order-delay-note">${t('dashboard.delay_note')}</div>` : '';
 
             return `
                 <div class="order-card ${isNew ? 'new-order-highlight' : ''}" onclick="${isCompleted && d.resultLink ? `window.playOrderVideo(event, '${d.resultLink}')` : `window.openUserOrderDetail('${doc.id}')`}">
