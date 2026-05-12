@@ -1931,6 +1931,92 @@ section {
   font-weight: 600;
 }
 
+/* --- Browser Recommendation Bar --- */
+.browser-recommend-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10002;
+    background: #007bff;
+    color: white;
+    padding: 12px 20px;
+    display: none; /* Shown via JS */
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    animation: slideDownBar 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.browser-recommend-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.recommend-icon {
+    font-size: 1.2rem;
+}
+
+.btn-copy-link {
+    background: white;
+    color: #007bff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.btn-copy-link:hover {
+    background: #f0f0f0;
+    transform: scale(1.05);
+}
+
+.recommend-close {
+    background: transparent;
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.recommend-close:hover {
+    opacity: 1;
+}
+
+@keyframes slideDownBar {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .browser-recommend-bar {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .browser-recommend-content {
+        flex-direction: column;
+    }
+
+    /* Push navbar down when bar is visible */
+    body.has-recommend-bar .navbar {
+        top: 100px; /* Approximate height of the bar on mobile */
+    }
+}
+
 /* Toast */
 .toast {
   position: fixed;

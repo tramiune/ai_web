@@ -186,7 +186,8 @@ window.TRANSLATIONS = {
             order_download: "Tải Video Về Máy (7 Ngày)",
             order_expiry_warn: "⚠️ Video sẽ bị xóa vĩnh viễn khỏi máy chủ sau 7 ngày.",
             order_system_note: "💬 Ghi chú từ hệ thống",
-            
+            inapp_auth_note: "⚠️ Trình duyệt này thường chặn đăng nhập Google. Bạn hãy dùng <b>Email/Mật khẩu</b> hoặc mở trang bằng <b>Chrome/Safari</b> nhé!",
+
             back: "Quay lại",
             agree: "Đồng ý",
             close: "&times;",
@@ -198,6 +199,8 @@ window.TRANSLATIONS = {
             privacy: "Chính sách bảo mật"
         },
         common: {
+            browser_recommend: "Để đăng nhập mượt mà nhất, hãy bấm dấu (⋮) và chọn \"Mở bằng trình duyệt\" (Chrome/Safari) nhé!",
+            copy_link: "Copy link nhanh",
             error_auth: "Lỗi xác thực: {msg}",
             error_system: "Lỗi hệ thống: {msg}",
             support_chat: "Chat với chúng tôi ✨",
@@ -407,7 +410,8 @@ window.TRANSLATIONS = {
             order_download: "Download Video (7 Days)",
             order_expiry_warn: "⚠️ Video will be permanently deleted after 7 days.",
             order_system_note: "💬 System Note",
-            
+            inapp_auth_note: "⚠️ This browser often blocks Google login. Please use <b>Email/Password</b> or open the page in <b>Chrome/Safari</b>!",
+
             back: "Back",
             agree: "Agree",
             close: "&times;",
@@ -419,6 +423,8 @@ window.TRANSLATIONS = {
             privacy: "Privacy Policy"
         },
         common: {
+            browser_recommend: "For the smoothest experience, please tap (⋮) and select \"Open in Browser\" (Chrome/Safari)!",
+            copy_link: "Copy Link",
             error_auth: "Auth Error: {msg}",
             error_system: "System Error: {msg}",
             support_chat: "Chat with us ✨",
