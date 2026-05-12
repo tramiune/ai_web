@@ -7,10 +7,11 @@ const TELEGRAM_CHAT_ID = '6067707939';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
-    { id: 'creator', name: 'Creator', coins: 55, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 17 Coin' },
+    { id: 'creator', name: 'Creator', coins: 50, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 25 Coin' },
     { id: 'starter', name: 'Starter', coins: 10, price: '10.000đ', amount: 10000 },
-    { id: 'studio', name: 'Studio', coins: 450, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
-    { id: 'pro-studio', name: 'Enterprise', coins: 1200, price: '1.000.000đ', amount: 1000000, note: 'Tặng 200 Coin' }
+    { id: 'starter_v2', name: 'Starter V2', coins: 10, price: '20.000đ', amount: 20000, note: 'Gói giới hạn' },
+    { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
+    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', amount: 1000000, note: 'Tặng 100 Coin' }
 ];
 
 const TREND_VIDEOS = [
@@ -38,6 +39,7 @@ const SERVICE_PACKAGES = [
 let currentUser = null;
 let selectedTopupPackage = null;
 let isFirstTimeUser = false; // Flag for special offer
+let starterBuyCount = 0; // Track 10k package purchases
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
 // --- i18n Logic ---
@@ -366,7 +368,7 @@ async function logout() {
 
 // --- User Profile & Coin Balance ---
 async function handleUserLoggedIn(user) {
-    const { db, doc, getDoc, setDoc, onSnapshot } = window.firebase;
+    const { db, doc, getDoc, setDoc, onSnapshot, collection, query, where } = window.firebase;
 
     // Ẩn Auth Modal bắt buộc
     const authModal = document.getElementById('auth-modal');
@@ -495,6 +497,15 @@ async function handleUserLoggedIn(user) {
                 document.getElementById('admin-panel').style.display = 'none';
             }
         }
+    });
+
+    // Check 10k package purchase count (Limit to 1)
+    const topupsRef = collection(db, "topups");
+    const qStarter = query(topupsRef, where("userId", "==", user.uid), where("packageName", "==", "Starter"), where("status", "==", "approved"));
+    onSnapshot(qStarter, (snapshot) => {
+        starterBuyCount = snapshot.size;
+        console.log(`📊 Starter (10k) Buy Count: ${starterBuyCount}`);
+        renderPricing();
     });
 
     loadMyOrders();
@@ -674,7 +685,14 @@ function renderPricing() {
     const coinGrid = document.getElementById('coin-packages');
     const modalCoinGrid = document.getElementById('modal-coin-packages');
 
-    const html = COIN_PACKAGES.map(pkg => `
+    // Filter packages based on 10k purchase count (Limit 1)
+    const filteredPackages = COIN_PACKAGES.filter(pkg => {
+        if (pkg.id === 'starter' && starterBuyCount >= 1) return false;
+        if (pkg.id === 'starter_v2' && starterBuyCount < 1) return false;
+        return true;
+    });
+
+    const html = filteredPackages.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
             ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured')}</div>` : ''}
             ${pkg.note ? `<div class="bonus-tag">${pkg.note}</div>` : ''}
@@ -864,6 +882,14 @@ window.openPricingModal = () => {
 
 window.selectTopup = async (id) => {
     if (!currentUser) return login();
+
+    // Check purchase limit for 10k package (Only 1 allowed)
+    if (id === 'starter' && starterBuyCount >= 1) {
+        showToast("⚠️ Gói này đã hết lượt sử dụng. Vui lòng chọn gói khác!");
+        renderPricing();
+        return;
+    }
+
     selectedTopupPackage = COIN_PACKAGES.find(p => p.id === id);
 
     // Lưu số dư hiện tại để theo dõi biến động khi nạp
