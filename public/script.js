@@ -5,6 +5,11 @@
 const TELEGRAM_BOT_TOKEN = '8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc';
 const TELEGRAM_CHAT_ID = '6067707939';
 
+// --- EmailJS Config ---
+const EMAILJS_SERVICE_ID = 'service_6r6rd2q';
+const EMAILJS_TEMPLATE_ID = 'template_09eir3r';
+const EMAILJS_PUBLIC_KEY = '92pP97oTzMGR4p_Zp';
+
 // --- Data Constants ---
 const COIN_PACKAGES = [
     { id: 'creator', name: 'Creator', coins: 50, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 25 Coin' },
@@ -1045,7 +1050,7 @@ window.closeOfferBar = () => {
 
 window.niceConfirm = ({ title, message, icon, onConfirm }) => {
     document.getElementById('confirm-title').innerText = title;
-    document.getElementById('confirm-msg').innerText = message;
+    document.getElementById('confirm-msg').innerHTML = message; // Changed to innerHTML to support <br> and <i>
     document.getElementById('confirm-icon').innerText = icon || '❓';
 
     const yesBtn = document.getElementById('confirm-yes-btn');
@@ -1803,16 +1808,32 @@ window.openAdminDetail = async (orderId) => {
 
 document.getElementById('admin-update-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const { db, doc, updateDoc, serverTimestamp } = window.firebase;
+    const { db, doc, getDoc, updateDoc, serverTimestamp } = window.firebase;
+    const newStatus = document.getElementById('admin-status').value;
+    const resultLink = document.getElementById('admin-result-link').value;
+
     try {
+        // 1. Update Firestore
         await updateDoc(doc(db, "orders", currentAdminOrderId), {
-            status: document.getElementById('admin-status').value,
-            resultLink: document.getElementById('admin-result-link').value,
+            status: newStatus,
+            resultLink: resultLink,
             adminNote: document.getElementById('admin-note').value,
             updatedAt: serverTimestamp()
         });
+
         showToast("Cập nhật đơn hàng thành công!");
         closeModal('admin-detail-modal');
+
+        // 2. If status is completed, send automated email
+        if (newStatus === 'completed') {
+            const snap = await getDoc(doc(db, "orders", currentAdminOrderId));
+            if (snap.exists()) {
+                const orderData = snap.data();
+                if (orderData.userEmail) {
+                    sendCompletionEmail(currentAdminOrderId, orderData);
+                }
+            }
+        }
     } catch (error) {
         console.error(error);
         showToast("Lỗi cập nhật.");
@@ -2244,3 +2265,46 @@ window.testTelegram = () => {
     sendTelegramMessage(msg);
     showToast("Đã gửi tin nhắn test đến Telegram. Vui lòng kiểm tra!");
 };
+
+// --- EmailJS Auto-Notification ---
+async function sendCompletionEmail(orderId, orderData) {
+    console.log("📧 Attempting to send completion email to:", orderData.userEmail);
+
+    const shortOrderId = orderId.substring(orderId.length - 6).toUpperCase();
+    const serviceLabel = SERVICE_TYPE_MAP()[orderData.serviceType] || orderData.serviceType;
+
+    const templateParams = {
+        user_name: orderData.userName || "Khách hàng",
+        user_email: orderData.userEmail,
+        order_id: shortOrderId,
+        result_link: orderData.resultLink,
+        service_label: serviceLabel
+    };
+
+    const payload = {
+        service_id: EMAILJS_SERVICE_ID,
+        template_id: EMAILJS_TEMPLATE_ID,
+        user_id: EMAILJS_PUBLIC_KEY,
+        template_params: templateParams
+    };
+
+    try {
+        const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            console.log("✅ Email sent successfully via EmailJS!");
+            showToast("✨ Đã gửi thông báo qua Email cho khách!");
+        } else {
+            const errText = await response.text();
+            console.error("❌ EmailJS error:", errText);
+            showToast("⚠️ Cập nhật đơn OK nhưng gửi Mail lỗi: " + errText);
+        }
+    } catch (error) {
+        console.error("❌ Network error sending email:", error);
+        showToast("⚠️ Lỗi mạng khi gửi email!");
+    }
+}

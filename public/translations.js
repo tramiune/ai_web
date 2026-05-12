@@ -121,6 +121,7 @@ window.TRANSLATIONS = {
             col_coins: "Coin nhận",
             col_date: "Ngày gửi",
             note_storage: "⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>",
+            note_email: "Hệ thống sẽ tự động gửi thông báo về Email khi video của bạn xử lý xong.",
             action_view: "🔍 Xem",
             action_view_details: "Xem chi tiết",
             first_order_offer_title: "Ưu đãi trải nghiệm đặc biệt! 🎁",
@@ -169,7 +170,7 @@ window.TRANSLATIONS = {
             uploading: "Đang tải file lên...",
             
             confirm_order_title: "Xác nhận đơn hàng",
-            confirm_order_msg: "Hệ thống hiện đang có nhiều yêu cầu xử lý. Thời gian ước tính hoàn thành cho video của bạn là khoảng {min}-{max} phút. Bạn có đồng ý tiếp tục gửi yêu cầu và trừ {cost} coin không?",
+            confirm_order_msg: "Hệ thống hiện đang có nhiều yêu cầu xử lý. Thời gian ước tính hoàn thành cho video của bạn là khoảng {min}-{max} phút. Bạn có đồng ý tiếp tục gửi yêu cầu và trừ {cost} coin không?<br><br>📧 <i>Lưu ý: Bạn không cần treo máy chờ, kết quả sẽ được tự động gửi về Email của bạn ngay khi hoàn tất!</i>",
             
             insufficient_coins_title: "Số dư không đủ",
             insufficient_coins_msg: "Số dư của bạn không đủ để thực hiện yêu cầu này. Bạn có muốn nạp thêm Coin ngay không?",
@@ -341,6 +342,7 @@ window.TRANSLATIONS = {
             col_coins: "Coins Received",
             col_date: "Date Sent",
             note_storage: "⚠️ <i>Note: The system only stores result videos for 7 days. Please download early!</i>",
+            note_email: "The system will automatically send an email notification when your video is processed.",
             action_view: "🔍 View",
             action_view_details: "View Details",
             first_order_offer_title: "Special Experience Offer! 🎁",
@@ -389,7 +391,7 @@ window.TRANSLATIONS = {
             uploading: "Uploading files...",
             
             confirm_order_title: "Confirm Order",
-            confirm_order_msg: "System is currently busy. Estimated time to complete your video is {min}-{max} minutes. Do you agree to proceed and deduct {cost} coins?",
+            confirm_order_msg: "System is currently busy. Estimated time to complete your video is {min}-{max} minutes. Do you agree to proceed and deduct {cost} coins?<br><br>📧 <i>Note: You don't need to stay on this page. Results will be automatically sent to your Email once completed!</i>",
             
             insufficient_coins_title: "Insufficient Balance",
             insufficient_coins_msg: "Your balance is not enough. Would you like to top up now?",
