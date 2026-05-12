@@ -638,9 +638,9 @@ async function handleUserLoggedIn(user) {
 }
 
 function handleUserLoggedOut() {
-    // Hiện Auth Modal bắt buộc
+    // Không hiện Auth Modal bắt buộc lúc đầu nữa
     const authModal = document.getElementById('auth-modal');
-    if (authModal) authModal.style.display = 'flex';
+    if (authModal) authModal.style.display = 'none';
 
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
@@ -1112,14 +1112,13 @@ window.selectTopup = async (id) => {
 };
 
 window.openOrderModal = () => {
-    if (!currentUser) {
-        window.pendingAction = 'openOrderModal';
-        return login();
-    }
-    
+    // Thông báo click nút tạo video về Telegram
+    const clickMsg = `🎯 <b>NÚT TẠO VIDEO VỪA ĐƯỢC BẤM! (TRANG CHỦ)</b>\n👤 Trạng thái: ${currentUser ? 'Đã đăng nhập' : 'Khách vãng lai'}\n📧 Email: ${currentUser ? escapeHTML(currentUser.email) : 'N/A'}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`;
+    sendTelegramMessage(clickMsg);
+
     updateFirstOrderUI();
     window.openModal('order-modal');
-    
+
     // TikTok Pixel: ViewContent (Viewing AI Service)
     if (typeof ttq !== 'undefined') {
         ttq.track('ViewContent', {
@@ -1309,7 +1308,14 @@ async function setupEventListeners() {
     if (orderForm) {
         orderForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser) return showToast(t('common.error_auth', { msg: "F5" }));
+
+            if (!currentUser) {
+                // Nếu chưa đăng nhập thì hiện Auth Modal
+                const authModal = document.getElementById('auth-modal');
+                if (authModal) authModal.style.display = 'flex';
+                showToast("🔑 Vui lòng đăng ký/đăng nhập để tiếp tục!");
+                return;
+            }
 
             const { db, doc, collection, runTransaction, serverTimestamp } = window.firebase;
             const submitBtn = document.getElementById('order-submit-btn');
