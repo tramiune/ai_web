@@ -516,6 +516,14 @@ async function handleUserLoggedIn(user) {
         }, 500);
     }
 
+    // TikTok Pixel: Identify User for Advanced Matching
+    if (typeof ttq !== 'undefined' && user.email) {
+        ttq.identify({
+            email: user.email
+        });
+        console.log("🎯 TikTok Pixel: Identified user for Advanced Matching");
+    }
+
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
 
