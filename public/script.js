@@ -1088,6 +1088,7 @@ window.selectTopup = async (id) => {
     qrImg.onload = () => {
         qrLoader.style.display = 'none';
         qrImg.style.display = 'block';
+        document.getElementById('btn-save-qr').style.display = 'block';
     };
 
     // Generate VietQR Link
@@ -1676,6 +1677,22 @@ function loadMyTopups() {
     });
 }
 
+window.saveQRImage = () => {
+    const qrImg = document.getElementById('qr-code-img');
+    if (!qrImg || !qrImg.src) return;
+
+    // Create a temporary link
+    const a = document.createElement('a');
+    a.href = qrImg.src;
+    a.download = `MotionAI_QR_${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast("📸 Đã lưu mã QR! Hãy vào App ngân hàng chọn 'Quét mã QR' -> 'Chọn ảnh từ thư viện' nhé.");
+};
+
+window.saveQRImage = window.saveQRImage;
+
 window.viewFullImage = (url) => {
     const modal = document.getElementById('image-viewer-modal');
     const img = document.getElementById('full-res-image');
@@ -2261,7 +2278,8 @@ window.openUserOrderDetail = async (orderId) => {
                 <div class="info-item" style="grid-column: span 2;">
                     <span class="info-label">${t('modals.order_result_video')}</span>
                     <a href="${downloadUrl}" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 8px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
-                    <p style="font-size: 0.75rem; color: var(--danger); margin-top: 8px; text-align: center;">${t('modals.order_expiry_warn')}</p>
+                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">💡 Mẹo TikTok: Nếu bấm tải không được, hãy <b>nhấn giữ vào video</b> rồi chọn <b>"Lưu video"</b> nhé!</p>
+                    <p style="font-size: 0.75rem; color: var(--danger); margin-top: 4px; text-align: center;">${t('modals.order_expiry_warn')}</p>
                 </div>
                 `;
         })()}

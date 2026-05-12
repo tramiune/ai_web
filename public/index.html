@@ -777,8 +777,13 @@
                             <div class="spinner-ring"></div>
                             <div class="loading-text" data-i18n="modals.generating_qr">Đang tạo mã QR...</div>
                         </div>
-                        <img id="qr-code-img" src="" alt="VietQR"
-                            style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                            <img id="qr-code-img" src="" alt="VietQR"
+                                style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                            <button id="btn-save-qr" class="btn-secondary" style="display: none; padding: 8px 15px; font-size: 0.8rem; border-radius: 8px;" onclick="window.saveQRImage()">
+                                📥 Tải mã QR về máy
+                            </button>
+                        </div>
                     </div>
                     
                     <div style="color: #ffde00; font-size: 0.85rem; line-height: 1.5; font-weight: 600; margin-bottom: 1.5rem; text-align: center; border: 1px dashed rgba(255, 222, 0, 0.5); padding: 12px; border-radius: 8px; background: rgba(255, 222, 0, 0.05);">
