@@ -371,6 +371,55 @@ async function logout() {
     }
 }
 
+// --- Email/Password Auth ---
+window.authWithEmail = async () => {
+    const { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword } = window.firebase;
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+
+    if (!email || !password) {
+        return showToast("⚠️ Vui lòng nhập đầy đủ Email và Mật khẩu!");
+    }
+    if (password.length < 6) {
+        return showToast("⚠️ Mật khẩu phải có ít nhất 6 ký tự!");
+    }
+
+    try {
+        // Thử đăng nhập trước
+        await signInWithEmailAndPassword(auth, email, password);
+        showToast("✅ Đăng nhập thành công!");
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.style.display = 'none';
+    } catch (error) {
+        console.log("Sign-in error code:", error.code);
+
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+            // Nếu không tìm thấy user hoặc sai pass, thử tạo tài khoản mới
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                showToast("✨ Đã tạo tài khoản và đăng nhập thành công!");
+                const authModal = document.getElementById('auth-modal');
+                if (authModal) authModal.style.display = 'none';
+            } catch (regError) {
+                console.error("Registration Error", regError);
+                if (regError.code === 'auth/email-already-in-use') {
+                    showToast("❌ Sai mật khẩu cho email này!");
+                } else if (regError.code === 'auth/invalid-email') {
+                    showToast("❌ Định dạng Email không hợp lệ!");
+                } else {
+                    showToast("❌ Lỗi: " + regError.message);
+                }
+            }
+        } else if (error.code === 'auth/wrong-password') {
+            showToast("❌ Sai mật khẩu!");
+        } else if (error.code === 'auth/invalid-email') {
+            showToast("❌ Định dạng Email không hợp lệ!");
+        } else {
+            showToast("❌ Lỗi: " + error.message);
+        }
+    }
+};
+
 // --- User Profile & Coin Balance ---
 async function handleUserLoggedIn(user) {
     const { db, doc, getDoc, setDoc, onSnapshot, collection, query, where } = window.firebase;
@@ -382,8 +431,8 @@ async function handleUserLoggedIn(user) {
     // Hiển thị Profile Menu thay vì ghi đè HTML
     document.getElementById('login-btn').style.display = 'none';
     document.getElementById('user-profile-menu').style.display = 'block';
-    document.getElementById('user-avatar').src = user.photoURL;
-    document.getElementById('dropdown-user-name').innerText = user.displayName;
+    document.getElementById('user-avatar').src = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+    document.getElementById('dropdown-user-name').innerText = user.displayName || user.email.split('@')[0];
     document.getElementById('dropdown-user-email').innerText = user.email;
 
     // Hiển thị Dashboard link và Hamburger menu
@@ -415,11 +464,14 @@ async function handleUserLoggedIn(user) {
     const isBootstrapSuperAdmin = SUPER_ADMIN_EMAILS.includes(user.email);
 
     if (!userSnap.exists()) {
+        const defaultName = user.displayName || user.email.split('@')[0];
+        const defaultPhoto = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
+
         await setDoc(userRef, {
             uid: user.uid,
-            displayName: user.displayName,
+            displayName: defaultName,
             email: user.email,
-            photoURL: user.photoURL,
+            photoURL: defaultPhoto,
             coins: 0,
             role: isBootstrapSuperAdmin ? 'super-admin' : 'user', // Tự động gán role vào DB
             createdAt: window.firebase.serverTimestamp(),
@@ -427,7 +479,7 @@ async function handleUserLoggedIn(user) {
         });
 
         // Gửi thông báo Telegram khi có user mới đăng ký
-        sendTelegramMessage(`🆕 <b>USER MỚI ĐĂNG KÝ!</b>\n👤 Tên: ${escapeHTML(user.displayName)}\n📧 Email: ${escapeHTML(user.email)}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`);
+        sendTelegramMessage(`🆕 <b>USER MỚI ĐĂNG KÝ!</b>\n👤 Tên: ${escapeHTML(defaultName)}\n📧 Email: ${escapeHTML(user.email)}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`);
     } else {
         // Nếu đã có user nhưng email thuộc list bootstrap mà chưa có role admin thì cập nhật
         const userData = userSnap.data();

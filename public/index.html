@@ -1088,7 +1088,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
@@ -1101,7 +1101,7 @@
         const storage = getStorage(app);
 
         // Make Firebase available globally for script.js
-        window.firebase = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
+        window.firebase = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
         window.ADMIN_EMAILS = ADMIN_EMAILS;
 
         initAppLogic();
@@ -1208,8 +1208,22 @@
                 </svg>
             </div>
             <h2 class="auth-modal-title">Chào mừng bạn đến MotionAI! 🎬</h2>
-            <p class="auth-modal-desc">Đăng nhập để <strong>lưu Coin</strong> và <strong>video của riêng bạn</strong>. Tài khoản giúp bạn quản lý đơn hàng, theo dõi lịch sử và nhận ưu đãi đặc biệt.</p>
-            <button class="auth-modal-btn" onclick="window.loginUser()">
+            <p class="auth-modal-desc" style="margin-bottom: 1.5rem;">Đăng nhập để <strong>lưu Coin</strong> và <strong>video của riêng bạn</strong>.</p>
+
+            <!-- Email/Password Auth -->
+            <div id="email-auth-section" style="width: 100%; margin-bottom: 1rem;">
+                <input type="email" id="auth-email" class="form-control" placeholder="Email của bạn" style="margin-bottom: 0.8rem; height: 45px;">
+                <input type="password" id="auth-password" class="form-control" placeholder="Mật khẩu (ít nhất 6 ký tự)" style="margin-bottom: 1rem; height: 45px;">
+                <button class="btn-primary" onclick="window.authWithEmail()" style="width: 100%; height: 45px; font-weight: 700; border-radius: 8px;">Đăng ký / Đăng nhập</button>
+            </div>
+
+            <div style="display: flex; align-items: center; width: 100%; margin: 1rem 0; opacity: 0.5;">
+                <hr style="flex: 1; border: 0; border-top: 1px solid white;">
+                <span style="margin: 0 10px; font-size: 0.8rem;">Hoặc</span>
+                <hr style="flex: 1; border: 0; border-top: 1px solid white;">
+            </div>
+
+            <button class="auth-modal-btn" onclick="window.loginUser()" style="margin-top: 0;">
                 <svg width="20" height="20" viewBox="0 0 48 48" style="flex-shrink:0;">
                     <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
                     <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>

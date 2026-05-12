@@ -1942,7 +1942,7 @@ section {
   border-radius: var(--radius-sm);
   backdrop-filter: blur(10px);
   display: none;
-  z-index: 10000;
+  z-index: 100000; /* Increased to be above auth modal (99999) */
   animation: slideUp 0.3s ease;
   box-shadow: 0 10px 40px rgba(0,0,0,0.5);
 }
