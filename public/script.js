@@ -206,6 +206,8 @@ export function initAppLogic() {
     checkMaintenance();
     // Detect In-App Browsers
     detectInAppBrowser();
+    // Fill saved credentials
+    fillSavedCredentials();
     // Call again after dynamic parts are rendered
     applyTranslations();
 }
@@ -438,6 +440,10 @@ window.authWithEmail = async () => {
     try {
         // Thử đăng nhập trước
         await signInWithEmailAndPassword(auth, email, password);
+        // Lưu thông tin để lần sau không phải nhập lại
+        localStorage.setItem('saved_email', email);
+        localStorage.setItem('saved_password', password);
+
         showToast("✅ Đăng nhập thành công!");
         const authModal = document.getElementById('auth-modal');
         if (authModal) authModal.style.display = 'none';
@@ -448,6 +454,10 @@ window.authWithEmail = async () => {
             // Nếu không tìm thấy user hoặc sai pass, thử tạo tài khoản mới
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
+                // Lưu thông tin đăng ký mới
+                localStorage.setItem('saved_email', email);
+                localStorage.setItem('saved_password', password);
+
                 showToast("✨ Đã tạo tài khoản và đăng nhập thành công!");
                 const authModal = document.getElementById('auth-modal');
                 if (authModal) authModal.style.display = 'none';
@@ -470,6 +480,21 @@ window.authWithEmail = async () => {
         }
     }
 };
+
+// Hàm tự động điền thông tin đã lưu
+function fillSavedCredentials() {
+    const savedEmail = localStorage.getItem('saved_email');
+    const savedPassword = localStorage.getItem('saved_password');
+
+    if (savedEmail) {
+        const emailInput = document.getElementById('auth-email');
+        if (emailInput) emailInput.value = savedEmail;
+    }
+    if (savedPassword) {
+        const passInput = document.getElementById('auth-password');
+        if (passInput) passInput.value = savedPassword;
+    }
+}
 
 // --- User Profile & Coin Balance ---
 async function handleUserLoggedIn(user) {
