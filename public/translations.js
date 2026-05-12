@@ -187,6 +187,11 @@ window.TRANSLATIONS = {
             order_expiry_warn: "⚠️ Video sẽ bị xóa vĩnh viễn khỏi máy chủ sau 7 ngày.",
             order_system_note: "💬 Ghi chú từ hệ thống",
             inapp_auth_note: "⚠️ Trình duyệt này thường chặn đăng nhập Google. Bạn hãy dùng <b>Email/Mật khẩu</b> hoặc mở trang bằng <b>Chrome/Safari</b> nhé!",
+            auth_btn_default: "Đăng ký / Đăng nhập",
+            auth_btn_register: "Đăng ký tài khoản mới",
+            auth_title: "Chào mừng bạn đến MotionAI! 🎬",
+            auth_desc_default: "Đăng nhập để <strong>lưu Coin</strong> và <strong>video của riêng bạn</strong>.",
+            auth_desc_register: "Đăng ký ngay để nhận <b>ưu đãi 1.000đ</b> cho video AI đầu tiên!",
 
             back: "Quay lại",
             agree: "Đồng ý",
@@ -411,6 +416,11 @@ window.TRANSLATIONS = {
             order_expiry_warn: "⚠️ Video will be permanently deleted after 7 days.",
             order_system_note: "💬 System Note",
             inapp_auth_note: "⚠️ This browser often blocks Google login. Please use <b>Email/Password</b> or open the page in <b>Chrome/Safari</b>!",
+            auth_btn_default: "Register / Login",
+            auth_btn_register: "Register New Account",
+            auth_title: "Welcome to MotionAI! 🎬",
+            auth_desc_default: "Login to <strong>save your Coins</strong> and <strong>personal videos</strong>.",
+            auth_desc_register: "Register now to get <b>$0.04 offer</b> for your first AI video!",
 
             back: "Back",
             agree: "Agree",

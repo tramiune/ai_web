@@ -218,17 +218,6 @@ function detectInAppBrowser() {
     const isTikTok = /TikTok/i.test(ua);
     const isInApp = isTikTok || /FBAV|FBAN|Messenger|Instagram|Line|WhatsApp|Telegram|MicroMessenger/i.test(ua);
 
-    // Additional check: Many in-app browsers lack standard features or have specific markers
-    const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-
-    if (isInApp && !isStandalone && !sessionStorage.getItem('dismiss_browser_recommend')) {
-        const bar = document.getElementById('browser-recommend-bar');
-        if (bar) {
-            bar.style.display = 'flex';
-            document.body.classList.add('has-recommend-bar');
-        }
-    }
-
     // Special logic: Hide Google Login if not Chrome/Safari or if In-App
     const isChrome = (/Chrome/i.test(ua) || /CriOS/i.test(ua)) && !/Edge|OPR|Edg|SamsungBrowser|Vivaldi|MiuiBrowser/i.test(ua);
     const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua) && !/SamsungBrowser|MiuiBrowser/i.test(ua);
@@ -238,28 +227,22 @@ function detectInAppBrowser() {
         const googleBtn = document.getElementById('google-login-btn');
         const googleDivider = document.querySelector('.google-auth-divider');
         const inAppNote = document.getElementById('inapp-auth-note');
+        const authEmailBtn = document.getElementById('auth-email-btn');
+        const authModalDesc = document.getElementById('auth-modal-desc');
 
         if (googleBtn) googleBtn.style.display = 'none';
         if (googleDivider) googleDivider.style.display = 'none';
         if (inAppNote) inAppNote.style.display = 'block';
+        if (authEmailBtn) {
+            authEmailBtn.setAttribute('data-i18n', 'modals.auth_btn_register');
+            authEmailBtn.innerText = t('modals.auth_btn_register');
+        }
+        if (authModalDesc) {
+            authModalDesc.setAttribute('data-i18n', 'modals.auth_desc_register');
+            authModalDesc.innerHTML = t('modals.auth_desc_register');
+        }
     }
 }
-
-window.closeRecommendBar = () => {
-    const bar = document.getElementById('browser-recommend-bar');
-    if (bar) bar.style.display = 'none';
-    document.body.classList.remove('has-recommend-bar');
-    sessionStorage.setItem('dismiss_browser_recommend', 'true');
-};
-
-window.copyCurrentLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-        showToast("✅ Đã copy link! Hãy dán vào Chrome/Safari nhé.");
-    }).catch(err => {
-        console.error('Lỗi khi copy:', err);
-    });
-};
 
 // --- Premium Glow Effects ---
 function initPremiumEffects() {
