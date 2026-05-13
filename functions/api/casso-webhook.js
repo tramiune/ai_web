@@ -31,19 +31,31 @@ export const webhookHandler = {
       // Lấy Token bằng thông tin hardcoded
       const accessToken = await getAccessToken(SERVICE_ACCOUNT.client_email, SERVICE_ACCOUNT.private_key);
 
+      // Fetch all pending topups once
+      const pendingTopups = await getAllPendingTopups(accessToken);
+
       for (const transaction of body.data) {
         const description = (transaction.description || "").toUpperCase();
         const amount = transaction.amount || 0;
+        const cleanDesc = description.replace(/\s+/g, "");
 
-        const match = description.match(/(\d+)\s*COIN\s*([A-Z0-9]{4,6})/);
-        if (match) {
-          const coins = parseInt(match[1]);
-          // Chuẩn hóa khoảng cách để khớp chính xác với Firestore (1 khoảng trắng)
-          // VD: Khách nhập "100   COIN   ABCD" -> "100 COIN ABCD"
-          const code = `${coins} COIN ${match[2]}`;
+        // Find match in pending topups
+        const topupIndex = pendingTopups.findIndex(t => {
+          const cleanContent = t.transferContent.toUpperCase().replace(/\s+/g, "");
+          return cleanDesc.includes(cleanContent);
+        });
 
-          const topup = await findTopup(accessToken, code);
-          if (topup && topup.status === "pending") {
+        if (topupIndex !== -1) {
+          const topup = pendingTopups[topupIndex];
+          // Remove from list to prevent double processing in this loop
+          pendingTopups.splice(topupIndex, 1);
+
+          const coins = topup.coins;
+          const code = topup.transferContent;
+
+          if (topup.status === "pending") {
+             // KIỂM TRA BẢO MẬT: Xác minh số tiền chuyển khoản thực tế có đủ không
+             if (topup.amount && amount < topup.amount) {
              // KIỂM TRA BẢO MẬT: Xác minh số tiền chuyển khoản thực tế có đủ không
              if (topup.amount && amount < topup.amount) {
                  console.warn(`[CẢNH BÁO] Nạp thiếu tiền: Yêu cầu ${topup.amount}, nhận ${amount}`);
@@ -131,7 +143,7 @@ async function getAccessToken(email, privateKey) {
   return data.access_token;
 }
 
-async function findTopup(token, content) {
+async function getAllPendingTopups(token) {
   const PROJECT_ID = "notes-10acb";
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`;
   const res = await fetch(url, {
@@ -141,26 +153,30 @@ async function findTopup(token, content) {
       structuredQuery: {
         from: [{ collectionId: "topups" }],
         where: {
-          fieldFilter: { field: { fieldPath: "transferContent" }, op: "EQUAL", value: { stringValue: content } }
-        },
-        limit: 1
+          fieldFilter: { field: { fieldPath: "status" }, op: "EQUAL", value: { stringValue: "pending" } }
+        }
       }
     })
   });
   const data = await res.json();
-  if (data?.[0]?.document) {
-    const doc = data[0].document;
-    const fields = doc.fields;
-    return { 
-      id: doc.name.split("/").pop(), 
-      userId: fields.userId.stringValue, 
-      status: fields.status.stringValue,
-      userName: fields.userName?.stringValue || 'Khách',
-      userEmail: fields.userEmail?.stringValue || '',
-      amount: parseInt(fields.amount?.integerValue || fields.amount?.doubleValue || fields.amount?.stringValue || 0)
-    };
-  }
-  return null;
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .filter(item => item.document)
+    .map(item => {
+      const doc = item.document;
+      const fields = doc.fields;
+      return {
+        id: doc.name.split("/").pop(),
+        userId: fields.userId.stringValue,
+        status: fields.status.stringValue,
+        userName: fields.userName?.stringValue || 'Khách',
+        userEmail: fields.userEmail?.stringValue || '',
+        amount: parseInt(fields.amount?.integerValue || fields.amount?.doubleValue || fields.amount?.stringValue || 0),
+        transferContent: fields.transferContent?.stringValue || '',
+        coins: parseInt(fields.coins?.integerValue || fields.coins?.stringValue || 0)
+      };
+    });
 }
 
 async function grantCoins(token, userId, coins, topupId) {
