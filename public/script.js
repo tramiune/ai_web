@@ -12,8 +12,7 @@ const EMAILJS_PUBLIC_KEY = '92pP97oTzMGR4p_Zp';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
-    { id: 'starter', name: 'Starter', coins: 10, price: '10.000đ', amount: 10000 },
-    { id: 'starter_v2', name: 'Starter V2', coins: 10, price: '20.000đ', amount: 20000, note: 'Gói giới hạn' },
+    { id: 'starter_v2', name: 'Starter', coins: 10, price: '20.000đ', amount: 20000, note: 'Gói giới hạn' },
     { id: 'creator', name: 'Creator', coins: 50, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 25 Coin' },
     { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
     { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', amount: 1000000, note: 'Tặng 100 Coin' }
@@ -43,8 +42,8 @@ const SERVICE_PACKAGES = [
 
 let currentUser = null;
 let selectedTopupPackage = null;
-let isFirstTimeUser = false; // Flag for special offer
-let starterBuyCount = 0; // Track 10k package purchases
+let isFirstTimeUser = false; // Flag for special offer (0 or 1 order)
+let orderCount = 0; // Track total orders
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
 // --- i18n Logic ---
@@ -623,14 +622,7 @@ async function handleUserLoggedIn(user) {
         }
     });
 
-    // Check 10k package purchase count (Limit to 1)
-    const topupsRef = collection(db, "topups");
-    const qStarter = query(topupsRef, where("userId", "==", user.uid), where("packageName", "==", "Starter"), where("status", "==", "approved"));
-    onSnapshot(qStarter, (snapshot) => {
-        starterBuyCount = snapshot.size;
-        console.log(`📊 Starter (10k) Buy Count: ${starterBuyCount}`);
-        renderPricing();
-    });
+
 
     loadMyOrders();
     loadMyTopups();
@@ -810,11 +802,7 @@ function renderPricing() {
     const modalCoinGrid = document.getElementById('modal-coin-packages');
 
     // Filter packages based on 10k purchase count (Limit 1)
-    const filteredPackages = COIN_PACKAGES.filter(pkg => {
-        if (pkg.id === 'starter' && starterBuyCount >= 1) return false;
-        if (pkg.id === 'starter_v2' && starterBuyCount < 1) return false;
-        return true;
-    });
+    const filteredPackages = COIN_PACKAGES;
 
     const html = filteredPackages.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
@@ -1007,12 +995,7 @@ window.openPricingModal = () => {
 window.selectTopup = async (id) => {
     if (!currentUser) return login();
 
-    // Check purchase limit for 10k package (Only 1 allowed)
-    if (id === 'starter' && starterBuyCount >= 1) {
-        showToast("⚠️ Gói này đã hết lượt sử dụng. Vui lòng chọn gói khác!");
-        renderPricing();
-        return;
-    }
+
 
     selectedTopupPackage = COIN_PACKAGES.find(p => p.id === id);
 
@@ -1149,11 +1132,18 @@ function updateFirstOrderUI() {
         const submitBtn = document.getElementById('order-submit-btn');
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
 
-        if (isFirstTimeUser) {
+        if (orderCount === 0) {
+            // First order: FREE
+            costEl.innerText = '0';
+            if (submitBtn) submitBtn.classList.add('btn-first-offer');
+            if (submitText) submitText.innerText = "Trải nghiệm ngay MIỄN PHÍ";
+        } else if (orderCount === 1) {
+            // Second order: 1 Coin
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
         } else {
+            // Regular pricing
             const checkedModel = document.querySelector('input[name="model-type"]:checked');
             const modelKey = checkedModel ? checkedModel.value : 'fast';
             if (MODELS[modelKey]) {
@@ -1351,10 +1341,13 @@ async function setupEventListeners() {
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
                     let model = { ...MODELS[modelKey] };
 
-                    // Apply First Order Offer
-                    if (isFirstTimeUser) {
+                    // Apply First Order Offer (Free for 1st, 1 Coin for 2nd)
+                    if (orderCount === 0) {
+                        model.cost = 0;
+                        console.log("🎁 Áp dụng ưu đãi MIỄN PHÍ cho đơn hàng đầu tiên!");
+                    } else if (orderCount === 1) {
                         model.cost = 1;
-                        console.log("🎁 Áp dụng ưu đãi đơn hàng đầu tiên: 1 Coin");
+                        console.log("🎁 Áp dụng ưu đãi 1 Coin cho đơn hàng thứ 2!");
                     }
 
                     if (userDoc.data().coins < model.cost) {
@@ -1445,8 +1438,9 @@ async function setupEventListeners() {
                                 });
                             }
 
-                            // Reset first time offer immediately
-                            isFirstTimeUser = false;
+                            // Update order state for immediate UI feedback
+                            orderCount++;
+                            isFirstTimeUser = orderCount < 2;
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
@@ -1552,8 +1546,9 @@ function loadMyOrders() {
         }
         isFirstLoad = false;
 
-        isFirstTimeUser = snapshot.empty;
-        console.log("🔍 loadMyOrders: snapshot.empty =", snapshot.empty, "=> isFirstTimeUser =", isFirstTimeUser);
+        isFirstTimeUser = snapshot.size < 2;
+        orderCount = snapshot.size;
+        console.log("🔍 loadMyOrders: orderCount =", orderCount, "=> isFirstTimeUser =", isFirstTimeUser);
         updateFirstOrderUI();
 
         if (snapshot.empty) {
