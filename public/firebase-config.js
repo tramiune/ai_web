@@ -3,19 +3,19 @@
  * Replace the placeholder values with your actual Firebase project config.
  */
 export const firebaseConfig = {
-  apiKey: "AIzaSyAJ-4VLQNY2MBonRizyx8cRpqcGZhur2gI",
-  authDomain: "notes-10acb.firebaseapp.com",
-  projectId: "notes-10acb",
-  storageBucket: "notes-10acb.appspot.com",
-  messagingSenderId: "649788285348",
-  appId: "1:649788285348:web:ba950a23c01b530511a131",
-  measurementId: "G-CK1D1S6BSK"
+  apiKey: "AIzaSyA1Fqy_hbOJc_N-Dcy0v5jiQ7kLRaIUKi4",
+  authDomain: "motionai-studio-76be9.firebaseapp.com",
+  projectId: "motionai-studio-76be9",
+  storageBucket: "motionai-studio-76be9.firebasestorage.app",
+  messagingSenderId: "910538701040",
+  appId: "1:910538701040:web:a30c3b7f20c504dc592a35",
+  measurementId: "G-E71335FCYN"
 };
 
 /**
  * Admin emails authorized to access the management panel.
  */
-export const ADMIN_EMAILS = ["your-email@gmail.com"];
+export const ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"];
 
 /**
  * FIRESTORE SECURITY RULES (Example)
