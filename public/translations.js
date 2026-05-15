@@ -195,8 +195,7 @@ window.TRANSLATIONS = {
 
             back: "Quay lại",
             agree: "Đồng ý",
-            close: "&times;",
-            first_order_tag: "ƯU ĐÃI ĐƠN ĐẦU"
+            close: "&times;"
         },
         footer: {
             rights: "&copy; 2026 MotionAI Studio. All rights reserved.",
@@ -424,8 +423,7 @@ window.TRANSLATIONS = {
 
             back: "Back",
             agree: "Agree",
-            close: "&times;",
-            first_order_tag: "FIRST ORDER OFFER"
+            close: "&times;"
         },
         footer: {
             rights: "&copy; 2026 MotionAI Studio. All rights reserved.",

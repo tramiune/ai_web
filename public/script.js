@@ -1131,7 +1131,6 @@ window.openOrderModal = () => {
 
 function updateFirstOrderUI() {
     const costEl = document.getElementById('submit-cost');
-    const tagEl = document.getElementById('first-order-tag');
     const offerBanner = document.getElementById('first-order-offer-banner');
     const guestOfferBar = document.getElementById('guest-offer-bar');
     
@@ -1152,7 +1151,6 @@ function updateFirstOrderUI() {
 
         if (isFirstTimeUser) {
             costEl.innerText = '1';
-            if (tagEl) tagEl.style.display = 'block';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
         } else {
@@ -1161,7 +1159,6 @@ function updateFirstOrderUI() {
             if (MODELS[modelKey]) {
                 costEl.innerText = MODELS[modelKey].cost;
             }
-            if (tagEl) tagEl.style.display = 'none';
             if (submitBtn) submitBtn.classList.remove('btn-first-offer');
             if (submitText) submitText.innerText = t('hero.cta_create');
         }
