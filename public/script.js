@@ -1147,9 +1147,14 @@ function updateFirstOrderUI() {
     }
 
     if (costEl) {
+        const submitBtn = document.getElementById('order-submit-btn');
+        const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
+
         if (isFirstTimeUser) {
             costEl.innerText = '1';
             if (tagEl) tagEl.style.display = 'block';
+            if (submitBtn) submitBtn.classList.add('btn-first-offer');
+            if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
         } else {
             const checkedModel = document.querySelector('input[name="model-type"]:checked');
             const modelKey = checkedModel ? checkedModel.value : 'fast';
@@ -1157,6 +1162,8 @@ function updateFirstOrderUI() {
                 costEl.innerText = MODELS[modelKey].cost;
             }
             if (tagEl) tagEl.style.display = 'none';
+            if (submitBtn) submitBtn.classList.remove('btn-first-offer');
+            if (submitText) submitText.innerText = t('hero.cta_create');
         }
     }
 }

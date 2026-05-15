@@ -1245,6 +1245,24 @@ button {
   left: 100%;
 }
 
+.btn-first-offer {
+  background: linear-gradient(135deg, #ffde00 0%, #ff8c00 100%) !important;
+  color: #000 !important;
+  box-shadow: 0 0 30px rgba(255, 222, 0, 0.4) !important;
+  animation: pulse-gold 2s infinite !important;
+}
+
+.btn-first-offer [data-i18n="hero.cta_create"] {
+  font-size: 1.2rem !important;
+  letter-spacing: 0.5px;
+}
+
+@keyframes pulse-gold {
+  0% { box-shadow: 0 0 20px rgba(255, 222, 0, 0.6); }
+  70% { box-shadow: 0 0 40px 15px rgba(255, 222, 0, 0); }
+  100% { box-shadow: 0 0 20px rgba(255, 222, 0, 0); }
+}
+
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
