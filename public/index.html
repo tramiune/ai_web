@@ -1216,18 +1216,7 @@
             <h2 class="auth-modal-title" data-i18n="modals.auth_title">Chào mừng bạn đến MotionAI! 🎬</h2>
             <p class="auth-modal-desc" id="auth-modal-desc" data-i18n="modals.auth_desc_default" style="margin-bottom: 1.5rem;">Đăng nhập để <strong>lưu Coin</strong> và <strong>video của riêng bạn</strong>.</p>
 
-            <!-- Email/Password Auth -->
-            <div id="email-auth-section" style="width: 100%; margin-bottom: 1rem;">
-                <input type="email" id="auth-email" class="form-control" placeholder="Email của bạn" style="margin-bottom: 0.8rem; height: 45px;">
-                <input type="password" id="auth-password" class="form-control" placeholder="Mật khẩu (ít nhất 6 ký tự)" style="margin-bottom: 1rem; height: 45px;">
-                <button class="btn-primary" id="auth-email-btn" onclick="window.authWithEmail()" data-i18n="modals.auth_btn_default" style="width: 100%; height: 45px; font-weight: 700; border-radius: 8px;">Đăng ký / Đăng nhập</button>
-            </div>
 
-            <div style="display: flex; align-items: center; width: 100%; margin: 1rem 0; opacity: 0.5;" class="google-auth-divider">
-                <hr style="flex: 1; border: 0; border-top: 1px solid white;">
-                <span style="margin: 0 10px; font-size: 0.8rem;">Hoặc</span>
-                <hr style="flex: 1; border: 0; border-top: 1px solid white;">
-            </div>
 
             <button class="auth-modal-btn" id="google-login-btn" onclick="window.loginUser()" style="margin-top: 0;">
                 <svg width="20" height="20" viewBox="0 0 48 48" style="flex-shrink:0;">
@@ -1238,8 +1227,8 @@
                 </svg>
                 Đăng nhập với Google
             </button>
-            <div id="inapp-auth-note" data-i18n="modals.inapp_auth_note" style="display: none; font-size: 0.8rem; color: #ff9100; margin-top: 0.5rem; background: rgba(255,145,0,0.1); padding: 10px; border-radius: 8px; border: 1px dashed rgba(255,145,0,0.3); text-align: center;">
-                ⚠️ Trình duyệt này thường chặn đăng nhập Google. Bạn hãy dùng <b>Email/Mật khẩu</b> hoặc mở trang bằng <b>Chrome/Safari</b> nhé!
+            <div id="inapp-auth-note" data-i18n="modals.inapp_auth_note_no_email" style="display: none; font-size: 0.8rem; color: #ff9100; margin-top: 0.5rem; background: rgba(255,145,0,0.1); padding: 10px; border-radius: 8px; border: 1px dashed rgba(255,145,0,0.3); text-align: center;">
+                ⚠️ Trình duyệt này có thể chặn đăng nhập Google. Vui lòng mở trang web bằng trình duyệt <b>Chrome</b> hoặc <b>Safari</b> để trải nghiệm tốt nhất!
             </div>
             <p class="auth-modal-footer">Chỉ mất vài giây • Hoàn toàn miễn phí</p>
         </div>
