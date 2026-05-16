@@ -12,7 +12,7 @@ const EMAILJS_PUBLIC_KEY = '92pP97oTzMGR4p_Zp';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
-    { id: 'starter_v2', name: 'Starter', coins: 10, price: '20.000đ', amount: 20000, note: 'Gói giới hạn' },
+    { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', amount: 40000, note: 'Gói giới hạn' },
     { id: 'creator', name: 'Creator', coins: 50, price: '50.000đ', amount: 50000, featured: true, note: 'Tặng 25 Coin' },
     { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
     { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', amount: 1000000, note: 'Tặng 100 Coin' }
