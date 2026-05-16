@@ -75,6 +75,10 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
     } catch (err) {
       console.error("Critical Webhook Error:", err.message);
+      // Gửi lỗi về Telegram để b biết chính xác chuyện gì đang xảy ra
+      await notifyTelegram(`❌ *LỖI WEBHOOK CRITICAL!*\n\n` +
+                           `📝 Thông báo: ${err.message}\n` +
+                           `🔍 Hãy kiểm tra Logs trên Cloudflare để xem chi tiết.`);
       return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
@@ -96,12 +100,11 @@ async function getAccessToken(email, privateKey) {
   const message = `${header}.${payload}`;
   
   // Clean PEM Key - Siêu phòng thủ
-  let pemContents = privateKey.trim()
-    .replace(/^"|"$/g, "")
+  let pemContents = privateKey
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\\n/g, "")
-    .replace(/[^A-Za-z0-9+/]/g, "");
+    .replace(/\s+/g, "") // Xóa bỏ tất cả khoảng trắng, xuống dòng, tab...
+    .replace(/\\n/g, ""); // Xóa bỏ ký tự \n nếu có
     
   while (pemContents.length % 4 !== 0) pemContents += "=";
     
@@ -141,7 +144,6 @@ async function fetchPendingTopups(token) {
         where: {
           fieldFilter: { field: { fieldPath: "status" }, op: "EQUAL", value: { stringValue: "pending" } }
         },
-        orderBy: [{ field: { fieldPath: "createdAt" }, direction: "DESCENDING" }],
         limit: 50
       }
     })
