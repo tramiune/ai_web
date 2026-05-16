@@ -1,4 +1,4 @@
-import { webhookHandler } from './functions/api/casso-webhook.js';
+import { onRequestPost } from './functions/api/casso-webhook.js';
 
 export default {
   async fetch(request, env, context) {
@@ -6,7 +6,7 @@ export default {
     
     // Nếu khách gọi vào link webhook
     if (url.pathname === '/api/casso-webhook') {
-      return webhookHandler.onRequestPost({ request, env, context });
+      return onRequestPost({ request, env, context });
     }
 
     // Nếu không phải link API, thì trả về lỗi 404 (để Cloudflare Assets tự xử lý phần web tĩnh)
