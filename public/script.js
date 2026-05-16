@@ -53,6 +53,12 @@ if (!['vi', 'en'].includes(currentLang)) {
 }
 window.currentLang = currentLang;
 
+function logFirebaseEvent(name, params = {}) {
+    if (window.firebase && window.firebase.analytics && window.firebase.logEvent) {
+        window.firebase.logEvent(window.firebase.analytics, name, params);
+    }
+}
+
 export function t(path, params = {}) {
     const lang = (currentLang || 'vi').trim();
     if (!window.TRANSLATIONS) {
@@ -559,6 +565,9 @@ async function handleUserLoggedIn(user) {
             const data = snapshot.data();
             const currentCoins = data.coins || 0;
 
+            // Log Login Event to Firebase
+            logFirebaseEvent('login', { method: 'Firebase' });
+
             // Tự động nhận biết nạp coin thành công
             const topupModal = document.getElementById('topup-modal');
             if (topupModal && topupModal.style.display === 'flex' && currentCoins > initialCoinsBeforeTopup) {
@@ -583,6 +592,16 @@ async function handleUserLoggedIn(user) {
                         content_id: contentId
                     });
                 }
+
+                // Firebase Analytics: Purchase
+                const purchaseValue = selectedTopupPackage ? selectedTopupPackage.amount : addedCoins * 1000;
+                const purchaseId = selectedTopupPackage ? selectedTopupPackage.id : 'topup';
+                logFirebaseEvent('purchase', {
+                    value: purchaseValue,
+                    currency: 'VND',
+                    transaction_id: `topup_${Date.now()}`,
+                    items: [{ item_id: purchaseId, item_name: `Topup ${addedCoins} Coins` }]
+                });
 
                 sendTelegramMessage(`💰 <b>NẠP COIN THÀNH CÔNG!</b>\n👤 Khách: ${escapeHTML(data.displayName)}\n📧 Email: ${escapeHTML(data.email)}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
@@ -990,6 +1009,9 @@ window.openPricingModal = () => {
             content_id: 'all_packages'
         });
     }
+
+    // Firebase Analytics: view_item_list
+    logFirebaseEvent('view_item_list', { item_list_name: 'Topup Packages' });
 };
 
 window.selectTopup = async (id) => {
@@ -1013,6 +1035,13 @@ window.selectTopup = async (id) => {
             content_id: selectedTopupPackage.id
         });
     }
+
+    // Firebase Analytics: begin_checkout
+    logFirebaseEvent('begin_checkout', {
+        value: selectedTopupPackage.amount,
+        currency: 'VND',
+        items: [{ item_id: selectedTopupPackage.id, item_name: selectedTopupPackage.name }]
+    });
 
     // Generate unique random code: [CoinAmount] COIN [RandomStr]
     const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -1401,7 +1430,9 @@ async function setupEventListeners() {
                                 const aspectRatioEl = document.querySelector('input[name="aspect-ratio"]:checked');
                                 const aspectRatio = aspectRatioEl ? aspectRatioEl.value : '16:9';
 
-                                transaction.update(userRef, { coins: currentCoins - model.cost });
+                                if (model.cost > 0) {
+                                    transaction.update(userRef, { coins: currentCoins - model.cost });
+                                }
 
                                 const orderRef = doc(collection(db, "orders"));
                                 transaction.set(orderRef, {
@@ -1437,6 +1468,13 @@ async function setupEventListeners() {
                                     content_id: orderId
                                 });
                             }
+
+                            // Firebase Analytics: generate_lead
+                            logFirebaseEvent('generate_lead', {
+                                value: model.cost * 1000,
+                                currency: 'VND',
+                                content_name: serviceLabelPixel
+                            });
 
                             // Update order state for immediate UI feedback
                             orderCount++;

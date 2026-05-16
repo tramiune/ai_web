@@ -1090,6 +1090,7 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
@@ -1098,15 +1099,17 @@
         import { initAppLogic } from "./script.js";
 
         const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
 
         // Make Firebase available globally for script.js
-        window.firebase = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
+        window.firebase = { auth, db, storage, analytics, logEvent, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, onSnapshot, orderBy, runTransaction, serverTimestamp, ref, uploadBytesResumable, getDownloadURL };
         window.ADMIN_EMAILS = ADMIN_EMAILS;
 
         initAppLogic();
+    </script>
     </script>
     <!-- Image Viewer Modal -->
     <div id="image-viewer-modal" class="modal-overlay" onclick="closeModal('image-viewer-modal')">
