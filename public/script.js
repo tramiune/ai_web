@@ -12,11 +12,56 @@ const EMAILJS_PUBLIC_KEY = '92pP97oTzMGR4p_Zp';
 
 // --- Data Constants ---
 const COIN_PACKAGES = [
-    { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', amount: 40000, note: 'Gói giới hạn' },
-    { id: 'creator', name: 'Creator', coins: 100, price: '100.000đ', amount: 100000, featured: true, note: 'Tặng 50 Coin' },
-    { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', amount: 500000, note: 'Tặng 50 Coin' },
-    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', amount: 1000000, note: 'Tặng 100 Coin' }
+    { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', usdPrice: '$1.99', amount: 40000, note: 'Gói giới hạn', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/88e5b4f0-4fa8-48b8-b4b1-e2beae6c7811' },
+    { id: 'creator', name: 'Creator', coins: 100, price: '100.000đ', usdPrice: '$4.99', amount: 100000, featured: true, note: 'Tặng 50 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/a3fb5094-1a98-4bd7-81fa-f4d0b1627c2b' },
+    { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', usdPrice: '$24.99', amount: 500000, note: 'Tặng 50 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/4579d863-8822-48bf-ba63-7182ae6cb711' },
+    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, note: 'Tặng 100 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/2b59ea8f-cb3c-4cf2-83b6-718bae6cd812' }
 ];
+
+const AI_MODELS = [
+    {
+        id: 'copy-motion-photo',
+        titleKey: 'models.model1_title',
+        descKey: 'models.model1_desc',
+        cost: 4,
+        serviceType: 'motion-to-char',
+        demoChar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4'
+    },
+    {
+        id: 'copy-motion-multi',
+        titleKey: 'models.model2_title',
+        descKey: 'models.model2_desc',
+        cost: 8,
+        serviceType: 'motion-to-char',
+        demoChar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=300',
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/hot%20trend.mp4'
+    },
+    {
+        id: 'char-to-video-fashion',
+        titleKey: 'models.model3_title',
+        descKey: 'models.model3_desc',
+        cost: 6,
+        serviceType: 'char-to-video',
+        demoChar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=300',
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4'
+    },
+    {
+        id: 'char-to-video-ads',
+        titleKey: 'models.model4_title',
+        descKey: 'models.model4_desc',
+        cost: 6,
+        serviceType: 'char-to-video',
+        demoChar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20tuye%CC%82%CC%89n%20ba%CC%A3n%20ga%CC%81i.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20tuye%CC%82%CC%89n%20ba%CC%A3n%20ga%CC%81i.mp4'
+    }
+];
+window.AI_MODELS = AI_MODELS;
+
 
 const TREND_VIDEOS = [
     { id: 't10', title: 'Anh tên là Bằng', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/anh%20te%CC%82n%20la%CC%80%20ba%CC%86%CC%80ng.mp4' },
@@ -130,6 +175,11 @@ export function applyTranslations() {
     const flagMap = { vi: '🇻🇳', en: '🇺🇸' };
     const flagEl = document.getElementById('current-lang-flag');
     if (flagEl) flagEl.innerText = flagMap[currentLang] || '🇻🇳';
+
+    // Render 4 Model AI grid
+    if (window.renderAIModels) {
+        window.renderAIModels();
+    }
 }
 
 window.toggleLangMenu = (e) => {
@@ -972,6 +1022,13 @@ window.selectTopup = async (id) => {
 
     // Close pricing modal if open
     closeModal('pricing-modal');
+
+    // Reset payment tab to vietqr
+    setTimeout(() => {
+        if (window.switchPaymentTab) {
+            window.switchPaymentTab('vietqr');
+        }
+    }, 100);
 
     // TikTok Pixel: InitiateCheckout
     if (typeof ttq !== 'undefined') {
@@ -2434,3 +2491,129 @@ async function sendCompletionEmail(orderId, orderData) {
         showToast("⚠️ Lỗi mạng khi gửi email!");
     }
 }
+
+// ==========================================
+// NEW: 4 Model AI & Lemon Squeezy Integration
+// ==========================================
+
+export function renderAIModels() {
+    const grid = document.getElementById('ai-models-grid');
+    if (!grid) return;
+
+    grid.innerHTML = AI_MODELS.map(model => {
+        const title = t(model.titleKey);
+        const desc = t(model.descKey);
+        const createVideoText = t('models.create_video') || 'Tạo Video';
+
+        return `
+            <div class="ai-model-card glass-panel" id="model-${model.id}">
+                <div class="ai-model-visual-composite">
+                    <!-- Frame 1: Character Photo -->
+                    <div class="composite-frame char-frame">
+                        <img src="${model.demoChar}" alt="Character" loading="lazy">
+                        <span class="frame-label">${currentLang === 'vi' ? 'Ảnh nhân vật' : 'Character Photo'}</span>
+                    </div>
+
+                    <div class="composite-operator">+</div>
+
+                    <!-- Frame 2: Motion Reference Video -->
+                    <div class="composite-frame ref-frame">
+                        <video src="${model.demoRef}" autoplay muted loop playsinline></video>
+                        <span class="frame-label">${currentLang === 'vi' ? 'Video mẫu' : 'Motion Ref'}</span>
+                    </div>
+
+                    <div class="composite-operator">=</div>
+
+                    <!-- Frame 3: AI Video Result -->
+                    <div class="composite-frame result-frame">
+                        <video src="${model.demoResult}" autoplay muted loop playsinline></video>
+                        <span class="frame-label color-accent">${currentLang === 'vi' ? 'Kết quả AI' : 'AI Result'}</span>
+                    </div>
+                </div>
+
+                <div class="ai-model-info">
+                    <div class="ai-model-meta">
+                        <span class="model-badge">20s Video</span>
+                        <span class="cost-badge">${model.cost} Coins</span>
+                    </div>
+                    <h3 class="ai-model-title">${title}</h3>
+                    <p class="ai-model-desc">${desc}</p>
+
+                    <button class="btn-primary select-model-btn" onclick="window.createVideoWithModel('${model.id}')">
+                        <svg class="nav-icon" style="stroke: white; width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+                        </svg>
+                        <span>${createVideoText}</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+window.renderAIModels = renderAIModels;
+
+window.createVideoWithModel = (modelId) => {
+    if (!currentUser) return login();
+
+    // Lưu trữ Model ID đã chọn
+    window.selectedAIModelId = modelId;
+    const model = AI_MODELS.find(m => m.id === modelId);
+    if (!model) return;
+
+    // Tự động chuyển radio chọn Kiểu dịch vụ (service-type) tương ứng
+    const serviceRadio = document.querySelector(`input[name="service-type"][value="${model.serviceType}"]`);
+    if (serviceRadio) {
+        serviceRadio.checked = true;
+        serviceRadio.dispatchEvent(new Event('change'));
+    }
+
+    // Mở Order Modal
+    window.openOrderModal();
+};
+
+window.switchPaymentTab = (tabName) => {
+    const vietqrBtn = document.getElementById('tab-vietqr-btn');
+    const intlBtn = document.getElementById('tab-intl-btn');
+    const vietqrContent = document.getElementById('payment-content-vietqr');
+    const intlContent = document.getElementById('payment-content-intl');
+
+    if (!vietqrBtn || !intlBtn || !vietqrContent || !intlContent) return;
+
+    if (tabName === 'vietqr') {
+        vietqrBtn.classList.add('active');
+        intlBtn.classList.remove('active');
+        vietqrContent.style.display = 'block';
+        intlContent.style.display = 'none';
+    } else {
+        vietqrBtn.classList.remove('active');
+        intlBtn.classList.add('active');
+        vietqrContent.style.display = 'none';
+        intlContent.style.display = 'block';
+
+        // Cập nhật thông tin gói USD tương ứng
+        if (selectedTopupPackage) {
+            const intlInfo = document.getElementById('intl-package-info');
+            if (intlInfo) {
+                intlInfo.innerHTML = `
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">Selected Package</div>
+                    <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${selectedTopupPackage.name}</div>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">+${selectedTopupPackage.coins} Coins</div>
+                    <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">Price: ${selectedTopupPackage.usdPrice || '$4.99'}</div>
+                `;
+            }
+
+            // Gắn link thanh toán Lemon Squeezy kèm custom data user_id
+            const payBtn = document.getElementById('btn-lemonsqueezy-pay');
+            if (payBtn) {
+                const checkoutUrl = `${selectedTopupPackage.lemonsqueezyUrl}?checkout[custom][user_id]=${currentUser.uid}&checkout[custom][package_id]=${selectedTopupPackage.id}&checkout[email]=${encodeURIComponent(currentUser.email || '')}`;
+                payBtn.href = checkoutUrl;
+
+                // Khởi tạo Lemon Squeezy Popup
+                if (window.LemonSqueezy) {
+                    window.LemonSqueezy.Setup();
+                }
+            }
+        }
+    }
+};
+

@@ -223,6 +223,17 @@
             </div>
         </section>
 
+        <!-- AI Models Section -->
+        <section id="ai-models">
+            <div class="section-header">
+                <h2 data-i18n="models.title">Chọn Model AI Sáng Tạo Video</h2>
+                <p data-i18n="models.subtitle">Lựa chọn model phù hợp nhất để bắt đầu tạo video AI của bạn trong vài giây.</p>
+            </div>
+            <div class="ai-models-grid" id="ai-models-grid">
+                <!-- Loaded dynamically by JS -->
+            </div>
+        </section>
+
         <!-- Showcase Section -->
         <section id="showcase">
             <div class="section-header">
@@ -761,47 +772,87 @@
             </div>
 
             <div class="modal-body" style="padding: 1rem; text-align: center;">
-                <div class="topup-qr-container"
-                    style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
-                    <div class="bank-header"
-                        style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 1.5rem;">
-                        <img src="https://img.vietqr.io/image/MB-logo.png"
-                            style="height: 24px; filter: brightness(0) invert(1);" alt="MB Bank">
-                        <h4 style="color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;"
-                            data-i18n="modals.qr_mb_bank">Quét mã QR MB Bank</h4>
-                    </div>
+                <!-- Tab Selector -->
+                <div class="payment-tabs-container" style="display: flex; gap: 10px; margin-bottom: 1.5rem; justify-content: center;">
+                    <button class="payment-tab-btn active" id="tab-vietqr-btn" onclick="window.switchPaymentTab('vietqr')">
+                        🇻🇳 Chuyển khoản VietQR
+                    </button>
+                    <button class="payment-tab-btn" id="tab-intl-btn" onclick="window.switchPaymentTab('intl')">
+                        🌎 Thẻ Quốc Tế / PayPal
+                    </button>
+                </div>
 
-                    <div
-                        style="margin-bottom: 1.5rem; position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center;">
-                        <div id="qr-loader" class="qr-loader-container">
-                            <div class="spinner-ring"></div>
-                            <div class="loading-text" data-i18n="modals.generating_qr">Đang tạo mã QR...</div>
+                <!-- VietQR Content -->
+                <div id="payment-content-vietqr" class="payment-tab-content active">
+                    <div class="topup-qr-container"
+                        style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+                        <div class="bank-header"
+                            style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 1.5rem;">
+                            <img src="https://img.vietqr.io/image/MB-logo.png"
+                                style="height: 24px; filter: brightness(0) invert(1);" alt="MB Bank">
+                            <h4 style="color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;"
+                                data-i18n="modals.qr_mb_bank">Quét mã QR MB Bank</h4>
                         </div>
-                        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
-                            <img id="qr-code-img" src="" alt="VietQR"
-                                style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                            <button id="btn-save-qr" class="btn-secondary" style="display: none; padding: 8px 15px; font-size: 0.8rem; border-radius: 8px;" onclick="window.saveQRImage()">
-                                📥 Tải mã QR về máy
-                            </button>
+
+                        <div
+                            style="margin-bottom: 1.5rem; position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center;">
+                            <div id="qr-loader" class="qr-loader-container">
+                                <div class="spinner-ring"></div>
+                                <div class="loading-text" data-i18n="modals.generating_qr">Đang tạo mã QR...</div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                                <img id="qr-code-img" src="" alt="VietQR"
+                                    style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                                <button id="btn-save-qr" class="btn-secondary" style="display: none; padding: 8px 15px; font-size: 0.8rem; border-radius: 8px;" onclick="window.saveQRImage()">
+                                    📥 Tải mã QR về máy
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div style="color: #ffde00; font-size: 0.85rem; line-height: 1.5; font-weight: 600; margin-bottom: 1.5rem; text-align: center; border: 1px dashed rgba(255, 222, 0, 0.5); padding: 12px; border-radius: 8px; background: rgba(255, 222, 0, 0.05);">
-                        ⚠️ <span data-i18n="modals.qr_scan_warning">Vui lòng quét mã QR bằng App Ngân hàng để đảm bảo nội dung chuyển khoản chính xác tuyệt đối. Nếu sai nội dung, hệ thống sẽ KHÔNG tự động cộng Coin!</span>
-                    </div>
+                        
+                        <div style="color: #ffde00; font-size: 0.85rem; line-height: 1.5; font-weight: 600; margin-bottom: 1.5rem; text-align: center; border: 1px dashed rgba(255, 222, 0, 0.5); padding: 12px; border-radius: 8px; background: rgba(255, 222, 0, 0.05);">
+                            ⚠️ <span data-i18n="modals.qr_scan_warning">Vui lòng quét mã QR bằng App Ngân hàng để đảm bảo nội dung chuyển khoản chính xác tuyệt đối. Nếu sai nội dung, hệ thống sẽ KHÔNG tự động cộng Coin!</span>
+                        </div>
 
-                    <div id="topup-package-info"
-                        style="margin-bottom: 1.5rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 1.1rem;">
-                    </div>
+                        <div id="topup-package-info"
+                            style="margin-bottom: 1.5rem; padding: 0.8rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight: 700; color: var(--accent); font-size: 1.1rem;">
+                        </div>
 
-                    <span id="transfer-code" style="display: none;"></span>
+                        <span id="transfer-code" style="display: none;"></span>
 
-                    <div
-                        style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); font-size: 0.85rem;">
-                        <div class="dot-flashing"></div>
-                        <span data-i18n="modals.waiting_payment">Đang chờ xác nhận thanh toán...</span>
+                        <div
+                            style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); font-size: 0.85rem;">
+                            <div class="dot-flashing"></div>
+                            <span data-i18n="modals.waiting_payment">Đang chờ xác nhận thanh toán...</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- International Content -->
+                <div id="payment-content-intl" class="payment-tab-content" style="display: none;">
+                    <div class="topup-intl-container"
+                        style="background: var(--bg-card-hover); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border); text-align: center;">
+                        <div style="margin-bottom: 1.5rem;">
+                            <img src="https://assets.lemonsqueezy.com/images/lemon-logo.svg" style="height: 32px; margin-bottom: 10px;" alt="Lemon Squeezy">
+                            <h4 style="color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;">
+                                International Secure Payment
+                            </h4>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">
+                                Supported: Visa, Mastercard, American Express, PayPal, Apple Pay, Google Pay
+                            </p>
+                        </div>
+                        
+                        <div id="intl-package-info" style="margin-bottom: 1.5rem; padding: 1.2rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                            <!-- Dynamically loaded packet info in USD -->
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem;">
+                            <a id="btn-lemonsqueezy-pay" class="btn-primary lemonsqueezy-button" href="#" style="display: inline-block; width: 100%; padding: 12px; font-weight: 700; text-align: center; border-radius: 8px; text-decoration: none; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);">
+                                💳 Pay with Card / PayPal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
                 <p style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 1.5rem; font-style: italic;"
                     data-i18n="modals.auto_topup_notice">
                     * Coin sẽ được cộng tự động. Vui lòng giữ cửa sổ này cho đến khi hoàn tất.
@@ -898,6 +949,8 @@
                             </label>
                         </div>
                     </div>
+
+                    <div id="custom-model-info" style="display: none; margin-bottom: 1.5rem;"></div>
 
                     <div class="form-group" id="model-selection-group">
                         <label data-i18n="modals.model_label">Chọn Model (Chất lượng)</label>
@@ -1086,6 +1139,7 @@
         </div>
     </div>
 
+    <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
     <script src="translations.js"></script>
     <!-- Firebase SDKs -->
     <script type="module">

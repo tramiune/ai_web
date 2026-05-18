@@ -3415,3 +3415,248 @@ section {
     font-size: 0.95rem;
   }
 }
+
+/* ==========================================
+   NEW: 4 Model AI & Lemon Squeezy Styles
+   ========================================== */
+
+/* Lưới 4 Model AI */
+#ai-models {
+  max-width: var(--container-max);
+  margin: 4rem auto;
+  padding: 0 2rem;
+}
+
+.ai-models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.ai-model-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.ai-model-card:hover {
+  transform: translateY(-10px);
+  border-color: var(--primary);
+  box-shadow: 0 20px 40px rgba(138, 43, 226, 0.2);
+  background: var(--bg-card-hover);
+}
+
+/* Visual Composite Row: Char + Ref = Result */
+.ai-model-visual-composite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--glass-border);
+  gap: 8px;
+}
+
+.composite-frame {
+  flex: 1;
+  aspect-ratio: 9/16;
+  max-width: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #000;
+}
+
+.composite-frame img,
+.composite-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.frame-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 0.55rem;
+  padding: 2px 0;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(2px);
+}
+
+.frame-label.color-accent {
+  background: rgba(0, 242, 254, 0.85);
+  color: #000;
+  font-weight: 800;
+}
+
+.composite-operator {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+  user-select: none;
+}
+
+/* Model Info */
+.ai-model-info {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ai-model-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0.8rem;
+}
+
+.model-badge {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.cost-badge {
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+}
+
+.ai-model-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.6rem;
+  line-height: 1.4;
+}
+
+.ai-model-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+.select-model-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  margin-top: auto;
+}
+
+/* Payment Tabs Styles */
+.payment-tabs-container {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  padding: 4px;
+  border-radius: 10px;
+  display: flex;
+  margin-bottom: 1.5rem;
+  gap: 5px;
+}
+
+.payment-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.payment-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.payment-tab-btn.active {
+  background: var(--accent);
+  color: #000 !important;
+  box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+  font-weight: 800;
+}
+
+/* Custom Model Badge in Order Modal */
+.custom-model-badge {
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(0, 242, 254, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.model-badge-icon {
+  font-size: 1.2rem;
+  animation: pulse-icon 1.5s infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.model-badge-text {
+  font-size: 0.9rem;
+  color: #fff;
+  text-align: left;
+}
+
+/* Mobile Media Query for Composite Grid */
+@media (max-width: 480px) {
+  .ai-models-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 0;
+  }
+  .ai-model-visual-composite {
+    padding: 1rem 0.8rem;
+  }
+  .composite-frame {
+    max-width: 80px;
+  }
+  .payment-tab-btn {
+    font-size: 0.75rem;
+    padding: 8px;
+  }
+}
+

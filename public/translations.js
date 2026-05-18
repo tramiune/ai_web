@@ -7,8 +7,21 @@ window.TRANSLATIONS = {
             login: "Đăng nhập",
             terms: "Điều khoản",
             privacy: "Bảo mật",
-            home: "Trang chủ",
+            home: "Chọn Model AI",
             build_channel: "Xây kênh 1000 fl / 21 ngày"
+        },
+        models: {
+            title: "Chọn Model AI Tạo Video",
+            subtitle: "Chọn model phù hợp để bắt đầu tạo video AI chất lượng cao.",
+            create_video: "Tạo Video",
+            model1_title: "✨ AI Copy Chuyển Động Vào Ảnh (20s)",
+            model1_desc: "Biến một bức ảnh tĩnh của nhân vật thành video nhảy mượt mà theo bất kỳ video mẫu nào bạn tải lên.",
+            model2_title: "✨ AI Nhảy Nhiều Người – Mỗi Người Một Động Tác (20s)",
+            model2_desc: "Hỗ trợ nhóm nhảy từ 2-5 người. Mỗi nhân vật trong ảnh sẽ bắt chước chuyển động tương ứng trong video mẫu.",
+            model3_title: "✨ AI Thay Nhân Vật + Copy Video Review Thời Trang (20s)",
+            model3_desc: "Lấy người từ ảnh nhân vật dán khớp vào bối cảnh catwalk/video review quần áo thời trang mẫu.",
+            model4_title: "✨ AI Thay Nhân Vật + Copy Video Quảng Cáo (20s)",
+            model4_desc: "Thay thế diễn viên trong video quảng cáo mẫu bằng nhân vật AI của bạn một cách tự nhiên và chuyên nghiệp."
         },
         hero: {
             title: "Biến 1 ảnh thành video bắt trend",
@@ -235,8 +248,21 @@ window.TRANSLATIONS = {
             login: "Login",
             terms: "Terms",
             privacy: "Privacy",
-            home: "Home",
+            home: "Select AI Model",
             build_channel: "1k Followers / 21 days"
+        },
+        models: {
+            title: "Select AI Video Model",
+            subtitle: "Choose the perfect model to start generating high-quality AI videos.",
+            create_video: "Create Video",
+            model1_title: "✨ AI Copy Motion to Image (20s)",
+            model1_desc: "Animate a static character photo into a smooth dance video following any reference video.",
+            model2_title: "✨ AI Multi-person Dance - Distinct Motions (20s)",
+            model2_desc: "Supports 2-5 people. Each character in the photo mimics their corresponding motion in the template video.",
+            model3_title: "✨ AI Fashion Review Swap & Copy (20s)",
+            model3_desc: "Seamlessly swap and blend your character into fashion review or catwalk video backgrounds.",
+            model4_title: "✨ AI Ads Video Actor Replacement (20s)",
+            model4_desc: "Replace actors in any advertisement reference video with your custom AI character seamlessly."
         },
         hero: {
             title: "Transform 1 Photo into Trending Video",
