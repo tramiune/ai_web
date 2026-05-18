@@ -3668,13 +3668,12 @@ section {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.25);
   border-bottom: 1px solid var(--glass-border);
-  height: 240px;
   overflow: hidden;
 }
 
 .ai-model-visual-single video {
-  height: 100%;
-  aspect-ratio: 9/16;
+  width: 100%;
+  aspect-ratio: 16/9;
   border-radius: 12px;
   object-fit: cover;
   border: 1.5px solid rgba(255, 255, 255, 0.15);
