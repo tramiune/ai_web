@@ -2521,28 +2521,8 @@ export function renderAIModels() {
 
         return `
             <div class="ai-model-card glass-panel" id="model-${model.id}">
-                <div class="ai-model-visual-composite">
-                    <!-- Frame 1: Character Photo -->
-                    <div class="composite-frame char-frame">
-                        <img src="${model.demoChar}" alt="Character" loading="lazy">
-                        <span class="frame-label">${currentLang === 'vi' ? 'Ảnh nhân vật' : 'Character Photo'}</span>
-                    </div>
-
-                    <div class="composite-operator">+</div>
-
-                    <!-- Frame 2: Motion Reference Video -->
-                    <div class="composite-frame ref-frame">
-                        <video src="${model.demoRef}" autoplay muted loop playsinline></video>
-                        <span class="frame-label">${currentLang === 'vi' ? 'Video mẫu' : 'Motion Ref'}</span>
-                    </div>
-
-                    <div class="composite-operator">=</div>
-
-                    <!-- Frame 3: AI Video Result -->
-                    <div class="composite-frame result-frame">
-                        <video src="${model.demoResult}" autoplay muted loop playsinline></video>
-                        <span class="frame-label color-accent">${currentLang === 'vi' ? 'Kết quả AI' : 'AI Result'}</span>
-                    </div>
+                <div class="ai-model-visual-single">
+                    <video src="${model.demoResult}" autoplay muted loop playsinline></video>
                 </div>
 
                 <div class="ai-model-info">

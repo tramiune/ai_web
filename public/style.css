@@ -3660,3 +3660,32 @@ section {
   }
 }
 
+/* Single Visual Demo Video */
+.ai-model-visual-single {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid var(--glass-border);
+  height: 240px;
+  overflow: hidden;
+}
+
+.ai-model-visual-single video {
+  height: 100%;
+  aspect-ratio: 9/16;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(138, 43, 226, 0.25);
+  transition: all 0.3s ease;
+}
+
+.ai-model-card:hover .ai-model-visual-single video {
+  transform: scale(1.03);
+  border-color: var(--accent);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 242, 254, 0.4);
+}
+
+
