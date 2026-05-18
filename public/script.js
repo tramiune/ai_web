@@ -2528,7 +2528,6 @@ export function renderAIModels() {
                 <div class="ai-model-info">
                     <div class="ai-model-meta">
                         <span class="model-badge">20s Video</span>
-                        <span class="cost-badge">${model.cost} Coins</span>
                     </div>
                     <h3 class="ai-model-title">${title}</h3>
                     <p class="ai-model-desc">${desc}</p>
