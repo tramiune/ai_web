@@ -2537,6 +2537,13 @@ export function renderAIModels() {
                     </div>
                     <h3 class="ai-model-title">${title}</h3>
                     <p class="ai-model-desc">${desc}</p>
+
+                    <button class="btn-primary select-model-btn" style="margin-top: 1rem; width: 100%;">
+                        <svg class="nav-icon" style="stroke: white; width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+                        </svg>
+                        <span>${currentLang === 'vi' ? 'Tạo Video Ngay' : 'Create Video Now'}</span>
+                    </button>
                 </div>
             </div>
         `;
