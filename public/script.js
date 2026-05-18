@@ -36,8 +36,8 @@ const AI_MODELS = [
         cost: 4,
         serviceType: 'motion-to-char',
         demoChar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_copy_motion.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/demo_change.mp4'
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/banner.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/banner.mp4'
     },
     {
         id: 'copy-motion-multi',
@@ -46,8 +46,8 @@ const AI_MODELS = [
         cost: 8,
         serviceType: 'motion-to-char',
         demoChar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/hot%20trend.mp4'
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/dance_multi.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/dance_multi.mp4'
     },
     {
         id: 'char-to-video-fashion',
@@ -56,8 +56,8 @@ const AI_MODELS = [
         cost: 6,
         serviceType: 'char-to-video',
         demoChar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20ngo%CC%A3c%20anh%20lu%CC%A3c%20nguye%CC%82%CC%83n.mp4'
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_fashion.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_fashion.mp4'
     },
     {
         id: 'char-to-video-ads',
@@ -66,8 +66,8 @@ const AI_MODELS = [
         cost: 6,
         serviceType: 'char-to-video',
         demoChar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20tuye%CC%82%CC%89n%20ba%CC%A3n%20ga%CC%81i.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20tuye%CC%82%CC%89n%20ba%CC%A3n%20ga%CC%81i.mp4'
+        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_product.mp4',
+        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_product.mp4'
     }
 ];
 window.AI_MODELS = AI_MODELS;
