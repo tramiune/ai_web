@@ -38,36 +38,6 @@ const AI_MODELS = [
         demoChar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
         demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/banner.mp4',
         demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/banner.mp4'
-    },
-    {
-        id: 'copy-motion-multi',
-        titleKey: 'models.model2_title',
-        descKey: 'models.model2_desc',
-        cost: 8,
-        serviceType: 'motion-to-char',
-        demoChar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/dance_multi.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/dance_multi.mp4'
-    },
-    {
-        id: 'char-to-video-fashion',
-        titleKey: 'models.model3_title',
-        descKey: 'models.model3_desc',
-        cost: 6,
-        serviceType: 'char-to-video',
-        demoChar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_fashion.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_fashion.mp4'
-    },
-    {
-        id: 'char-to-video-ads',
-        titleKey: 'models.model4_title',
-        descKey: 'models.model4_desc',
-        cost: 6,
-        serviceType: 'char-to-video',
-        demoChar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300',
-        demoRef: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_product.mp4',
-        demoResult: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/review_product.mp4'
     }
 ];
 window.AI_MODELS = AI_MODELS;
