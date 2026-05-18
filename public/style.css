@@ -3671,20 +3671,85 @@ section {
   overflow: hidden;
 }
 
-.ai-model-visual-single video {
+.ai-model-video-wrapper {
+  position: relative;
   width: 100%;
   aspect-ratio: 16/9;
   border-radius: 12px;
-  object-fit: cover;
+  overflow: hidden;
   border: 1.5px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(138, 43, 226, 0.25);
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
-.ai-model-card:hover .ai-model-visual-single video {
-  transform: scale(1.03);
-  border-color: var(--accent);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 242, 254, 0.4);
+.ai-model-video-wrapper video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.video-play-overlay-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  opacity: 0.9;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 242, 254, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.video-play-overlay-btn svg {
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+  fill: white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Hide play button when video is playing */
+.ai-model-video-wrapper.playing .video-play-overlay-btn {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+/* On desktop: hover behaviors */
+@media (hover: hover) {
+  .video-play-overlay-btn {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  .ai-model-video-wrapper:hover .video-play-overlay-btn {
+    opacity: 0;
+  }
+  .ai-model-card:hover .ai-model-video-wrapper {
+    transform: scale(1.03);
+    border-color: var(--accent);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 242, 254, 0.4);
+  }
+}
+
+/* On touch devices: always show play button if not playing */
+@media (hover: none) {
+  .video-play-overlay-btn {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 

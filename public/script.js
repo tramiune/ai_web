@@ -2522,7 +2522,14 @@ export function renderAIModels() {
         return `
             <div class="ai-model-card glass-panel" id="model-${model.id}">
                 <div class="ai-model-visual-single">
-                    <video src="${model.demoResult}" autoplay muted loop playsinline></video>
+                    <div class="ai-model-video-wrapper">
+                        <video src="${model.demoResult}" preload="metadata" muted loop playsinline></video>
+                        <button class="video-play-overlay-btn" aria-label="Play Video">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="ai-model-info">
@@ -2542,6 +2549,48 @@ export function renderAIModels() {
             </div>
         `;
     }).join('');
+
+    // Setup interactive handlers for hover-to-play (desktop) and click-to-play (mobile)
+    const wrappers = grid.querySelectorAll('.ai-model-video-wrapper');
+    wrappers.forEach(wrapper => {
+        const video = wrapper.querySelector('video');
+
+        // Hover handling (Desktop)
+        wrapper.addEventListener('mouseenter', () => {
+            if (window.matchMedia('(hover: hover)').matches) {
+                video.play().then(() => {
+                    wrapper.classList.add('playing');
+                }).catch(err => console.log("Play interrupted:", err));
+            }
+        });
+
+        wrapper.addEventListener('mouseleave', () => {
+            if (window.matchMedia('(hover: hover)').matches) {
+                video.pause();
+                video.currentTime = 0;
+                wrapper.classList.remove('playing');
+            }
+        });
+
+        // Click / Touch handling (Mobile & Desktop fallback)
+        wrapper.addEventListener('click', () => {
+            if (video.paused) {
+                // Pause all other video elements in this grid first
+                grid.querySelectorAll('video').forEach(otherVideo => {
+                    if (otherVideo !== video) {
+                        otherVideo.pause();
+                        otherVideo.closest('.ai-model-video-wrapper')?.classList.remove('playing');
+                    }
+                });
+                video.play().then(() => {
+                    wrapper.classList.add('playing');
+                }).catch(err => console.log("Play blocked:", err));
+            } else {
+                video.pause();
+                wrapper.classList.remove('playing');
+            }
+        });
+    });
 }
 window.renderAIModels = renderAIModels;
 
