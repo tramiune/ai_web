@@ -10,8 +10,8 @@ const TELEGRAM_CHAT_ID = '6067707939';
 const SERVICE_ACCOUNT = {
   "type": "service_account",
   "project_id": "motionai-studio-76be9",
-  "private_key_id": "c938d9509d956fdab6bcdc71dffebe303681fcc8",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDcsY0c4llaOH1M\n0uegrOyefDgMnLaYbqD+N01hikI0iBZ28r4ibNe20c9D7Tyl0rropGp1DfLm5tp/\nv4Ih2b2YWudKr9Lg5Gw003HjGbsmCiab4j/fwSAYY08POXkV/GoFdOmTjxDzaVM7\nUohOW+0m81kL05zTD++4JcKJDojecZMi+chN9NXkVx27jYLUgd3x5MSUZZjKTZJo\nVg3+ZLJG3/ybf1I5KRgIGb2P9sWP58oWUoRjlYW4Isvjk6mJK+n04c62ECSu6bIO\nBEUNHTrG31XtFLey9q0f78sVp/pNKD3KJKSB0QhrfwWCYuzxk6kN7JEo4YiaWUIY\nO980N3SPAgMBAAECggEAGbYOZcg8YbBFb3RTa5rfLEL2OAialfKu4JRqeEvRFRP/\nuKw6GNehCq8HMczgl8RlEHfLNpzr6MO0vqpTNloK5nDnaQJH6U8jXhoo4VeHlVHH\nGA/JTOpP22zXx+3JshUzTYnGhpw7J33kplDMtC2t2NpZTEaYitcHS2cMHXHrNy2W\nW7ZVLAQYqm75JxG4Sx1b8wXuLgQJLuXahgJkN1yivYoIHRIEji215OrnqcXwA4MZ\n0iX2Qc485T9llnzVNtXe2DSwHhYjgpwm+RNqkGLSur4QKP15bHZM5zNsBZwgTdGX\nMHtyso5DePlpT0DD+YkxfIICRjf7luYYsBDtTKFSOQKBgQD8TzvG9Yiktfpfv90L\n+2WVn2w+VRGXrEU9ZnB6EjnbcYWXRKvO9XhovTRuMiOOhvY4YXT3CcOCrF3K6i0D\nFbbI4eGJNwo43ziJcqCbZJ3XH0jMefuFvnKUMJkdEmtsTjlus0tZ12EAEW1kWrtw\nitZxcfrLnSIzKI2pciyhb7nsdwKBgQDf6+6/zRhDRN9UUJyNdqFoUvG5pMY25nCr\n61nxrZWv81o9ZxJ+LZ0RWu3rL9YpWHiBxCl3ErBJPVOuW11IghLITEGl3FZMWZMq\nAe+i5FbwLDmMHQZZXuVuY6gjAAS0J1x7dEMCJGxayrVDoZjQny9temBbmmnQKjRa\n3azBEMD2qQKBgAKWTWac3enSc97HeNzGlyQRnmqFNMj5Wzxl8IFP7ofxgg0rBxf4\nLGPmjMMUgIjVmXC6jxh5YSfV3KBYBl4hut4UctuVVOWAZHQEWOE/Bt9N0tFF7u5Q\nJZyfYvKJXdCefLhF3l/tdXEqvJRq2cEtq0U+hfPQiKk9oTY7lXmSS7XBAoGASeE3\nIbNSmQdFRDVgodANSzVqqdyyxXRcomyBfZrPM4FwOagjUtxL4WkF7L4YxAV7pR0K\nrU3OOivwyys76Ot5tPpsAoRjOMepJYgD/9Ok15NP3WnKKXyE6FobJIkiBCqkedsP\nLMrFsWMGUW0k1VhgNpfU6QRWeychpQVUtVKIyBkCgYBPdzdVNfFcdF+tWTPbrjcY\nPYA+HYjSi4G8HBcRg1+b49Ykv1YkQPCovhR7ee3gR1Dt71LwSYtubszdVXPvKs+4\nvYvzBdpSmQ0nogZMnSkxkg62xn4J7zQwxfqJnKVj3KBbqA69PKeYkFNFQ0uTjvMP\nbC7uzH4P9b1nYAy0/ZlWmg==\n-----END PRIVATE KEY-----\n",
+  "private_key_id": "a66df98cff206819acb3cd55f0297e57527d2e53",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nDUMMY_KEY_FOR_GITHUB_PUSH_PROTECTION\n-----END PRIVATE KEY-----\n",
   "client_email": "firebase-adminsdk-fbsvc@motionai-studio-76be9.iam.gserviceaccount.com",
   "client_id": "100366378819877121287",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -22,16 +22,27 @@ const SERVICE_ACCOUNT = {
 };
 
 export async function onRequestPost(context) {
-    const { request } = context;
+    const { request, env } = context;
     try {
       const body = await request.json();
       if (!body.data || !Array.isArray(body.data)) return new Response("No data", { status: 400 });
 
-      // Lấy Token bằng thông tin hardcoded
-      const accessToken = await getAccessToken(SERVICE_ACCOUNT.client_email, SERVICE_ACCOUNT.private_key);
+      // Lấy thông tin Service Account từ Environment Variable (nếu có), nếu không thì dùng bản hardcoded
+      let config = SERVICE_ACCOUNT;
+      const envSecret = env ? (env.FIREBASE_SERVICE_ACCOUNT || env.SERVICE_ACCOUNT) : null;
+      if (envSecret) {
+        try {
+          config = JSON.parse(envSecret);
+        } catch (e) {
+          console.error("Lỗi parse SERVICE_ACCOUNT từ ENV:", e);
+        }
+      }
+
+      // Lấy Token
+      const accessToken = await getAccessToken(config.client_email, config.private_key);
 
       // Lấy danh sách các đơn nạp đang chờ (tối đa 50 đơn gần nhất) để đối soát linh hoạt
-      const pendingTopups = await fetchPendingTopups(accessToken);
+      const pendingTopups = await fetchPendingTopups(accessToken, config.project_id);
 
       for (const transaction of body.data) {
         const description = (transaction.description || "").toUpperCase();
@@ -132,8 +143,8 @@ async function getAccessToken(email, privateKey) {
   return data.access_token;
 }
 
-async function fetchPendingTopups(token) {
-  const PROJECT_ID = "motionai-studio-76be9";
+async function fetchPendingTopups(token, projectId) {
+  const PROJECT_ID = projectId || "motionai-studio-76be9";
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery`;
   const res = await fetch(url, {
     method: "POST",
