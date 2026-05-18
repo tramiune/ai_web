@@ -11,8 +11,8 @@ window.TRANSLATIONS = {
             build_channel: "Xây kênh 1000 fl / 21 ngày"
         },
         models: {
-            title: "Chọn Model AI Tạo Video",
-            subtitle: "Chọn model phù hợp để bắt đầu tạo video AI chất lượng cao.",
+            title: "Biến 1 Ảnh Thành Video AI Bắt Trend",
+            subtitle: "Chất lượng sắc nét tương đương <b>Kling AI</b> nhưng chi phí <b>rẻ hơn gấp 5 - 6 lần</b>. Sáng tạo cực chất chỉ với 1 bức ảnh!",
             create_video: "Tạo Video",
             model1_title: "✨ AI Copy Chuyển Động Vào Ảnh (20s)",
             model1_desc: "Biến một bức ảnh tĩnh của nhân vật thành video nhảy mượt mà theo bất kỳ video mẫu nào bạn tải lên.",
@@ -252,8 +252,8 @@ window.TRANSLATIONS = {
             build_channel: "1k Followers / 21 days"
         },
         models: {
-            title: "Select AI Video Model",
-            subtitle: "Choose the perfect model to start generating high-quality AI videos.",
+            title: "Turn 1 Photo into Trending AI Videos",
+            subtitle: "Equivalent sharp quality to <b>Kling AI</b> but <b>5 - 6x cheaper</b>. Generate stunning AI videos in seconds!",
             create_video: "Create Video",
             model1_title: "✨ AI Copy Motion to Image (20s)",
             model1_desc: "Animate a static character photo into a smooth dance video following any reference video.",
