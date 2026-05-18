@@ -2315,6 +2315,19 @@ window.handleAdminResultUpload = async () => {
 };
 
 // --- Utilities ---
+function escapeHTML(str) {
+    if (!str) return "";
+    return str.toString().replace(/[&<>"']/g, function (m) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m];
+    });
+}
+
 function showToast(msg) {
     const toast = document.getElementById('toast');
     if (!toast) return alert(msg);
