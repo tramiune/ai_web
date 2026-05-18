@@ -10,6 +10,16 @@ const EMAILJS_SERVICE_ID = 'service_6r6rd2q';
 const EMAILJS_TEMPLATE_ID = 'template_09eir3r';
 const EMAILJS_PUBLIC_KEY = '92pP97oTzMGR4p_Zp';
 
+// --- Utility Helpers ---
+function safeToDate(field) {
+    if (!field) return null;
+    if (typeof field.toDate === 'function') return field.toDate();
+    if (typeof field === 'string') return new Date(field);
+    if (field.seconds) return new Date(field.seconds * 1000);
+    if (field.toMillis) return new Date(field.toMillis());
+    return new Date(field);
+}
+
 // --- Data Constants ---
 const COIN_PACKAGES = [
     { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', usdPrice: '$1.99', amount: 40000, note: 'Gói giới hạn', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/3f159349-cbbc-401f-b584-6c2b561b56b0' },
@@ -1605,12 +1615,13 @@ function loadMyOrders() {
         grid.innerHTML = sortedDocs.map(doc => {
             const d = doc.data();
             const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
-            const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
+            const createdDateObj = safeToDate(d.createdAt);
+            const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
             const statusVN = STATUS_MAP()[d.status] || d.status;
-            const isNew = d.createdAt && (Date.now() - d.createdAt.toDate().getTime() < 5 * 60 * 1000);
+            const isNew = createdDateObj && (Date.now() - createdDateObj.getTime() < 5 * 60 * 1000);
             const isCompleted = d.status === 'completed' || d.status === 'done';
 
-            const isPendingLong = d.status === 'pending' && d.createdAt && (Date.now() - d.createdAt.toDate().getTime() > 10 * 60 * 1000);
+            const isPendingLong = d.status === 'pending' && createdDateObj && (Date.now() - createdDateObj.getTime() > 10 * 60 * 1000);
             const delayNote = isPendingLong ? `<div class="order-delay-note">${t('dashboard.delay_note')}</div>` : '';
 
             return `
@@ -1701,14 +1712,17 @@ function loadMyTopups() {
 
         // Sắp xếp thủ công trên client
         const sortedDocs = [...snapshot.docs].sort((a, b) => {
-            const timeA = a.data().createdAt?.seconds || 0;
-            const timeB = b.data().createdAt?.seconds || 0;
+            const dateA = safeToDate(a.data().createdAt);
+            const dateB = safeToDate(b.data().createdAt);
+            const timeA = dateA ? dateA.getTime() : 0;
+            const timeB = dateB ? dateB.getTime() : 0;
             return timeB - timeA;
         });
 
         list.innerHTML = sortedDocs.map(doc => {
             const d = doc.data();
-            const date = d.createdAt ? d.createdAt.toDate().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
+            const createdDateObj = safeToDate(d.createdAt);
+            const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
             const statusVN = STATUS_MAP()[d.status] || d.status;
             return `
                 <tr>

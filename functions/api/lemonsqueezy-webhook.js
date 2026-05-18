@@ -218,7 +218,7 @@ async function createTopupRecord(token, projectId, topupId, data) {
     status: { stringValue: data.status },
     isAutomated: { booleanValue: data.isAutomated },
     gateway: { stringValue: data.gateway },
-    createdAt: { stringValue: new Date().toISOString() }
+    createdAt: { timestampValue: new Date().toISOString() }
   };
 
   const res = await fetch(url, {
