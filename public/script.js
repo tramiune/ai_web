@@ -1472,6 +1472,7 @@ async function setupEventListeners() {
                                     userEmail: currentUser.email,
                                     userName: currentUser.displayName,
                                     packageName: model.name,
+                                    modelId: window.selectedAIModelId || 'copy-motion-photo',
                                     serviceType: serviceType,
                                     serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
                                     costCoins: model.cost,

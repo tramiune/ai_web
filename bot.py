@@ -55,7 +55,19 @@ def submit_to_aidancing(order_id):
         data = doc.to_dict()
         if data.get('status') != 'pending': return
 
-        print(f"\n⚡ [NẠP ĐƠN] {order_id}...")
+        model_id = data.get('modelId', 'copy-motion-photo')
+        
+        # Xác định URL nạp tương ứng cho từng model
+        if model_id == 'copy-motion-multi':
+            target_url = "https://aidancing.net/create/general?id=120"
+        elif model_id == 'char-to-video-fashion':
+            target_url = "https://aidancing.net/create/general?id=11"
+        elif model_id == 'char-to-video-ads':
+            target_url = "https://aidancing.net/create/general?id=12"
+        else: # copy-motion-photo
+            target_url = "https://aidancing.net/create/general?id=34"
+
+        print(f"\n⚡ [NẠP ĐƠN] {order_id} (Model: {model_id} -> Link Bot: {target_url})...")
         doc_ref.update({'status': 'processing', 'updatedAt': firestore.SERVER_TIMESTAMP})
 
         char_path = download_file(data.get('characterImageLink'), f"char_{order_id}.png")
@@ -74,7 +86,7 @@ def submit_to_aidancing(order_id):
             )
             page = browser.new_page()
             try:
-                page.goto(CREATE_URL, timeout=90000)
+                page.goto(target_url, timeout=90000)
                 page.set_input_files('input[name="image"]', char_path)
                 page.set_input_files('input[name="video"]', vid_path)
                 page.locator('button.neon-ai-2').first.click()
