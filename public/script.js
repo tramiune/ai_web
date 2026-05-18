@@ -458,6 +458,12 @@ async function handleUserLoggedIn(user) {
         console.log("🎯 TikTok Pixel: Identified user for Advanced Matching");
     }
 
+    // Firebase/Google Identify
+    if (user.email) {
+        trackAnalyticsEvent('login', { method: 'email' });
+        console.log("🎯 Firebase Analytics: User identified");
+    }
+
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
 
@@ -510,6 +516,17 @@ async function handleUserLoggedIn(user) {
 
                 // Notify Telegram
                 const addedCoins = currentCoins - initialCoinsBeforeTopup;
+
+                // Firebase Analytics: Purchase Event
+                trackAnalyticsEvent('purchase', {
+                    transaction_id: `topup_${Date.now()}`,
+                    value: selectedTopupPackage ? selectedTopupPackage.amount : addedCoins * 1000,
+                    currency: 'VND',
+                    items: [{
+                        item_id: selectedTopupPackage ? selectedTopupPackage.id : 'coin_topup',
+                        item_name: selectedTopupPackage ? selectedTopupPackage.name : 'Coin Topup'
+                    }]
+                });
 
                 // TikTok Pixel: CompletePayment
                 if (typeof ttq !== 'undefined') {
@@ -1091,12 +1108,7 @@ function updateFirstOrderUI() {
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
 
         if (orderCount === 0) {
-            // First order: FREE
-            costEl.innerText = '0';
-            if (submitBtn) submitBtn.classList.add('btn-first-offer');
-            if (submitText) submitText.innerText = "Trải nghiệm ngay MIỄN PHÍ";
-        } else if (orderCount === 1) {
-            // Second order: 1 Coin
+            // First order: 1 Coin
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
@@ -1299,13 +1311,10 @@ async function setupEventListeners() {
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
                     let model = { ...MODELS[modelKey] };
 
-                    // Apply First Order Offer (Free for 1st, 1 Coin for 2nd)
+                    // Apply First Order Offer: 1 Coin
                     if (orderCount === 0) {
-                        model.cost = 0;
-                        console.log("🎁 Áp dụng ưu đãi MIỄN PHÍ cho đơn hàng đầu tiên!");
-                    } else if (orderCount === 1) {
                         model.cost = 1;
-                        console.log("🎁 Áp dụng ưu đãi 1 Coin cho đơn hàng thứ 2!");
+                        console.log("🎁 Áp dụng ưu đãi 1 Coin cho đơn hàng đầu tiên!");
                     }
 
                     if (userDoc.data().coins < model.cost) {
@@ -1513,7 +1522,7 @@ function loadMyOrders() {
         }
         isFirstLoad = false;
 
-        isFirstTimeUser = snapshot.size < 2;
+        isFirstTimeUser = snapshot.size === 0;
         orderCount = snapshot.size;
         console.log("🔍 loadMyOrders: orderCount =", orderCount, "=> isFirstTimeUser =", isFirstTimeUser);
         updateFirstOrderUI();
@@ -2332,18 +2341,13 @@ function scrollToHow() {
 window.scrollToPricing = scrollToPricing;
 window.scrollToHow = scrollToHow;
 
-// --- Telegram Notification ---
-function escapeHTML(str) {
-    if (!str) return "";
-    return str.toString().replace(/[&<>"']/g, function (m) {
-        return {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        }[m];
-    });
+// --- Google Analytics / Firebase Tracking Helper ---
+function trackAnalyticsEvent(eventName, params = {}) {
+    const { analytics, logEvent } = window.firebase;
+    if (analytics) {
+        logEvent(analytics, eventName, params);
+        console.log(`📊 Firebase Analytics: ${eventName}`, params);
+    }
 }
 
 async function sendTelegramMessage(text) {

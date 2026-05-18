@@ -191,7 +191,7 @@ window.TRANSLATIONS = {
             auth_btn_register: "Đăng ký tài khoản mới",
             auth_title: "Chào mừng bạn đến MotionAI! 🎬",
             auth_desc_default: "Đăng nhập để <strong>lưu Coin</strong> và <strong>video của riêng bạn</strong>.",
-            auth_desc_register: "Đăng ký ngay để nhận <b>MIỄN PHÍ</b> video AI đầu tiên!",
+            auth_desc_register: "Đăng ký ngay để nhận <b>ưu đãi 1.000đ</b> cho video AI đầu tiên!",
 
             back: "Quay lại",
             agree: "Đồng ý",
@@ -419,7 +419,7 @@ window.TRANSLATIONS = {
             auth_btn_register: "Register New Account",
             auth_title: "Welcome to MotionAI! 🎬",
             auth_desc_default: "Login to <strong>save your Coins</strong> and <strong>personal videos</strong>.",
-            auth_desc_register: "Register now to get your first AI video for <b>FREE</b>!",
+            auth_desc_register: "Register now to get your first AI video for <b>only 1 Coin</b>!",
 
             back: "Back",
             agree: "Agree",
