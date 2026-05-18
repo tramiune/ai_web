@@ -127,7 +127,7 @@ def check_finished_orders():
             with sync_playwright() as p:
                 browser = p.chromium.launch_persistent_context(
                     user_data_dir=os.path.abspath("bot_chrome_profile"),
-                    channel="chrome", headless=False, # Đổi thành False để bạn quan sát
+                    headless=False, # Đổi thành True nếu chạy trên VPS/Ubuntu Server
                     ignore_default_args=["--enable-automation"],
                     args=["--disable-blink-features=AutomationControlled"]
                 )
