@@ -18,14 +18,13 @@ CREATE_URL = "https://aidancing.net/create/general?id=34"
 DASHBOARD_URL = "https://aidancing.net/dashboard"
 WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
 
-# Khóa luồng để tránh mở nhiều trình duyệt dùng chung 1 Profile gây lỗi
 browser_lock = threading.Lock()
 
-def download_file(url, filename):
+def download_file(url, filename, cookies=None):
     print(f"📥 Tải file: {filename}...")
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=60)
+        response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
         response.raise_for_status()
         with open(filename, 'wb') as f:
             f.write(response.content)
@@ -47,15 +46,13 @@ def upload_to_r2(file_path, folder="results"):
         print(f"❌ Lỗi R2: {e}")
     return None
 
-# --- PHA 1: NẠP ĐƠN (HÀNG ĐỢI TUẦN TỰ) ---
+# --- PHA 1: NẠP ĐƠN ---
 def submit_to_aidancing(order_id):
-    # Đảm bảo chỉ 1 trình duyệt mở tại 1 thời điểm
     with browser_lock:
         doc_ref = db.collection('orders').document(order_id)
         doc = doc_ref.get()
         if not doc.exists: return
         data = doc.to_dict()
-
         if data.get('status') != 'pending': return
 
         print(f"\n⚡ [NẠP ĐƠN] {order_id}...")
@@ -99,58 +96,98 @@ def submit_to_aidancing(order_id):
                 if os.path.exists(char_path): os.remove(char_path)
                 if os.path.exists(vid_path): os.remove(vid_path)
 
-# --- PHA 2: RÌNH KẾT QUẢ (30 GIÂY/LẦN, CHỈ ĐƠN > 10 PHÚT) ---
-def result_monitor_thread():
-    print("🕵️ Luồng rình kết quả đã kích hoạt (Chu kỳ 30s)...")
-    while True:
-        try:
-            # Nếu trình duyệt nạp đơn đang bận thì bỏ qua lần rình này
-            if not browser_lock.locked():
-                now = datetime.now(timezone.utc)
-                processing_orders = db.collection('orders').where(filter=FieldFilter("status", "==", "processing")).stream()
+# --- PHA 2: RÌNH KẾT QUẢ ---
+def check_finished_orders():
+    try:
+        # Nếu đang nạp đơn thì không check dashboard để tránh khóa profile
+        if browser_lock.locked(): return
 
-                orders_to_check = []
-                for doc in processing_orders:
-                    d = doc.to_dict()
-                    job_id = d.get('aidancingJobId')
-                    submitted_at = d.get('submittedAt') # Thời điểm bấm nút Tạo thật sự
+        now = datetime.now(timezone.utc)
+        processing_orders = db.collection('orders').where(filter=FieldFilter("status", "==", "processing")).stream()
 
-                    if not job_id or job_id == "MANUAL": continue
+        orders_to_check = []
+        for doc in processing_orders:
+            d = doc.to_dict()
+            job_id = d.get('aidancingJobId')
+            submitted_at = d.get('submittedAt')
 
-                    # Kiểm tra nếu đã trôi qua ít nhất 600 giây (10 phút)
-                    if submitted_at:
-                        diff = (now - submitted_at).total_seconds()
-                        if diff > 600:
-                            orders_to_check.append(doc)
-                        else:
-                            print(f"⏳ Đơn {job_id} mới nạp được {int(diff)}s, chưa tới 10p, bỏ qua.")
-                    else:
-                        # Trường hợp đơn cũ không có submittedAt, cứ check cho chắc
-                        orders_to_check.append(doc)
+            if not job_id or job_id == "MANUAL": continue
 
-                if orders_to_check:
-                    print(f"\n🔍 [MONITOR] Đang rình kết quả cho {len(orders_to_check)} đơn đủ tuổi...")
-                    with browser_lock: # Dùng lock để không xung đột profile
-                        with sync_playwright() as p:
-                            browser = p.chromium.launch_persistent_context(
-                                user_data_dir=os.path.abspath("bot_chrome_profile"),
-                                channel="chrome", headless=True, # Rình ẩn danh cho nhẹ
-                                ignore_default_args=["--enable-automation"],
-                                args=["--disable-blink-features=AutomationControlled"]
-                            )
-                            page = browser.new_page()
-                            page.goto(DASHBOARD_URL, timeout=60000)
-                            time.sleep(5)
-                            for doc in orders_to_check:
-                                job_id = doc.to_dict().get('aidancingJobId')
-                                card = page.locator(f'div:has-text("{job_id}")').last
-                                if card.is_visible() and ("Đã xong" in card.inner_html() or "Tải Xuống" in card.inner_html()):
-                                    print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý về R2...")
-                                    download_btn = card.locator('a:has-text("Tải Xuống")').first
-                                    ext_url = download_btn.get_attribute('href')
+            # Chỉ check nếu đã nạp > 10 phút
+            if submitted_at:
+                if (now - submitted_at).total_seconds() > 600:
+                    orders_to_check.append(doc)
+            else:
+                orders_to_check.append(doc)
+
+        if not orders_to_check: return
+
+        print(f"\n🔍 [MONITOR] Đang rình kết quả cho {len(orders_to_check)} đơn đủ 10p...")
+        with browser_lock:
+            with sync_playwright() as p:
+                browser = p.chromium.launch_persistent_context(
+                    user_data_dir=os.path.abspath("bot_chrome_profile"),
+                    channel="chrome", headless=False, # Đổi thành False để bạn quan sát
+                    ignore_default_args=["--enable-automation"],
+                    args=["--disable-blink-features=AutomationControlled"]
+                )
+                page = browser.new_page()
+                page.goto(DASHBOARD_URL, timeout=60000)
+                print(f"🌐 Đang ở: {page.url}")
+                time.sleep(10)
+
+                # Nếu bị đá ra trang chủ/login thì dừng để bạn đăng nhập
+                if "dashboard" not in page.url:
+                    print(f"⚠️ Bot chưa đăng nhập! Bạn hãy đăng nhập trên cửa sổ Chrome đang mở này, sau đó chạy lại bot.")
+                    time.sleep(60) # Để trình duyệt mở trong 1 phút cho bạn nhìn
+                    browser.close()
+                    return
+
+                for doc in orders_to_check:
+                    job_id = str(doc.to_dict().get('aidancingJobId'))
+                    print(f"🧐 Đang tìm Job {job_id}...")
+
+                    # Thử tìm text trong toàn bộ trang
+                    if job_id not in page.content():
+                        print(f"❌ Không thấy mã {job_id} trên trang này. Kiểm tra xem Job có ở trang 2 không?")
+                        continue
+
+                    # Tìm card bằng cách rộng hơn
+                    card = page.locator(f'div:has-text("{job_id}")').last
+
+                    if card.is_visible():
+                        text = card.inner_text()
+                        if any(x in text for x in ["Đã xong", "Tải Xuống", "Download", "Success"]):
+                            print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
+
+                            try:
+                                # Bước 1: Thử lấy link trực tiếp từ nút Tải
+                                download_link = card.locator('a[href*="download"], a:has-text("Tải"), a:has-text("Download")').first
+                                ext_url = None
+                                if download_link.is_visible():
+                                    ext_url = download_link.get_attribute('href', timeout=3000)
+
+                                # Bước 2 (Dự phòng): Click vào card để vào trang chi tiết lấy video
+                                if not ext_url:
+                                    try:
+                                        print(f"🖱️ Click vào Job {job_id} để lấy link video...")
+                                        card.click()
+                                        page.wait_for_timeout(5000)
+                                        video_element = page.locator('video source, video[src]').first
+                                        ext_url = video_element.get_attribute('src')
+                                        page.goto(DASHBOARD_URL) # Quay lại Dashboard
+                                        time.sleep(3)
+                                    except Exception as e:
+                                        print(f"❌ Lỗi khi vào trang chi tiết cho Job {job_id}: {e}")
+
+                                # Bước 3: Tải file nếu đã có link (kèm cookies)
+                                if ext_url:
                                     if not ext_url.startswith('http'): ext_url = "https://aidancing.net" + ext_url
 
-                                    local_vid = download_file(ext_url, f"res_{doc.id}.mp4")
+                                    # Lấy cookies từ trình duyệt để vượt qua lỗi 401
+                                    browser_cookies = {c['name']: c['value'] for c in browser.cookies()}
+
+                                    local_vid = download_file(ext_url, f"res_{doc.id}.mp4", cookies=browser_cookies)
                                     if local_vid:
                                         r2_url = upload_to_r2(local_vid)
                                         if r2_url:
@@ -161,30 +198,36 @@ def result_monitor_thread():
                                             })
                                             print(f"✅ ĐÃ TRẢ HÀNG CHO ĐƠN {doc.id}")
                                             os.remove(local_vid)
-                            browser.close()
-
-            time.sleep(30) # Chu kỳ rình 30 giây
-        except Exception as e:
-            print(f"❌ Lỗi monitor: {e}")
-            time.sleep(30)
+                            except Exception as e:
+                                print(f"⚠️ Lỗi xử lý Job {job_id}: {e}")
+                                if page.url != DASHBOARD_URL:
+                                    page.goto(DASHBOARD_URL)
+                        else:
+                            print(f"⏳ Job {job_id} vẫn đang render...")
+                browser.close()
+    except Exception as e:
+        print(f"❌ Lỗi monitor: {e}")
 
 def start_bot():
-    print("📡 MotionAI REAL-TIME BOT (v3.0) IS ONLINE!")
-    monitor = threading.Thread(target=result_monitor_thread, daemon=True)
-    monitor.start()
+    print("📡 MotionAI REAL-TIME BOT (v3.1 - Fix Link) IS ONLINE!")
 
-    orders_ref = db.collection('orders').where(filter=FieldFilter("status", "==", "pending"))
+    def monitor_loop():
+        while True:
+            check_finished_orders()
+            time.sleep(30)
 
-    def on_snapshot(col_snapshot, changes, read_time):
-        for change in changes:
-            if change.type.name in ['ADDED', 'MODIFIED']:
-                threading.Thread(target=submit_to_aidancing, args=(change.document.id,), daemon=True).start()
+    threading.Thread(target=monitor_loop, daemon=True).start()
 
-    orders_ref.on_snapshot(on_snapshot)
-    print("🟢 Đang trực chiến đơn hàng mới...")
+    # Listener đơn mới
+    db.collection('orders').where(filter=FieldFilter("status", "==", "pending")).on_snapshot(
+        lambda col_snapshot, changes, read_time: [
+            threading.Thread(target=submit_to_aidancing, args=(ch.document.id,), daemon=True).start()
+            for ch in changes if ch.type.name in ['ADDED', 'MODIFIED']
+        ]
+    )
 
-    while True:
-        time.sleep(1)
+    print("🟢 Đang trực chiến...")
+    while True: time.sleep(1)
 
 if __name__ == "__main__":
     start_bot()

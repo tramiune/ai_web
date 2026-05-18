@@ -4,3 +4,17 @@ node_modules/
 *.log
 wrangler-*.log
 .wrangler/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Bot Sensitive Data
+serviceAccountKey.json
+bot_chrome_profile/
+*.mp4
+*.png
+*.jpg
