@@ -90,6 +90,17 @@ const MODELS = {
     turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p" }
 };
 
+export function getCurrentModelCosts() {
+    const modelId = window.selectedAIModelId || 'copy-motion-photo';
+    if (modelId === 'copy-motion-photo') {
+        return { fast: 10, turbo: 20 };
+    } else {
+        // copy-motion-multi, char-to-video-fashion, char-to-video-ads
+        return { fast: 15, turbo: 25 };
+    }
+}
+window.getCurrentModelCosts = getCurrentModelCosts;
+
 const SERVICE_PACKAGES = [
     { id: 'plus', name: 'Plus', cost: 12, features: ['Chất lượng HD', 'Ưu tiên xử lý', 'Hỗ trợ sửa đổi'], featured: true },
     { id: 'viral', name: 'Viral', cost: 25, features: ['Chất lượng 4K', 'Xử lý siêu tốc', 'Sửa đổi tối đa 3 lần'] }
@@ -1174,6 +1185,14 @@ function updateFirstOrderUI() {
         const submitBtn = document.getElementById('order-submit-btn');
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
 
+        const costs = getCurrentModelCosts();
+        
+        // Cập nhật nhãn giá hiển thị trên 2 thẻ chọn Model Nhanh / Turbo
+        const costFastEl = document.getElementById('cost-fast-display');
+        const costTurboEl = document.getElementById('cost-turbo-display');
+        if (costFastEl) costFastEl.innerText = costs.fast;
+        if (costTurboEl) costTurboEl.innerText = costs.turbo;
+
         if (orderCount === 0) {
             // First order: 1 Coin
             costEl.innerText = '1';
@@ -1183,9 +1202,7 @@ function updateFirstOrderUI() {
             // Regular pricing
             const checkedModel = document.querySelector('input[name="model-type"]:checked');
             const modelKey = checkedModel ? checkedModel.value : 'fast';
-            if (MODELS[modelKey]) {
-                costEl.innerText = MODELS[modelKey].cost;
-            }
+            costEl.innerText = costs[modelKey] || 10;
             if (submitBtn) submitBtn.classList.remove('btn-first-offer');
             if (submitText) submitText.innerText = t('hero.cta_create');
         }
@@ -1318,8 +1335,12 @@ async function uploadFile(file, folder) {
 async function setupEventListeners() {
     // Model Selection change cost
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const model = MODELS[e.target.value];
+            const costs = getCurrentModelCosts();
+            const model = {
+                name: e.target.value === 'turbo' ? "Model Turbo 2K" : "Model Nhanh",
+                cost: costs[e.target.value],
+                time: e.target.value === 'turbo' ? "15-20p" : "30p"
+            };
             updateFirstOrderUI();
 
             // Cập nhật dòng tóm tắt trên nút
@@ -1376,7 +1397,12 @@ async function setupEventListeners() {
                     const userDoc = await transaction.get(userRef);
                     const modelKey = document.querySelector('input[name="model-type"]:checked').value;
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
-                    let model = { ...MODELS[modelKey] };
+                    const costs = getCurrentModelCosts();
+                    let model = {
+                        name: modelKey === 'turbo' ? "Model Turbo 2K" : "Model Nhanh",
+                        cost: costs[modelKey],
+                        time: modelKey === 'turbo' ? "15-20p" : "30p"
+                    };
 
                     // Apply First Order Offer: 1 Coin
                     if (orderCount === 0) {
