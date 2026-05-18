@@ -1335,6 +1335,7 @@ async function uploadFile(file, folder) {
 async function setupEventListeners() {
     // Model Selection change cost
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
             const costs = getCurrentModelCosts();
             const model = {
                 name: e.target.value === 'turbo' ? "Model Turbo 2K" : "Model Nhanh",
