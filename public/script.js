@@ -2517,10 +2517,9 @@ export function renderAIModels() {
     grid.innerHTML = AI_MODELS.map(model => {
         const title = t(model.titleKey);
         const desc = t(model.descKey);
-        const createVideoText = t('models.create_video') || 'Tạo Video';
 
         return `
-            <div class="ai-model-card glass-panel" id="model-${model.id}">
+            <div class="ai-model-card glass-panel" id="model-${model.id}" onclick="window.createVideoWithModel('${model.id}')">
                 <div class="ai-model-visual-single">
                     <div class="ai-model-video-wrapper">
                         <video src="${model.demoResult}" preload="metadata" muted loop playsinline></video>
@@ -2538,13 +2537,6 @@ export function renderAIModels() {
                     </div>
                     <h3 class="ai-model-title">${title}</h3>
                     <p class="ai-model-desc">${desc}</p>
-
-                    <button class="btn-primary select-model-btn" onclick="window.createVideoWithModel('${model.id}')">
-                        <svg class="nav-icon" style="stroke: white; width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
-                        </svg>
-                        <span>${createVideoText}</span>
-                    </button>
                 </div>
             </div>
         `;
@@ -2573,7 +2565,8 @@ export function renderAIModels() {
         });
 
         // Click / Touch handling (Mobile & Desktop fallback)
-        wrapper.addEventListener('click', () => {
+        wrapper.addEventListener('click', (e) => {
+            e.stopPropagation(); // Ngăn mở modal Tạo Video khi chỉ muốn phát/dừng video
             if (video.paused) {
                 // Pause all other video elements in this grid first
                 grid.querySelectorAll('video').forEach(otherVideo => {
