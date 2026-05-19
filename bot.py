@@ -122,22 +122,6 @@ def submit_to_aidancing(order_id):
         print(f"\n⚡ [NẠP ĐƠN] {order_id}...")
         doc_ref.update({'status': 'processing', 'updatedAt': firestore.SERVER_TIMESTAMP})
 
-        # Gửi thông báo Telegram: Đơn hàng đang xử lý
-        try:
-            short_id = order_id[-6:].upper()
-            user_name = data.get('userName', 'Khách hàng')
-            user_email = data.get('userEmail', 'N/A')
-            msg = (
-                f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
-                f"🆔 Mã đơn: #{short_id}\n"
-                f"👤 Khách: {user_name}\n"
-                f"📧 Email: {user_email}\n"
-                f"⏳ Trạng thái: Đang nạp và render trên aidancing.net..."
-            )
-            send_telegram_message(msg)
-        except Exception as tele_err:
-            print(f"⚠️ Lỗi gửi thông báo Telegram: {tele_err}")
-
         char_path = None
         vid_path = None
 
@@ -203,6 +187,23 @@ def submit_to_aidancing(order_id):
                     job_id = job_ids[0]
                     print(f"🆔 LẤY ĐƯỢC JOB ID: {job_id}")
                     doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
+
+                    # Gửi thông báo Telegram: Đã nạp đơn thành công, đang render
+                    try:
+                        short_id = order_id[-6:].upper()
+                        user_name = data.get('userName', 'Khách hàng')
+                        user_email = data.get('userEmail', 'N/A')
+                        msg = (
+                            f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
+                            f"🆔 Mã đơn: #{short_id}\n"
+                            f"👤 Khách: {user_name}\n"
+                            f"📧 Email: {user_email}\n"
+                            f"🤖 Job ID aidancing: <code>{job_id}</code>\n"
+                            f"⏳ Đang render trên aidancing.net..."
+                        )
+                        send_telegram_message(msg)
+                    except Exception as tele_err:
+                        print(f"⚠️ Lỗi gửi thông báo Telegram xử lý: {tele_err}")
 
             except Exception as e:
                 print(f"❌ Lỗi nạp: {e}")

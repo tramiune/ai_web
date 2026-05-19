@@ -73,12 +73,14 @@ export async function onRequestPost(context) {
            console.log(`Successfully granted ${coins} coins to user ${topup.userId}`);
            
            // Gửi thông báo Telegram
+           const tidDisplay = transaction.tid || transaction.id || 'N/A';
            const message = `💰 *NẠP TIỀN THÀNH CÔNG!*\n\n` +
                            `👤 Khách: ${topup.userName || 'N/A'}\n` +
                            `📧 Email: ${topup.userEmail || 'N/A'}\n` +
                            `💵 Số tiền: ${amount.toLocaleString()}đ\n` +
                            `🪙 Coin nhận: +${coins}\n` +
-                           `📝 Nội dung: ${code}`;
+                           `📝 Nội dung: ${code}\n` +
+                           `🔑 Mã GD: \`${tidDisplay}\``;
            await notifyTelegram(message);
         }
       }
