@@ -375,7 +375,7 @@ def check_finished_orders():
         print(f"❌ Lỗi monitor: {e}")
 
 def start_bot():
-    print("📡 MotionAI REAL-TIME BOT (v3.1 - Fix Link) IS ONLINE!")
+    print("📡 MotionAI REAL-TIME BOT (v3.2 - Auto Email + Telegram Notify) IS ONLINE!")
 
     def monitor_loop():
         while True:
