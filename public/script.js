@@ -2308,8 +2308,11 @@ window.openUserOrderDetail = async (orderId) => {
             return `
                 <div class="info-item" style="grid-column: span 2;">
                     <span class="info-label">${t('modals.order_result_video')}</span>
-                    <div style="width: 100%; margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #000; position: relative;">
-                        <video src="${finalResultLink}" controls playsinline style="width: 100%; display: block; max-height: 360px;"></video>
+                    <div style="width: 100%; margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #000; position: relative; display: flex; justify-content: center; align-items: center;">
+                        <video controls playsinline preload="metadata" style="width: 100%; max-height: 360px; display: block; object-fit: contain;">
+                            <source src="${finalResultLink}" type="video/mp4">
+                            Trình duyệt của bạn không hỗ trợ phát video trực tiếp.
+                        </video>
                     </div>
                     <a href="${downloadUrl}" download="motionai_video_${shortId}.mp4" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 12px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
                     <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">💡 Mẹo iPhone (Safari/Chrome): Nếu bấm nút Tải không được, bạn hãy <b>nhấn giữ trực tiếp vào khung video ở trên</b> rồi chọn <b>"Lưu video"</b> (hoặc <b>"Tải tệp liên kết"</b>) nhé!</p>
