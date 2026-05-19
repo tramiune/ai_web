@@ -2308,8 +2308,11 @@ window.openUserOrderDetail = async (orderId) => {
             return `
                 <div class="info-item" style="grid-column: span 2;">
                     <span class="info-label">${t('modals.order_result_video')}</span>
-                    <a href="${downloadUrl}" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 8px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
-                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">💡 Mẹo TikTok: Nếu bấm tải không được, hãy <b>nhấn giữ vào video</b> rồi chọn <b>"Lưu video"</b> nhé!</p>
+                    <div style="width: 100%; margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #000; position: relative;">
+                        <video src="${finalResultLink}" controls playsinline style="width: 100%; display: block; max-height: 360px;"></video>
+                    </div>
+                    <a href="${downloadUrl}" download="motionai_video_${shortId}.mp4" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 12px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
+                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">💡 Mẹo iPhone (Safari/Chrome): Nếu bấm nút Tải không được, bạn hãy <b>nhấn giữ trực tiếp vào khung video ở trên</b> rồi chọn <b>"Lưu video"</b> (hoặc <b>"Tải tệp liên kết"</b>) nhé!</p>
                     <p style="font-size: 0.75rem; color: var(--danger); margin-top: 4px; text-align: center;">${t('modals.order_expiry_warn')}</p>
                 </div>
                 `;
