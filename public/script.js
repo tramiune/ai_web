@@ -516,7 +516,7 @@ async function handleUserLoggedIn(user) {
         });
 
         // Gửi thông báo Telegram khi có user mới đăng ký
-        sendTelegramMessage(`🆕 <b>USER MỚI ĐĂNG KÝ!</b>\n👤 Tên: ${escapeHTML(defaultName)}\n📧 Email: ${escapeHTML(user.email)}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`);
+        // sendTelegramMessage(`🆕 <b>USER MỚI ĐĂNG KÝ!</b>\n👤 Tên: ${escapeHTML(defaultName)}\n📧 Email: ${escapeHTML(user.email)}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`);
     } else {
         // Nếu đã có user nhưng email thuộc list bootstrap mà chưa có role admin thì cập nhật
         const userData = userSnap.data();
@@ -1048,8 +1048,8 @@ window.selectTopup = async (id) => {
         console.log("📝 Đã tạo bản ghi nạp tiền tự động:", transferContent);
 
         // Notify Telegram
-        const msg = `💳 <b>YÊU CẦU NẠP COIN MỚI</b>\n👤 Khách: ${escapeHTML(currentUser.displayName)}\n📧 Email: ${escapeHTML(currentUser.email)}\n📦 Gói: ${selectedTopupPackage.name}\n💰 Số tiền: ${selectedTopupPackage.price}\n🪙 Coin nhận: ${selectedTopupPackage.coins}\n📝 Nội dung: <code>${transferContent}</code>`;
-        sendTelegramMessage(msg);
+        // const msg = `💳 <b>YÊU CẦU NẠP COIN MỚI</b>\n👤 Khách: ${escapeHTML(currentUser.displayName)}\n📧 Email: ${escapeHTML(currentUser.email)}\n📦 Gói: ${selectedTopupPackage.name}\n💰 Số tiền: ${selectedTopupPackage.price}\n🪙 Coin nhận: ${selectedTopupPackage.coins}\n📝 Nội dung: <code>${transferContent}</code>`;
+        // sendTelegramMessage(msg);
     } catch (err) {
         console.error("Lỗi khi tạo bản ghi nạp tiền:", err);
         // Vẫn tiếp tục hiện QR cho khách, Admin có thể check tay nếu lỗi DB
@@ -1108,8 +1108,8 @@ window.selectTopup = async (id) => {
 
 window.openOrderModal = () => {
     // Thông báo click nút tạo video về Telegram
-    const clickMsg = `🎯 <b>NÚT TẠO VIDEO VỪA ĐƯỢC BẤM! (TRANG CHỦ)</b>\n👤 Trạng thái: ${currentUser ? 'Đã đăng nhập' : 'Khách vãng lai'}\n📧 Email: ${currentUser ? escapeHTML(currentUser.email) : 'N/A'}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`;
-    sendTelegramMessage(clickMsg);
+    // const clickMsg = `🎯 <b>NÚT TẠO VIDEO VỪA ĐƯỢC BẤM! (TRANG CHỦ)</b>\n👤 Trạng thái: ${currentUser ? 'Đã đăng nhập' : 'Khách vãng lai'}\n📧 Email: ${currentUser ? escapeHTML(currentUser.email) : 'N/A'}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`;
+    // sendTelegramMessage(clickMsg);
 
     updateFirstOrderUI();
     window.openModal('order-modal');
@@ -1996,13 +1996,27 @@ document.getElementById('admin-update-form').addEventListener('submit', async (e
         closeModal('admin-detail-modal');
 
         // 2. If status is completed, send automated email
-        if (newStatus === 'completed') {
-            const snap = await getDoc(doc(db, "orders", currentAdminOrderId));
-            if (snap.exists()) {
-                const orderData = snap.data();
-                if (orderData.userEmail) {
-                    sendCompletionEmail(currentAdminOrderId, orderData);
-                }
+        const snap = await getDoc(doc(db, "orders", currentAdminOrderId));
+        if (snap.exists()) {
+            const orderData = snap.data();
+            const shortId = currentAdminOrderId.substring(currentAdminOrderId.length - 6).toUpperCase();
+            
+            // Bắn email
+            if (newStatus === 'completed' && orderData.userEmail) {
+                sendCompletionEmail(currentAdminOrderId, orderData);
+            }
+
+            // Bắn Telegram thông báo trạng thái cập nhật thủ công
+            let teleMsg = '';
+            if (newStatus === 'processing') {
+                teleMsg = `⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ (Mã #${shortId})</b>\n👤 Khách: ${escapeHTML(orderData.userName || 'Khách hàng')}\n📧 Email: ${escapeHTML(orderData.userEmail || 'N/A')}\n⏳ Trạng thái: Admin chuyển trạng thái sang xử lý.`;
+            } else if (newStatus === 'completed') {
+                teleMsg = `✅ <b>ĐƠN HÀNG HOÀN THÀNH (Mã #${shortId})</b>\n👤 Khách: ${escapeHTML(orderData.userName || 'Khách hàng')}\n📧 Email: ${escapeHTML(orderData.userEmail || 'N/A')}\n📹 Kết quả: <a href="${resultLink}">Xem kết quả</a>`;
+            } else if (newStatus === 'failed') {
+                teleMsg = `❌ <b>ĐƠN HÀNG THẤT BẠI (Mã #${shortId})</b>\n👤 Khách: ${escapeHTML(orderData.userName || 'Khách hàng')}\n📧 Email: ${escapeHTML(orderData.userEmail || 'N/A')}\n📝 Lý do: ${escapeHTML(document.getElementById('admin-note').value || 'Không hợp lệ')}`;
+            }
+            if (teleMsg) {
+                sendTelegramMessage(teleMsg);
             }
         }
     } catch (error) {

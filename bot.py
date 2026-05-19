@@ -20,6 +20,23 @@ WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
 
 browser_lock = threading.Lock()
 
+TELEGRAM_BOT_TOKEN = "8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc"
+TELEGRAM_CHAT_ID = "6067707939"
+
+def send_telegram_message(text):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": text,
+            "parse_mode": "HTML"
+        }
+        res = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=10)
+        if res.status_code != 200:
+            print(f"❌ Lỗi gửi tin nhắn Telegram: {res.status_code} - {res.text}")
+    except Exception as e:
+        print(f"❌ Lỗi kết nối gửi Telegram: {e}")
+
 def download_file(url, filename, cookies=None):
     print(f"📥 Tải file: {filename}...")
     try:
@@ -105,6 +122,22 @@ def submit_to_aidancing(order_id):
         print(f"\n⚡ [NẠP ĐƠN] {order_id}...")
         doc_ref.update({'status': 'processing', 'updatedAt': firestore.SERVER_TIMESTAMP})
 
+        # Gửi thông báo Telegram: Đơn hàng đang xử lý
+        try:
+            short_id = order_id[-6:].upper()
+            user_name = data.get('userName', 'Khách hàng')
+            user_email = data.get('userEmail', 'N/A')
+            msg = (
+                f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
+                f"🆔 Mã đơn: #{short_id}\n"
+                f"👤 Khách: {user_name}\n"
+                f"📧 Email: {user_email}\n"
+                f"⏳ Trạng thái: Đang nạp và render trên aidancing.net..."
+            )
+            send_telegram_message(msg)
+        except Exception as tele_err:
+            print(f"⚠️ Lỗi gửi thông báo Telegram: {tele_err}")
+
         char_path = None
         vid_path = None
 
@@ -125,6 +158,22 @@ def submit_to_aidancing(order_id):
                 'adminNote': 'Ảnh hoặc video quý khách tải lên không tồn tại, hệ thống sẽ xác minh và hoàn tiền.',
                 'updatedAt': firestore.SERVER_TIMESTAMP
             })
+
+            # Gửi thông báo Telegram: Đơn hàng thất bại
+            try:
+                short_id = order_id[-6:].upper()
+                user_name = data.get('userName', 'Khách hàng')
+                user_email = data.get('userEmail', 'N/A')
+                msg = (
+                    f"❌ <b>ĐƠN HÀNG THẤT BẠI</b>\n\n"
+                    f"🆔 Mã đơn: #{short_id}\n"
+                    f"👤 Khách: {user_name}\n"
+                    f"📧 Email: {user_email}\n"
+                    f"📝 Lý do: Không thể tải ảnh/video nhân vật quý khách tải lên."
+                )
+                send_telegram_message(msg)
+            except Exception as tele_err:
+                print(f"⚠️ Lỗi gửi thông báo Telegram thất bại: {tele_err}")
             if char_path and os.path.exists(char_path): os.remove(char_path)
             if vid_path and os.path.exists(vid_path): os.remove(vid_path)
             return
@@ -265,6 +314,23 @@ def check_finished_orders():
                                             })
                                             print(f"✅ ĐÃ TRẢ HÀNG CHO ĐƠN {doc.id}")
                                             
+                                            # Gửi thông báo Telegram: Đơn hàng hoàn thành
+                                            try:
+                                                order_data = doc.to_dict()
+                                                short_id = doc.id[-6:].upper()
+                                                user_name = order_data.get('userName', 'Khách hàng')
+                                                user_email = order_data.get('userEmail', 'N/A')
+                                                msg = (
+                                                    f"✅ <b>ĐƠN HÀNG HOÀN THÀNH</b>\n\n"
+                                                    f"🆔 Mã đơn: #{short_id}\n"
+                                                    f"👤 Khách: {user_name}\n"
+                                                    f"📧 Email: {user_email}\n"
+                                                    f"📹 Kết quả: <a href=\"{r2_url}\">Xem video kết quả</a>"
+                                                )
+                                                send_telegram_message(msg)
+                                            except Exception as tele_err:
+                                                print(f"⚠️ Lỗi gửi thông báo Telegram hoàn thành: {tele_err}")
+
                                             # Gửi mail thông báo tự động cho khách hàng
                                             try:
                                                 order_data = doc.to_dict()
@@ -284,6 +350,23 @@ def check_finished_orders():
                                 'adminNote': 'Ảnh hoặc video quý khách tải lên không hợp lệ.',
                                 'updatedAt': firestore.SERVER_TIMESTAMP
                             })
+
+                            # Gửi thông báo Telegram: Đơn hàng thất bại
+                            try:
+                                order_data = doc.to_dict()
+                                short_id = doc.id[-6:].upper()
+                                user_name = order_data.get('userName', 'Khách hàng')
+                                user_email = order_data.get('userEmail', 'N/A')
+                                msg = (
+                                    f"❌ <b>ĐƠN HÀNG THẤT BẠI</b>\n\n"
+                                    f"🆔 Mã đơn: #{short_id}\n"
+                                    f"👤 Khách: {user_name}\n"
+                                    f"📧 Email: {user_email}\n"
+                                    f"📝 Lý do: Ảnh/video tham chiếu không hợp lệ."
+                                )
+                                send_telegram_message(msg)
+                            except Exception as tele_err:
+                                print(f"⚠️ Lỗi gửi thông báo Telegram thất bại: {tele_err}")
                         else:
                             print(f"⏳ Job {job_id} vẫn đang render...")
                 browser.close()
