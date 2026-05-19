@@ -1096,8 +1096,8 @@ window.selectTopup = async (id) => {
 
     // Generate VietQR Link
     const amount = selectedTopupPackage.amount;
-    const bankId = "MB"; // MB Bank
-    const accNo = "0965951536";
+    const bankId = "OCB"; // OCB Bank
+    const accNo = "CASS0965951536";
     const accName = "VAN DINH HOANG";
     const qrUrl = `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accName)}`;
 

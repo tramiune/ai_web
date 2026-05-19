@@ -146,7 +146,7 @@ window.TRANSLATIONS = {
         modals: {
             topup_title: "Nạp Coin tự động",
             topup_subtitle: "Hệ thống tự động cộng coin sau khi nhận được thanh toán.",
-            qr_mb_bank: "Quét mã QR MB Bank",
+            qr_ocb_bank: "Quét mã QR OCB",
             generating_qr: "Đang tạo mã QR...",
             qr_scan_warning: "Vui lòng quét mã QR bằng App Ngân hàng để đảm bảo nội dung chuyển khoản chính xác tuyệt đối. Nếu sai nội dung, hệ thống sẽ KHÔNG tự động cộng Coin!",
             acc_no: "Số tài khoản:",
@@ -387,7 +387,7 @@ window.TRANSLATIONS = {
         modals: {
             topup_title: "Automated Top-up",
             topup_subtitle: "System automatically adds coins after receiving payment.",
-            qr_mb_bank: "Scan MB Bank QR Code",
+            qr_ocb_bank: "Scan OCB QR Code",
             generating_qr: "Generating QR Code...",
             qr_scan_warning: "Please scan the QR code using your Banking App to ensure absolute accuracy of the transfer content. If the content is incorrect, the system will NOT automatically add Coins!",
             acc_no: "Account No:",
