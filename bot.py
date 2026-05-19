@@ -14,7 +14,7 @@ cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-CREATE_URL = "https://aidancing.net/create/general?id=34"
+# CREATE_URL đã được chuyển thành dynamic theo modelId trong đơn hàng
 DASHBOARD_URL = "https://aidancing.net/dashboard"
 WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
 
@@ -74,7 +74,10 @@ def submit_to_aidancing(order_id):
             )
             page = browser.new_page()
             try:
-                page.goto(CREATE_URL, timeout=90000)
+                model_id = data.get('modelId', '34')
+                create_url = f"https://aidancing.net/create/general?id={model_id}"
+                print(f"🌐 Vào trang tạo: {create_url}")
+                page.goto(create_url, timeout=90000)
                 page.set_input_files('input[name="image"]', char_path)
                 page.set_input_files('input[name="video"]', vid_path)
                 page.locator('button.neon-ai-2').first.click()

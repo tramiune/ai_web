@@ -56,8 +56,8 @@ const TREND_VIDEOS = [
 ];
 
 const MODELS = {
-    fast: { name: "Model Nhanh", cost: 10, time: "30p" },
-    turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p" }
+    fast: { name: "Model Nhanh", cost: 10, time: "30p", modelId: "34" },
+    turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p", modelId: "117" }
 };
 
 const SERVICE_PACKAGES = [
@@ -1415,6 +1415,7 @@ async function setupEventListeners() {
                                     userEmail: currentUser.email,
                                     userName: currentUser.displayName,
                                     packageName: model.name,
+                                    modelId: model.modelId,
                                     serviceType: serviceType,
                                     serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
                                     costCoins: model.cost,
