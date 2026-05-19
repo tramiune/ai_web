@@ -1591,6 +1591,11 @@ function loadMyOrders() {
             const statusVN = STATUS_MAP()[d.status] || d.status;
             const isNew = createdDateObj && (Date.now() - createdDateObj.getTime() < 5 * 60 * 1000);
             const isCompleted = d.status === 'completed' || d.status === 'done';
+            const finalResultLink = d.resultLink;
+            const isWorkerLink = finalResultLink && finalResultLink.includes('workers.dev');
+            const downloadUrl = (isCompleted && finalResultLink) 
+                ? (isWorkerLink ? finalResultLink + (finalResultLink.includes('?') ? '&' : '?') + 'download=1' : finalResultLink) 
+                : '';
 
             const isPendingLong = d.status === 'pending' && createdDateObj && (Date.now() - createdDateObj.getTime() > 10 * 60 * 1000);
             const delayNote = isPendingLong ? `<div class="order-delay-note">${t('dashboard.delay_note')}</div>` : '';
@@ -1627,7 +1632,14 @@ function loadMyOrders() {
                                 </svg>
                                 <span>${d.costCoins}</span>
                             </div>
-                            <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${doc.id}')">${t('dashboard.action_view_details')}</button>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                ${isCompleted && finalResultLink ? `
+                                    <a class="order-download-btn" href="${downloadUrl}" download="motionai_video_${orderId}.mp4" target="_blank" onclick="event.stopPropagation();">
+                                        📥 Tải về
+                                    </a>
+                                ` : ''}
+                                <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${doc.id}')">${t('dashboard.action_view_details')}</button>
+                            </div>
                         </div>
                     </div>
                 </div>
