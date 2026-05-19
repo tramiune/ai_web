@@ -182,11 +182,23 @@ def submit_to_aidancing(order_id):
                 page.wait_for_url("**/dashboard**", timeout=60000)
                 time.sleep(5)
 
-                job_ids = re.findall(r'\b\d{6}\b', page.content())
-                if job_ids:
-                    job_id = job_ids[0]
-                    print(f"🆔 LẤY ĐƯỢC JOB ID: {job_id}")
-                    doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
+                try:
+                    page.wait_for_selector('.job-card', timeout=20000)
+                    first_card = page.locator('.job-card').first
+                    card_text = first_card.inner_text()
+                    job_ids = re.findall(r'\b\d{6}\b', card_text)
+                    if job_ids:
+                        job_id = job_ids[0]
+                        print(f"🆔 LẤY ĐƯỢC JOB ID TỪ CARD MỚI: {job_id}")
+                        doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
+                except Exception as wait_err:
+                    print(f"⚠️ Không lấy được thẻ job-card sau khi nạp: {wait_err}")
+                    # Fallback cũ phòng trường hợp UI aidancing thay đổi
+                    job_ids = re.findall(r'\b\d{6}\b', page.content())
+                    if job_ids:
+                        job_id = job_ids[0]
+                        print(f"🆔 LẤY JOB ID (Fallback): {job_id}")
+                        doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
 
                     # Gửi thông báo Telegram: Đã nạp đơn thành công, đang render
                     try:
@@ -269,8 +281,8 @@ def check_finished_orders():
                         print(f"❌ Không thấy mã {job_id} trên trang này. Kiểm tra xem Job có ở trang 2 không?")
                         continue
 
-                    # Tìm card bằng cách rộng hơn
-                    card = page.locator(f'div:has-text("{job_id}")').last
+                    # Tìm card CHÍNH XÁC của job_id, thay vì tìm div rộng hơn (tránh bắt nhầm div tổng)
+                    card = page.locator(f'.job-card:has-text("{job_id}")').first
 
                     if card.is_visible():
                         text = card.inner_text()
