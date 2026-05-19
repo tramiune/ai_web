@@ -46,6 +46,53 @@ def upload_to_r2(file_path, folder="results"):
         print(f"❌ Lỗi R2: {e}")
     return None
 
+def send_completion_email(order_id, order_data, result_link):
+    user_email = order_data.get('userEmail')
+    user_name = order_data.get('userName', 'Khách hàng')
+    service_type = order_data.get('serviceType', 'copy-motion-photo')
+    
+    if not user_email:
+        print("⚠️ Không tìm thấy Email của khách để gửi thông báo hoàn thành đơn.")
+        return
+        
+    print(f"📧 Đang gửi email thông báo hoàn thành đơn tới: {user_email}...")
+    
+    # Ánh xạ tên dịch vụ tiếng Việt
+    service_label = service_type
+    if service_type == 'copy-motion-photo':
+        service_label = "AI Copy Chuyển Động Vào Ảnh (20s)"
+    elif service_type == 'copy-motion-multi':
+        service_label = "AI Copy Nhảy Nhiều Người"
+    elif service_type == 'char-to-video-fashion':
+        service_label = "AI Copy Thời Trang"
+    elif service_type == 'char-to-video-ads':
+        service_label = "AI Copy Sản Phẩm"
+
+    short_order_id = order_id[-6:].upper()
+    
+    payload = {
+        "service_id": "service_6r6rd2q",
+        "template_id": "template_09eir3r",
+        "user_id": "92pP97oTzMGR4p_Zp",
+        "template_params": {
+            "user_name": user_name,
+            "user_email": user_email,
+            "order_id": short_order_id,
+            "result_link": result_link,
+            "service_label": service_label
+        }
+    }
+    
+    try:
+        url = "https://api.emailjs.com/api/v1.0/email/send"
+        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=15)
+        if response.status_code == 200 or response.text == "OK":
+            print(f"✅ Gửi email thông báo qua EmailJS thành công!")
+        else:
+            print(f"❌ Lỗi gửi email qua EmailJS: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Lỗi kết nối khi gửi email thông báo qua EmailJS: {e}")
+
 # --- PHA 1: NẠP ĐƠN ---
 def submit_to_aidancing(order_id):
     with browser_lock:
@@ -217,6 +264,14 @@ def check_finished_orders():
                                                 'updatedAt': firestore.SERVER_TIMESTAMP
                                             })
                                             print(f"✅ ĐÃ TRẢ HÀNG CHO ĐƠN {doc.id}")
+                                            
+                                            # Gửi mail thông báo tự động cho khách hàng
+                                            try:
+                                                order_data = doc.to_dict()
+                                                send_completion_email(doc.id, order_data, r2_url)
+                                            except Exception as mail_err:
+                                                print(f"⚠️ Không gửi được email thông báo: {mail_err}")
+                                                
                                             os.remove(local_vid)
                             except Exception as e:
                                 print(f"⚠️ Lỗi xử lý Job {job_id}: {e}")
