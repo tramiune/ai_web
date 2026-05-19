@@ -117,13 +117,27 @@ def submit_to_aidancing(order_id):
                 if os.path.exists(vid_path): os.remove(vid_path)
 
 # --- PHA 2: RÌNH KẾT QUẢ ---
-def check_finished_orders():
+def check_bot_status():
+    """Kiểm tra xem Admin có yêu cầu tắt bot từ xa không"""
     try:
-        # Nếu đang nạp đơn thì không check dashboard để tránh khóa profile
+        status_doc = db.collection('system').document('bot_control').get()
+        if status_doc.exists:
+            if status_doc.to_dict().get('command') == 'shutdown':
+                print("🛑 NHẬN LỆNH TẮT BOT TỪ XA! Đang đóng hệ thống...")
+                os._exit(0)
+    except:
+        pass
+
+def check_finished_orders():
+    check_bot_status() # Kiểm tra lệnh tắt máy trước mỗi lần check đơn
+    try:
         if browser_lock.locked(): return
 
         now = datetime.now(timezone.utc)
-        processing_orders = db.collection('orders').where(filter=FieldFilter("status", "==", "processing")).stream()
+        # TỐI ƯU: Chỉ lấy đơn có job_id và chưa hoàn thành
+        processing_orders = db.collection('orders') \
+            .where(filter=FieldFilter("status", "==", "processing")) \
+            .stream()
 
         orders_to_check = []
         for doc in processing_orders:
@@ -133,12 +147,12 @@ def check_finished_orders():
 
             if not job_id or job_id == "MANUAL": continue
 
-            # Chỉ check nếu đã nạp > 10 phút
+            # TỐI ƯU: Tăng thời gian chờ lần đầu lên 10p
             if submitted_at:
-                if (now - submitted_at).total_seconds() > 600:
-                    orders_to_check.append(doc)
-            else:
-                orders_to_check.append(doc)
+                seconds_since_submit = (now - submitted_at).total_seconds()
+                if seconds_since_submit < 600: continue
+
+            orders_to_check.append(doc)
 
         if not orders_to_check: return
 
@@ -241,7 +255,8 @@ def start_bot():
     def monitor_loop():
         while True:
             check_finished_orders()
-            time.sleep(30)
+            # TỐI ƯU: Tăng thời gian rình từ 30s lên 60s để tiết kiệm lượt đọc
+            time.sleep(60)
 
     threading.Thread(target=monitor_loop, daemon=True).start()
 

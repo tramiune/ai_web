@@ -2046,19 +2046,16 @@ window.deleteTopup = async (event, topupId) => {
 
 function loadAdminPanel() {
     console.log("Loading Admin Panel...");
-    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
     const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
 
-    // Add search listener if not already added
-    if (!window.adminSearchInited) {
-        document.getElementById('admin-search-input')?.addEventListener('input', () => {
-            loadAdminPanel();
-        });
-        window.adminSearchInited = true;
-    }
-
-    // 1. Load Filtered Topups
-    const qTopups = query(collection(db, "topups"), where("status", "==", currentTopupStatus));
+    // 1. Load Filtered Topups - Giới hạn 10 đơn gần nhất
+    const qTopups = query(
+        collection(db, "topups"),
+        where("status", "==", currentTopupStatus),
+        orderBy("createdAt", "desc"),
+        limit(10)
+    );
     onSnapshot(qTopups,
         (snapshot) => {
             console.log("Topups data received:", snapshot.size);
@@ -2147,8 +2144,13 @@ function loadAdminPanel() {
         }
     );
 
-    // 2. Load Filtered Orders
-    const qOrders = query(collection(db, "orders"), where("status", "==", currentOrderStatus));
+    // 2. Load Filtered Orders - Giới hạn 10 đơn gần nhất
+    const qOrders = query(
+        collection(db, "orders"),
+        where("status", "==", currentOrderStatus),
+        orderBy("createdAt", "desc"),
+        limit(10)
+    );
     onSnapshot(qOrders,
         (snapshot) => {
             console.log("Orders data received:", snapshot.size);
