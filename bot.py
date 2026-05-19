@@ -58,11 +58,28 @@ def submit_to_aidancing(order_id):
         print(f"\n⚡ [NẠP ĐƠN] {order_id}...")
         doc_ref.update({'status': 'processing', 'updatedAt': firestore.SERVER_TIMESTAMP})
 
-        char_path = download_file(data.get('characterImageLink'), f"char_{order_id}.png")
-        vid_path = download_file(data.get('referenceVideoLink'), f"vid_{order_id}.mp4")
+        char_path = None
+        vid_path = None
+
+        # Thử tải tối đa 2 lần
+        for attempt in range(1, 3):
+            if attempt > 1: print(f"🔄 Thử lại lần {attempt}...")
+            char_path = download_file(data.get('characterImageLink'), f"char_{order_id}.png")
+            vid_path = download_file(data.get('referenceVideoLink'), f"vid_{order_id}.mp4")
+
+            if char_path and vid_path:
+                break
+            time.sleep(2)
 
         if not char_path or not vid_path:
-            doc_ref.update({'status': 'pending'})
+            print(f"❌ Không thể tải file sau 2 lần thử cho đơn {order_id}")
+            doc_ref.update({
+                'status': 'failed',
+                'adminNote': 'Ảnh hoặc video quý khách tải lên không tồn tại, hệ thống sẽ xác minh và hoàn tiền.',
+                'updatedAt': firestore.SERVER_TIMESTAMP
+            })
+            if char_path and os.path.exists(char_path): os.remove(char_path)
+            if vid_path and os.path.exists(vid_path): os.remove(vid_path)
             return
 
         with sync_playwright() as p:
