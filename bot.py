@@ -162,7 +162,7 @@ def check_finished_orders():
                         text = card.inner_text()
                         if any(x in text for x in ["Đã xong", "Tải Xuống", "Download", "Success"]):
                             print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
-
+                            # ... (giữ nguyên logic xử lý thành công)
                             try:
                                 # Bước 1: Thử lấy link trực tiếp từ nút Tải
                                 download_link = card.locator('a[href*="download"], a:has-text("Tải"), a:has-text("Download")').first
@@ -205,6 +205,13 @@ def check_finished_orders():
                                 print(f"⚠️ Lỗi xử lý Job {job_id}: {e}")
                                 if page.url != DASHBOARD_URL:
                                     page.goto(DASHBOARD_URL)
+                        elif any(x in text for x in ["Chưa thành công", "Thất bại", "Failed", "Error"]):
+                            print(f"❌ Job {job_id} THẤT BẠI TRÊN AIDANCING!")
+                            db.collection('orders').document(doc.id).update({
+                                'status': 'failed',
+                                'adminNote': 'Ảnh hoặc video quý khách tải lên không hợp lệ.',
+                                'updatedAt': firestore.SERVER_TIMESTAMP
+                            })
                         else:
                             print(f"⏳ Job {job_id} vẫn đang render...")
                 browser.close()
