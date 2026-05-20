@@ -24,8 +24,8 @@ function safeToDate(field) {
 const COIN_PACKAGES = [
     { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', usdPrice: '$1.99', amount: 40000, note: 'Gói giới hạn', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/3f159349-cbbc-401f-b584-6c2b561b56b0' },
     { id: 'creator', name: 'Creator', coins: 100, price: '100.000đ', usdPrice: '$4.99', amount: 100000, featured: true, note: 'Tặng 50 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/a3b6ba4b-ecf5-4c8a-b327-e41fa155da02' },
-    { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', usdPrice: '$24.99', amount: 500000, note: 'Tặng 50 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/aae30c4f-4684-483b-9177-31deb0bd33d7' },
-    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, note: 'Tặng 100 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/324a1578-2352-4930-b5d9-3e086aaff17a' }
+    { id: 'studio', name: 'Studio', coins: 800, price: '500.000đ', usdPrice: '$24.99', amount: 500000, note: 'Tặng 300 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/aae30c4f-4684-483b-9177-31deb0bd33d7' },
+    { id: 'pro-studio', name: 'Enterprise', coins: 1600, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, note: 'Tặng 600 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/324a1578-2352-4930-b5d9-3e086aaff17a' }
 ];
 
 const AI_MODELS = [
