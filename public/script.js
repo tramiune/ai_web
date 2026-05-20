@@ -1173,7 +1173,7 @@ function updateFirstOrderUI() {
             if (summaryEl) {
                 const nextCost = MODELS[modelKey] ? MODELS[modelKey].cost : 10;
                 summaryEl.innerText = `Từ video thứ 2 sẽ tính phí ${nextCost} Coin`;
-                summaryEl.style.color = '#ffde00';
+                summaryEl.style.color = 'rgba(0,0,0,0.7)';
             }
         } else {
             // Regular pricing
