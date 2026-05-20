@@ -14,17 +14,11 @@ except ValueError:
     
 db = firestore.client()
 
-def delete_old_docs(collection_name, days_to_keep, status_field=None, status_values=None):
+def delete_old_docs(collection_name, days_to_keep, status_field=None, status_values=None, require_zero_coins=False):
     print(f"\n🧹 Bắt đầu dọn dẹp collection [{collection_name}] cũ hơn {days_to_keep} ngày...")
     cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
     
     col_ref = db.collection(collection_name)
-    
-    # Ưu tiên dùng trường updatedAt nếu có, nếu không thì duyệt stream (firebase python API cho phép lấy theo metadata nhưng chậm hơn)
-    # Tuy nhiên để chắc ăn và áp dụng được index, ta dùng updatedAt/createdAt.
-    # Trong code webhook, thường có createdAt hoặc updatedAt. 
-    # Nếu hệ thống không có trường này, đoạn code where() có thể lỗi index.
-    # Giải pháp an toàn nhất: lấy tất cả doc, duyệt và kiểm tra doc.update_time (built-in)
     
     docs = col_ref.stream()
     docs_to_delete = []
@@ -36,6 +30,15 @@ def delete_old_docs(collection_name, days_to_keep, status_field=None, status_val
         if status_field and status_values:
             if data.get(status_field) not in status_values:
                 continue
+                
+        # [NEW]: Kiểm tra bắt buộc tài khoản phải hết coin mới được xóa
+        if require_zero_coins:
+            coins = data.get('coins', 0)
+            try:
+                if int(coins) > 0:
+                    continue
+            except (ValueError, TypeError):
+                pass
                 
         # Lấy thời gian update cuối cùng của document (chính xác 100% từ Firestore metadata)
         update_time = doc.update_time
@@ -74,7 +77,7 @@ if __name__ == "__main__":
     # Xóa đơn đã duyệt/lỗi cũ hơn 7 ngày
     delete_old_docs('topups', 7, status_field='status', status_values=['approved', 'rejected', 'failed'])
     
-    # 3. Dọn dẹp Users (Người dùng cũ hơn 2 ngày)
-    delete_old_docs('users', 2)
+    # 3. Dọn dẹp Users (Người dùng cũ hơn 2 ngày VÀ không còn coin)
+    delete_old_docs('users', 2, require_zero_coins=True)
     
     print("\n✅ TẤT CẢ QUÁ TRÌNH DỌN DẸP ĐÃ HOÀN TẤT!")
