@@ -291,14 +291,24 @@ def check_finished_orders():
                         print(f"❌ Không thấy mã {job_id} trên trang này. Kiểm tra xem Job có ở trang 2 không?")
                         continue
 
-                    # [FIX]: Tìm chính xác thẻ Container (Card) chứa Job ID và Video/Nút tải, tránh lấy nhầm thẻ span nhỏ bên trong.
-                    card_loc = page.locator(f'div:has-text("{job_id}")').filter(has=page.locator('a, video, button')).last
-                    if card_loc.count() > 0:
-                        card = card_loc
-                    else:
-                        card = page.locator(f'div:has-text("{job_id}")').last
+                    # [FIX]: Tìm chính xác thẻ Card chứa đơn hàng này bằng cách mở rộng dần từ phần tử nhỏ nhất
+                    # Đảm bảo không bao giờ bị dính vào thẻ List to đùng chứa nhiều đơn hàng (khiến cho bị nhận nhầm trạng thái của đơn khác)
+                    containers = page.locator(f'div:has-text("{job_id}")')
+                    count = containers.count()
+                    card = None
+                    
+                    for i in range(count - 1, -1, -1):
+                        container = containers.nth(i)
+                        text = container.inner_text()
+                        
+                        # Đếm số lượng Job ID (6 số) trong thẻ này
+                        ids_inside = set(re.findall(r'\b\d{6}\b', text))
+                        if len(ids_inside) > 1:
+                            # Nếu thẻ chứa nhiều hơn 1 đơn hàng -> Nó là thẻ List cha. Dừng lại, dùng thẻ con trước đó.
+                            break
+                        card = container
 
-                    if card.is_visible():
+                    if card and card.is_visible():
                         text = card.inner_text()
                         if any(x in text for x in ["Đã xong", "Tải Xuống", "Download", "Success"]):
                             print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
