@@ -381,13 +381,16 @@ def check_finished_orders():
                                                 short_id = doc.id[-6:].upper()
                                                 user_name = order_data.get('userName', 'Khách hàng')
                                                 user_email = order_data.get('userEmail', 'N/A')
+                                                char_img = order_data.get('characterImageLink', '')
                                                 msg = (
                                                     f"✅ <b>ĐƠN HÀNG HOÀN THÀNH</b>\n\n"
                                                     f"🆔 Mã đơn: #{short_id}\n"
                                                     f"👤 Khách: {user_name}\n"
                                                     f"📧 Email: {user_email}\n"
-                                                    f"📹 Kết quả: <a href=\"{r2_url}\">Xem video kết quả</a>"
                                                 )
+                                                if char_img:
+                                                    msg += f"📸 Ảnh đầu vào: <a href=\"{char_img}\">Xem ảnh gốc</a>\n"
+                                                msg += f"📹 Kết quả: <a href=\"{r2_url}\">Xem video kết quả</a>"
                                                 send_telegram_message(msg)
                                             except Exception as tele_err:
                                                 print(f"⚠️ Lỗi gửi thông báo Telegram hoàn thành: {tele_err}")
