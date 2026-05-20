@@ -291,8 +291,12 @@ def check_finished_orders():
                         print(f"❌ Không thấy mã {job_id} trên trang này. Kiểm tra xem Job có ở trang 2 không?")
                         continue
 
-                    # Tìm card bằng cách rộng hơn
-                    card = page.locator(f'div:has-text("{job_id}")').last
+                    # [FIX]: Tìm chính xác thẻ Container (Card) chứa Job ID và Video/Nút tải, tránh lấy nhầm thẻ span nhỏ bên trong.
+                    card_loc = page.locator(f'div:has-text("{job_id}")').filter(has=page.locator('a, video, button')).last
+                    if card_loc.count() > 0:
+                        card = card_loc
+                    else:
+                        card = page.locator(f'div:has-text("{job_id}")').last
 
                     if card.is_visible():
                         text = card.inner_text()
@@ -300,22 +304,33 @@ def check_finished_orders():
                             print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
                             # ... (giữ nguyên logic xử lý thành công)
                             try:
-                                # Bước 1: Thử lấy link trực tiếp từ nút Tải
+                                # Bước 1: Thử lấy link trực tiếp từ nút Tải TRONG CARD NÀY
                                 download_link = card.locator('a[href*="download"], a:has-text("Tải"), a:has-text("Download")').first
                                 ext_url = None
-                                if download_link.is_visible():
+                                if download_link.count() > 0 and download_link.is_visible():
                                     ext_url = download_link.get_attribute('href', timeout=3000)
 
-                                # Bước 2 (Dự phòng): Click vào card để vào trang chi tiết lấy video
+                                # Bước 2 (MỚI): Thử tìm thẻ video NGAY TRONG CARD NÀY (Không quét toàn trang)
+                                if not ext_url:
+                                    video_element = card.locator('video source, video[src]').first
+                                    if video_element.count() > 0 and video_element.is_visible():
+                                        ext_url = video_element.get_attribute('src')
+
+                                # Bước 3 (Dự phòng): Click vào card để vào trang chi tiết lấy video
                                 if not ext_url:
                                     try:
                                         print(f"🖱️ Click vào Job {job_id} để lấy link video...")
                                         card.click()
                                         page.wait_for_timeout(5000)
-                                        video_element = page.locator('video source, video[src]').first
-                                        ext_url = video_element.get_attribute('src')
-                                        page.goto(DASHBOARD_URL) # Quay lại Dashboard
-                                        time.sleep(3)
+                                        # [FIX]: Kiểm tra xem trang CÓ THỰC SỰ CHUYỂN HAY KHÔNG
+                                        if "dashboard" not in page.url:
+                                            video_element = page.locator('video source, video[src]').first
+                                            if video_element.count() > 0:
+                                                ext_url = video_element.get_attribute('src')
+                                            page.goto(DASHBOARD_URL) # Quay lại Dashboard
+                                            time.sleep(3)
+                                        else:
+                                            print(f"❌ Nút click không chuyển trang. Bỏ qua để tránh lấy nhầm video ngoài Dashboard.")
                                     except Exception as e:
                                         print(f"❌ Lỗi khi vào trang chi tiết cho Job {job_id}: {e}")
 
