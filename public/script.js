@@ -1026,33 +1026,50 @@ window.selectTopup = async (id) => {
         items: [{ item_id: selectedTopupPackage.id, item_name: selectedTopupPackage.name }]
     });
 
-    // Generate unique random code: [CoinAmount] COIN [RandomStr]
-    const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
-
     // --- Tự động tạo bản ghi nạp tiền để Webhook Casso có thể tìm thấy ---
-    const { db, collection, addDoc, serverTimestamp } = window.firebase;
+    const { db, collection, addDoc, serverTimestamp, query, where, getDocs } = window.firebase;
+    let transferContent = "";
+    
     try {
-        await addDoc(collection(db, "topups"), {
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            userName: currentUser.displayName,
-            packageName: selectedTopupPackage.name,
-            coins: selectedTopupPackage.coins,
-            amount: selectedTopupPackage.amount,
-            transferContent: transferContent,
-            status: "pending",
-            createdAt: serverTimestamp(),
-            isAutomated: true // Đánh dấu đây là đơn tạo tự động
-        });
-        console.log("📝 Đã tạo bản ghi nạp tiền tự động:", transferContent);
-
-        // Notify Telegram
-        // const msg = `💳 <b>YÊU CẦU NẠP COIN MỚI</b>\n👤 Khách: ${escapeHTML(currentUser.displayName)}\n📧 Email: ${escapeHTML(currentUser.email)}\n📦 Gói: ${selectedTopupPackage.name}\n💰 Số tiền: ${selectedTopupPackage.price}\n🪙 Coin nhận: ${selectedTopupPackage.coins}\n📝 Nội dung: <code>${transferContent}</code>`;
-        // sendTelegramMessage(msg);
+        // [FIX]: Kiểm tra xem user đã có đơn pending nào cho gói này chưa
+        const q = query(
+            collection(db, "topups"),
+            where("userId", "==", currentUser.uid),
+            where("status", "==", "pending"),
+            where("packageName", "==", selectedTopupPackage.name)
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            // Tái sử dụng đơn nạp cũ
+            const existingDoc = snapshot.docs[0].data();
+            transferContent = existingDoc.transferContent;
+            console.log("♻️ Tái sử dụng đơn nạp tiền cũ đang chờ:", transferContent);
+        } else {
+            // Tạo mã nạp mới
+            const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+            transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
+            
+            await addDoc(collection(db, "topups"), {
+                userId: currentUser.uid,
+                userEmail: currentUser.email,
+                userName: currentUser.displayName,
+                packageName: selectedTopupPackage.name,
+                coins: selectedTopupPackage.coins,
+                amount: selectedTopupPackage.amount,
+                transferContent: transferContent,
+                status: "pending",
+                createdAt: serverTimestamp(),
+                isAutomated: true
+            });
+            console.log("📝 Đã tạo bản ghi nạp tiền mới:", transferContent);
+        }
     } catch (err) {
-        console.error("Lỗi khi tạo bản ghi nạp tiền:", err);
-        // Vẫn tiếp tục hiện QR cho khách, Admin có thể check tay nếu lỗi DB
+        console.error("Lỗi khi kiểm tra/tạo bản ghi nạp tiền:", err);
+        // Fallback tạo mã offline nếu lỗi
+        const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+        transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
     }
 
     document.getElementById('topup-package-info').innerHTML = `
