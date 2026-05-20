@@ -278,49 +278,34 @@ def check_finished_orders():
                             print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
                             # ... (giữ nguyên logic xử lý thành công)
                             try:
-                                local_vid = None
+                                # Bước 1: Thử lấy link trực tiếp từ nút Tải
                                 download_link = card.locator('a[href*="download"], a:has-text("Tải"), a:has-text("Download")').first
-                                
-                                # Bước 1: Dùng Playwright Download native (Chống Cloudflare / HTML rác)
+                                ext_url = None
                                 if download_link.is_visible():
-                                    print(f"📥 Đang tải video bằng Playwright native...")
+                                    ext_url = download_link.get_attribute('href', timeout=3000)
+
+                                # Bước 2 (Dự phòng): Click vào card để vào trang chi tiết lấy video
+                                if not ext_url:
                                     try:
-                                        with page.expect_download(timeout=60000) as download_info:
-                                            download_link.click(force=True)
-                                        download = download_info.value
-                                        local_vid_path = os.path.abspath(f"res_{doc.id}.mp4")
-                                        download.save_as(local_vid_path)
-                                        local_vid = local_vid_path
-                                        print(f"✅ Tải thành công: {local_vid}")
-                                    except Exception as dl_err:
-                                        print(f"❌ Playwright native download thất bại: {dl_err}")
+                                        print(f"🖱️ Click vào Job {job_id} để lấy link video...")
+                                        card.click()
+                                        page.wait_for_timeout(5000)
+                                        video_element = page.locator('video source, video[src]').first
+                                        ext_url = video_element.get_attribute('src')
+                                        page.goto(DASHBOARD_URL) # Quay lại Dashboard
+                                        time.sleep(3)
+                                    except Exception as e:
+                                        print(f"❌ Lỗi khi vào trang chi tiết cho Job {job_id}: {e}")
 
-                                # Bước 2 (Dự phòng): Nếu Playwright native lỗi, thử fallback lấy URL
-                                if not local_vid:
-                                    print("🔄 Đang thử fallback lấy URL...")
-                                    ext_url = None
-                                    if download_link.is_visible():
-                                        ext_url = download_link.get_attribute('href', timeout=3000)
-                                    
-                                    if not ext_url:
-                                        try:
-                                            print(f"🖱️ Click vào Job {job_id} để lấy link video...")
-                                            card.click(force=True)
-                                            page.wait_for_timeout(5000)
-                                            video_element = page.locator('video source, video[src]').first
-                                            ext_url = video_element.get_attribute('src')
-                                            page.goto(DASHBOARD_URL) # Quay lại Dashboard
-                                            time.sleep(3)
-                                        except Exception as e:
-                                            print(f"❌ Lỗi khi vào trang chi tiết cho Job {job_id}: {e}")
+                                # Bước 3: Tải file nếu đã có link (kèm cookies)
+                                if ext_url:
+                                    if not ext_url.startswith('http'): ext_url = "https://aidancing.net" + ext_url
 
-                                    # Tải file dự phòng nếu có link
-                                    if ext_url:
-                                        if not ext_url.startswith('http'): ext_url = "https://aidancing.net" + ext_url
-                                        browser_cookies = {c['name']: c['value'] for c in browser.cookies()}
-                                        local_vid = download_file(ext_url, f"res_{doc.id}.mp4", cookies=browser_cookies)
+                                    # Lấy cookies từ trình duyệt để vượt qua lỗi 401
+                                    browser_cookies = {c['name']: c['value'] for c in browser.cookies()}
 
-                                if local_vid:
+                                    local_vid = download_file(ext_url, f"res_{doc.id}.mp4", cookies=browser_cookies)
+                                    if local_vid:
                                         r2_url = upload_to_r2(local_vid)
                                         if r2_url:
                                             db.collection('orders').document(doc.id).update({
