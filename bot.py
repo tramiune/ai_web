@@ -310,7 +310,8 @@ def check_finished_orders():
 
                     if card and card.is_visible():
                         text = card.inner_text()
-                        if any(x in text for x in ["Đã xong", "Tải Xuống", "Download", "Success"]):
+                        # [FIX]: Bỏ "Tải Xuống" và "Download" khỏi điều kiện vì nút này luôn hiển thị trên UI kể cả khi đang xử lý
+                        if any(x in text for x in ["Đã xong", "Success"]):
                             print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
                             # ... (giữ nguyên logic xử lý thành công)
                             try:
