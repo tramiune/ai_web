@@ -137,9 +137,21 @@ def submit_to_aidancing(order_id):
 
         if not char_path or not vid_path:
             print(f"❌ Không thể tải file sau 2 lần thử cho đơn {order_id}")
+            # Hoàn tiền cho khách
+            cost_coins = data.get('costCoins', 0)
+            user_id = data.get('userId')
+            if cost_coins > 0 and user_id:
+                try:
+                    db.collection('users').document(user_id).update({
+                        'coins': firestore.Increment(cost_coins)
+                    })
+                    print(f"💰 Đã hoàn lại {cost_coins} coin cho user {user_id}")
+                except Exception as e:
+                    print(f"⚠️ Lỗi khi hoàn tiền cho user {user_id}: {e}")
+
             doc_ref.update({
                 'status': 'failed',
-                'adminNote': 'Ảnh hoặc video quý khách tải lên không tồn tại, hệ thống sẽ xác minh và hoàn tiền.',
+                'adminNote': 'Ảnh hoặc video quý khách tải lên không tồn tại, hệ thống đã hoàn lại coin.',
                 'updatedAt': firestore.SERVER_TIMESTAMP
             })
 
@@ -394,9 +406,23 @@ def check_finished_orders():
                                     page.goto(DASHBOARD_URL)
                         elif any(x in text for x in ["Chưa thành công", "Thất bại", "Failed", "Error"]):
                             print(f"❌ Job {job_id} THẤT BẠI TRÊN AIDANCING!")
+                            order_data = doc.to_dict()
+                            
+                            # Hoàn tiền cho khách
+                            cost_coins = order_data.get('costCoins', 0)
+                            user_id = order_data.get('userId')
+                            if cost_coins > 0 and user_id:
+                                try:
+                                    db.collection('users').document(user_id).update({
+                                        'coins': firestore.Increment(cost_coins)
+                                    })
+                                    print(f"💰 Đã hoàn lại {cost_coins} coin cho user {user_id}")
+                                except Exception as e:
+                                    print(f"⚠️ Lỗi khi hoàn tiền cho user {user_id}: {e}")
+
                             db.collection('orders').document(doc.id).update({
                                 'status': 'failed',
-                                'adminNote': 'Ảnh hoặc video quý khách tải lên không hợp lệ.',
+                                'adminNote': 'Ảnh hoặc video quý khách tải lên không hợp lệ, hệ thống đã hoàn lại coin.',
                                 'updatedAt': firestore.SERVER_TIMESTAMP
                             })
 
