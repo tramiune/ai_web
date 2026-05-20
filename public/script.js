@@ -1171,9 +1171,8 @@ function updateFirstOrderUI() {
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
             if (summaryEl) {
-                const nextCost = MODELS[modelKey] ? MODELS[modelKey].cost : 10;
-                summaryEl.innerText = `Từ video thứ 2 sẽ tính phí ${nextCost} Coin`;
-                summaryEl.style.color = 'rgba(0,0,0,0.7)';
+                summaryEl.innerText = t(`modals.model_${modelKey}_desc`);
+                summaryEl.style.color = '';
             }
         } else {
             // Regular pricing
