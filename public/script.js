@@ -804,7 +804,7 @@ function renderPricing() {
             ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured')}</div>` : ''}
             ${pkg.note ? `<div class="bonus-tag">${pkg.note}</div>` : ''}
             
-                <div class="coin-visual-wrapper">
+                <div class="coin-visual-wrapper" style="margin-bottom: 4px;">
                     <svg class="coin-icon-svg" style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none">
                         <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
                         <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
@@ -812,6 +812,7 @@ function renderPricing() {
                     </svg>
                     <span>${pkg.coins}</span>
                 </div>
+                ${pkg.note && pkg.note.includes('Tặng') ? `<div style="font-size: 0.75rem; color: #a0a0a0; margin-bottom: 10px; font-weight: 500;">(Đã bao gồm số lượng tặng)</div>` : `<div style="height: 22px; margin-bottom: 10px;"></div>`}
 
             <div class="price-value">${pkg.price}</div>
             
