@@ -4,7 +4,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # --- CONFIGURATION ---
-DAYS_TO_KEEP = 7  # Số ngày giữ lại dữ liệu
 BATCH_SIZE = 100  # Số lượng xóa mỗi mẻ
 
 cred = credentials.Certificate("serviceAccountKey.json")
@@ -15,9 +14,9 @@ except ValueError:
     
 db = firestore.client()
 
-def delete_old_docs(collection_name, status_field=None, status_values=None):
-    print(f"\n🧹 Bắt đầu dọn dẹp collection [{collection_name}] cũ hơn {DAYS_TO_KEEP} ngày...")
-    cutoff_time = datetime.now(timezone.utc) - timedelta(days=DAYS_TO_KEEP)
+def delete_old_docs(collection_name, days_to_keep, status_field=None, status_values=None):
+    print(f"\n🧹 Bắt đầu dọn dẹp collection [{collection_name}] cũ hơn {days_to_keep} ngày...")
+    cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
     
     col_ref = db.collection(collection_name)
     
@@ -64,16 +63,18 @@ def delete_old_docs(collection_name, status_field=None, status_values=None):
     print(f"🎉 Hoàn tất dọn dẹp [{collection_name}]! Đã xóa {total_deleted} bản ghi.")
 
 if __name__ == "__main__":
-    print(f"=== BẮT ĐẦU CHƯƠNG TRÌNH DỌN RÁC (Giữ lại {DAYS_TO_KEEP} ngày) ===")
+    print("=== BẮT ĐẦU CHƯƠNG TRÌNH DỌN RÁC ===")
     
-    # 1. Dọn dẹp đơn hàng (chỉ xóa đơn đã xong hoặc lỗi)
-    delete_old_docs('orders', status_field='status', status_values=['completed', 'failed'])
+    # 1. Dọn dẹp đơn hàng (chỉ xóa đơn đã xong hoặc lỗi sau 7 ngày)
+    delete_old_docs('orders', 7, status_field='status', status_values=['completed', 'failed'])
     
-    # 2. Dọn dẹp lịch sử nạp coin (topups) - thường thì giữ lại lịch sử cũng tốt, nhưng nếu bạn muốn dọn thì bật
-    delete_old_docs('topups', status_field='status', status_values=['approved', 'rejected', 'failed', 'pending'])
+    # 2. Dọn dẹp lịch sử nạp coin (topups)
+    # Xóa đơn pending cũ hơn 1 ngày
+    delete_old_docs('topups', 1, status_field='status', status_values=['pending'])
+    # Xóa đơn đã duyệt/lỗi cũ hơn 7 ngày
+    delete_old_docs('topups', 7, status_field='status', status_values=['approved', 'rejected', 'failed'])
     
-    # 3. Dọn dẹp Users (Người dùng không hoạt động / không nạp thẻ trong 7 ngày)
-    # LƯU Ý: Xóa user có thể làm mất số coin còn dư của họ nếu họ không đăng nhập sau 7 ngày!
-    delete_old_docs('users')
+    # 3. Dọn dẹp Users (Người dùng cũ hơn 2 ngày)
+    delete_old_docs('users', 2)
     
     print("\n✅ TẤT CẢ QUÁ TRÌNH DỌN DẸP ĐÃ HOÀN TẤT!")
