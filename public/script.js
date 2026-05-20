@@ -1161,21 +1161,31 @@ function updateFirstOrderUI() {
     if (costEl) {
         const submitBtn = document.getElementById('order-submit-btn');
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
+        const summaryEl = document.getElementById('submit-summary-line');
+        const checkedModel = document.querySelector('input[name="model-type"]:checked');
+        const modelKey = checkedModel ? checkedModel.value : 'fast';
 
         if (orderCount === 0) {
             // First order: 1 Coin
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
+            if (summaryEl) {
+                const nextCost = MODELS[modelKey] ? MODELS[modelKey].cost : 10;
+                summaryEl.innerText = `Từ video thứ 2 sẽ tính phí ${nextCost} Coin`;
+                summaryEl.style.color = '#ffde00';
+            }
         } else {
             // Regular pricing
-            const checkedModel = document.querySelector('input[name="model-type"]:checked');
-            const modelKey = checkedModel ? checkedModel.value : 'fast';
             if (MODELS[modelKey]) {
                 costEl.innerText = MODELS[modelKey].cost;
             }
             if (submitBtn) submitBtn.classList.remove('btn-first-offer');
             if (submitText) submitText.innerText = t('hero.cta_create');
+            if (summaryEl) {
+                summaryEl.innerText = t(`modals.model_${modelKey}_desc`);
+                summaryEl.style.color = '';
+            }
         }
     }
 }
@@ -1307,15 +1317,7 @@ async function setupEventListeners() {
     // Model Selection change cost
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
-            const model = MODELS[e.target.value];
             updateFirstOrderUI();
-
-            // Cập nhật dòng tóm tắt trên nút
-            const summaryEl = document.getElementById('submit-summary-line');
-            if (summaryEl) {
-                const desc = t(`modals.model_${e.target.value}_desc`);
-                summaryEl.innerText = desc;
-            }
         });
     });
 
