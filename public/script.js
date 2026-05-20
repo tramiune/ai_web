@@ -1827,7 +1827,19 @@ window.loadAdminUsers = () => {
             return text.includes(searchVal);
         });
 
-        list.innerHTML = filteredDocs.map(doc => {
+        // --- Client-side Pagination for Users ---
+        const ITEMS_PER_PAGE = 10;
+        if (!window.currentAdminUserPage) window.currentAdminUserPage = 1;
+        const totalPages = Math.ceil(filteredDocs.length / ITEMS_PER_PAGE);
+        
+        if (window.currentAdminUserPage > totalPages && totalPages > 0) {
+            window.currentAdminUserPage = totalPages;
+        }
+
+        const startIndex = (window.currentAdminUserPage - 1) * ITEMS_PER_PAGE;
+        const pageData = filteredDocs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+        list.innerHTML = pageData.map(doc => {
             const d = doc.data();
             return `
                 <tr>
@@ -1859,7 +1871,35 @@ window.loadAdminUsers = () => {
                 </tr>
             `;
         }).join('');
+
+        // Render Pagination Controls for Users
+        let paginationContainer = document.getElementById('admin-users-pagination');
+        if (!paginationContainer) {
+            paginationContainer = document.createElement('div');
+            paginationContainer.id = 'admin-users-pagination';
+            paginationContainer.style.display = 'flex';
+            paginationContainer.style.justifyContent = 'center';
+            paginationContainer.style.alignItems = 'center';
+            paginationContainer.style.gap = '15px';
+            paginationContainer.style.marginTop = '20px';
+            list.parentElement.parentElement.appendChild(paginationContainer); // Appending to the table container
+        }
+
+        if (totalPages > 1) {
+            paginationContainer.innerHTML = `
+                <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage - 1})" ${window.currentAdminUserPage === 1 ? 'disabled' : ''}>Trước</button>
+                <span>Trang ${window.currentAdminUserPage} / ${totalPages}</span>
+                <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage + 1})" ${window.currentAdminUserPage === totalPages ? 'disabled' : ''}>Sau</button>
+            `;
+        } else {
+            paginationContainer.innerHTML = '';
+        }
     });
+};
+
+window.changeAdminUserPage = (newPage) => {
+    window.currentAdminUserPage = newPage;
+    window.loadAdminUsers();
 };
 
 window.updateUserCoins = async (userId) => {
@@ -2158,12 +2198,24 @@ function loadAdminPanel() {
                 return timeB - timeA;
             });
 
+            // --- Client-side Pagination for Topups ---
+            const ITEMS_PER_PAGE = 10;
+            if (!window.currentAdminTopupPage) window.currentAdminTopupPage = 1;
+            const totalPages = Math.ceil(dataList.length / ITEMS_PER_PAGE);
+            
+            if (window.currentAdminTopupPage > totalPages && totalPages > 0) {
+                window.currentAdminTopupPage = totalPages;
+            }
+
+            const startIndex = (window.currentAdminTopupPage - 1) * ITEMS_PER_PAGE;
+            const pageData = dataList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
             let lastUserId = null;
             let groupColor = 'transparent';
             const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
             let colorIdx = 0;
 
-            list.innerHTML = dataList.map(d => {
+            list.innerHTML = pageData.map(d => {
                 if (d.userId !== lastUserId) {
                     groupColor = groupColors[colorIdx % 2];
                     colorIdx++;
@@ -2196,6 +2248,30 @@ function loadAdminPanel() {
                     </tr>
                 `;
             }).join('');
+
+            // Render Pagination Controls for Topups
+            let paginationContainer = document.getElementById('admin-topups-pagination');
+            if (!paginationContainer) {
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = 'admin-topups-pagination';
+                paginationContainer.style.display = 'flex';
+                paginationContainer.style.justifyContent = 'center';
+                paginationContainer.style.alignItems = 'center';
+                paginationContainer.style.gap = '15px';
+                paginationContainer.style.marginTop = '20px';
+                list.parentElement.parentElement.appendChild(paginationContainer); // Appending to the table container
+            }
+
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = `
+                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage - 1})" ${window.currentAdminTopupPage === 1 ? 'disabled' : ''}>Trước</button>
+                    <span>Trang ${window.currentAdminTopupPage} / ${totalPages}</span>
+                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage + 1})" ${window.currentAdminTopupPage === totalPages ? 'disabled' : ''}>Sau</button>
+                `;
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+
         },
         (error) => {
             console.error("Topups Snapshot Error:", error);
@@ -2213,6 +2289,7 @@ function loadAdminPanel() {
 
             if (snapshot.empty) {
                 list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Chưa có đơn hàng nào trong mục này</td></tr>';
+                document.getElementById('admin-orders-pagination')?.remove();
                 return;
             }
 
@@ -2225,6 +2302,7 @@ function loadAdminPanel() {
 
             if (filteredDocs.length === 0) {
                 list.innerHTML = '<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+                document.getElementById('admin-orders-pagination')?.remove();
                 return;
             }
 
@@ -2249,12 +2327,24 @@ function loadAdminPanel() {
                 return timeB - timeA;
             });
 
+            // --- Client-side Pagination ---
+            const ITEMS_PER_PAGE = 10;
+            if (!window.currentAdminOrderPage) window.currentAdminOrderPage = 1;
+            const totalPages = Math.ceil(dataList.length / ITEMS_PER_PAGE);
+            
+            if (window.currentAdminOrderPage > totalPages && totalPages > 0) {
+                window.currentAdminOrderPage = totalPages;
+            }
+
+            const startIndex = (window.currentAdminOrderPage - 1) * ITEMS_PER_PAGE;
+            const pageData = dataList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
             let lastUserId = null;
             let groupColor = 'transparent';
             const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
             let colorIdx = 0;
 
-            list.innerHTML = dataList.map(d => {
+            list.innerHTML = pageData.map(d => {
                 if (d.userId !== lastUserId) {
                     groupColor = groupColors[colorIdx % 2];
                     colorIdx++;
@@ -2284,6 +2374,30 @@ function loadAdminPanel() {
                     </tr>
                 `;
             }).join('');
+
+            // Render Pagination Controls
+            let paginationContainer = document.getElementById('admin-orders-pagination');
+            if (!paginationContainer) {
+                paginationContainer = document.createElement('div');
+                paginationContainer.id = 'admin-orders-pagination';
+                paginationContainer.style.display = 'flex';
+                paginationContainer.style.justifyContent = 'center';
+                paginationContainer.style.alignItems = 'center';
+                paginationContainer.style.gap = '15px';
+                paginationContainer.style.marginTop = '20px';
+                list.parentElement.parentElement.appendChild(paginationContainer); // Appending to the table container
+            }
+
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = `
+                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage - 1})" ${window.currentAdminOrderPage === 1 ? 'disabled' : ''}>Trước</button>
+                    <span>Trang ${window.currentAdminOrderPage} / ${totalPages}</span>
+                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage + 1})" ${window.currentAdminOrderPage === totalPages ? 'disabled' : ''}>Sau</button>
+                `;
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+
         },
         (error) => {
             console.error("Orders Snapshot Error:", error);
@@ -2291,6 +2405,16 @@ function loadAdminPanel() {
         }
     );
 }
+
+window.changeAdminOrderPage = (newPage) => {
+    window.currentAdminOrderPage = newPage;
+    loadAdminPanel();
+};
+
+window.changeAdminTopupPage = (newPage) => {
+    window.currentAdminTopupPage = newPage;
+    loadAdminPanel();
+};
 
 window.openUserOrderDetail = async (orderId) => {
     const { db, doc, getDoc } = window.firebase;
