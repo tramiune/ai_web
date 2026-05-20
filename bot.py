@@ -171,6 +171,13 @@ def submit_to_aidancing(order_id):
             )
             page = browser.new_page()
             try:
+                # [FIX]: Lấy danh sách Job cũ trước để tránh lấy nhầm
+                print("🌐 Đang kiểm tra danh sách Job cũ trên Dashboard...")
+                page.goto(DASHBOARD_URL, timeout=60000)
+                page.wait_for_timeout(3000)
+                old_job_ids = set(re.findall(r'\b\d{6}\b', page.content()))
+                print(f"📦 Đã ghi nhận {len(old_job_ids)} Job ID cũ.")
+
                 model_id = data.get('modelId', '34')
                 create_url = f"https://aidancing.net/create/general?id={model_id}"
                 print(f"🌐 Vào trang tạo: {create_url}")
@@ -179,14 +186,29 @@ def submit_to_aidancing(order_id):
                 page.set_input_files('input[name="video"]', vid_path)
                 page.locator('button.neon-ai-2').first.click()
 
+                print("⏳ Đợi chuyển về Dashboard và quét Job ID mới...")
                 page.wait_for_url("**/dashboard**", timeout=60000)
-                time.sleep(5)
+                
+                job_id = None
+                for _ in range(15): # Thử tối đa 30 giây
+                    page.wait_for_timeout(2000)
+                    current_job_ids = set(re.findall(r'\b\d{6}\b', page.content()))
+                    new_jobs = current_job_ids - old_job_ids
+                    if new_jobs:
+                        job_id = sorted(list(new_jobs))[-1] # Lấy ID lớn nhất/mới nhất
+                        break
 
-                job_ids = re.findall(r'\b\d{6}\b', page.content())
-                if job_ids:
-                    job_id = job_ids[0]
-                    print(f"🆔 LẤY ĐƯỢC JOB ID: {job_id}")
+                if job_id:
+                    print(f"🆔 LẤY ĐƯỢC JOB ID MỚI: {job_id}")
                     doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
+                else:
+                    # Fallback nếu sau 30s vẫn không thấy job mới (có thể lỗi hoặc web lag)
+                    print("⚠️ Không tìm thấy Job ID mới sau 30s! Dùng cách lấy mặc định...")
+                    job_ids = re.findall(r'\b\d{6}\b', page.content())
+                    if job_ids:
+                        job_id = job_ids[0]
+                        print(f"🆔 LẤY ĐƯỢC JOB ID (Fallback): {job_id}")
+                        doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
 
                     # Gửi thông báo Telegram: Đã nạp đơn thành công, đang render
                     try:
