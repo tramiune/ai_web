@@ -53,7 +53,7 @@ const TREND_VIDEOS = [
 ];
 
 const MODELS = {
-    fast: { name: "Model Nhanh", cost: 10, time: "30p", modelId: "32" },
+    fast: { name: "Model Nhanh", cost: 10, time: "30p", modelId: "34" },
     turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p", modelId: "117" }
 };
 
