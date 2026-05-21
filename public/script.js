@@ -1234,12 +1234,17 @@ window.handlePreview = (input, containerId) => {
         img.onload = () => URL.revokeObjectURL(img.src);
         container.appendChild(img);
     } else if (file.type.startsWith('video/')) {
+        if (file.size > 90 * 1024 * 1024) {
+            showToast(t('modals.video_size_limit'));
+            input.value = '';
+            return;
+        }
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
             const duration = video.duration;
             if (duration > 20) {
-                showToast("⚠️ Video quá dài! Vui lòng chọn video dưới 20 giây.");
+                showToast(t('modals.video_duration_limit'));
                 input.value = '';
                 URL.revokeObjectURL(video.src);
                 return;
@@ -1349,6 +1354,9 @@ async function setupEventListeners() {
 
                 // Kiểm tra lại lần cuối trước khi upload
                 if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
+                if (window.currentVideoSource === 'upload' && videoFile && videoFile.size > 90 * 1024 * 1024) {
+                    return showToast(t('modals.video_size_limit'));
+                }
 
                 // Show loading
                 submitBtn.disabled = true;
