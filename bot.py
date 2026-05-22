@@ -1,6 +1,5 @@
 import time
 import os
-import socket
 import requests
 import firebase_admin
 import re
@@ -20,25 +19,6 @@ DASHBOARD_URL = "https://aidancing.net/dashboard"
 WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
 
 browser_lock = threading.Lock()
-BOT_VERSION = "3.4-multi-bot"
-BOT_CONFIG = {"enabled": False}
-BOT_CONFIG_LOCK = threading.Lock()
-BOT_ID = None
-BOT_REF = None
-
-
-def get_bot_id():
-    custom = os.environ.get("BOT_ID", "").strip()
-    if custom:
-        return re.sub(r"[^a-zA-Z0-9_-]", "-", custom)[:64]
-    return re.sub(r"[^a-zA-Z0-9_-]", "-", socket.gethostname())[:64]
-
-
-def init_bot_identity():
-    global BOT_ID, BOT_REF
-    BOT_ID = get_bot_id()
-    BOT_REF = db.collection("bots").document(BOT_ID)
-    print(f"🤖 Bot ID: {BOT_ID}")
 
 TELEGRAM_BOT_TOKEN = "8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc"
 TELEGRAM_CHAT_ID = "6067707939"
@@ -130,90 +110,17 @@ def send_completion_email(order_id, order_data, result_link):
     except Exception as e:
         print(f"❌ Lỗi kết nối khi gửi email thông báo qua EmailJS: {e}")
 
-def apply_bot_config(data):
-    if not data:
-        return
-    with BOT_CONFIG_LOCK:
-        if "enabled" in data:
-            BOT_CONFIG["enabled"] = bool(data["enabled"])
-        else:
-            # Dữ liệu cũ (2 toggle) → bật nếu cả hai đều bật
-            s = data.get("submitEnabled", True)
-            m = data.get("monitorEnabled", True)
-            BOT_CONFIG["enabled"] = (s is not False) and (m is not False)
-
-
-def is_bot_active():
-    with BOT_CONFIG_LOCK:
-        return BOT_CONFIG.get("enabled", False)
-
-
-def heartbeat_loop():
-    host = socket.gethostname()
-    display = os.environ.get("BOT_NAME", "").strip() or host
-    while True:
-        try:
-            BOT_REF.set({
-                "lastHeartbeat": firestore.SERVER_TIMESTAMP,
-                "host": host,
-                "displayName": display,
-                "version": BOT_VERSION,
-                "status": "online",
-                "botId": BOT_ID,
-            }, merge=True)
-        except Exception as e:
-            print(f"⚠️ Heartbeat lỗi: {e}")
-        time.sleep(45)
-
-
-def on_bot_config_snapshot(doc_snapshot, changes, read_time):
-    if doc_snapshot.exists:
-        apply_bot_config(doc_snapshot.to_dict())
-        with BOT_CONFIG_LOCK:
-            print(f"📋 [{BOT_ID}] cho phép hoạt động={BOT_CONFIG['enabled']}")
-
-
-@firestore.transactional
-def claim_pending_order(transaction, doc_ref):
-    snapshot = doc_ref.get(transaction=transaction)
-    if not snapshot.exists:
-        return False
-    data = snapshot.to_dict()
-    if data.get("status") != "pending":
-        return False
-    transaction.update(doc_ref, {
-        "status": "processing",
-        "claimedByBotId": BOT_ID,
-        "updatedAt": firestore.SERVER_TIMESTAMP,
-    })
-    return True
-
-
 # --- PHA 1: NẠP ĐƠN ---
 def submit_to_aidancing(order_id):
-    if not is_bot_active():
-        print(f"⏸️ [{BOT_ID}] Đang bị khóa (admin) — bỏ qua {order_id}")
-        return
-
-    doc_ref = db.collection("orders").document(order_id)
-    transaction = db.transaction()
-    try:
-        if not claim_pending_order(transaction, doc_ref):
-            print(f"⏭️ [{BOT_ID}] Đơn {order_id} đã được bot khác nhận hoặc không còn pending")
-            return
-    except Exception as e:
-        print(f"⚠️ [{BOT_ID}] Không claim được đơn {order_id}: {e}")
-        return
-
     with browser_lock:
+        doc_ref = db.collection('orders').document(order_id)
         doc = doc_ref.get()
-        if not doc.exists:
-            return
+        if not doc.exists: return
         data = doc.to_dict()
-        if data.get("status") != "processing" or data.get("claimedByBotId") != BOT_ID:
-            return
+        if data.get('status') != 'pending': return
 
-        print(f"\n⚡ [{BOT_ID}] NẠP ĐƠN {order_id}...")
+        print(f"\n⚡ [NẠP ĐƠN] {order_id}...")
+        doc_ref.update({'status': 'processing', 'updatedAt': firestore.SERVER_TIMESTAMP})
 
         char_path = None
         vid_path = None
@@ -343,9 +250,6 @@ def submit_to_aidancing(order_id):
 # --- PHA 2: RÌNH KẾT QUẢ ---
 def check_finished_orders():
     try:
-        if not is_bot_active():
-            return
-
         # Nếu đang nạp đơn thì không check dashboard để tránh khóa profile
         if browser_lock.locked(): return
 
@@ -355,9 +259,6 @@ def check_finished_orders():
         orders_to_check = []
         for doc in processing_orders:
             d = doc.to_dict()
-            claimed_by = d.get("claimedByBotId")
-            if claimed_by and claimed_by != BOT_ID:
-                continue
             job_id = d.get('aidancingJobId')
             submitted_at = d.get('submittedAt')
 
@@ -551,34 +452,7 @@ def check_finished_orders():
         print(f"❌ Lỗi monitor: {e}")
 
 def start_bot():
-    init_bot_identity()
-    print(f"📡 MotionAI BOT [{BOT_ID}] ({BOT_VERSION}) IS ONLINE!")
-
-    try:
-        snap = BOT_REF.get()
-        host = socket.gethostname()
-        base_payload = {
-            "version": BOT_VERSION,
-            "status": "starting",
-            "host": host,
-            "displayName": os.environ.get("BOT_NAME", "").strip() or host,
-            "botId": BOT_ID,
-        }
-        if not snap.exists:
-            base_payload.update({
-                "enabled": False,
-                "registeredAt": firestore.SERVER_TIMESTAMP,
-            })
-            print(f"📝 Bot mới — vào Admin → Bot → BẬT bot này khi cần dùng.")
-        BOT_REF.set(base_payload, merge=True)
-        snap = BOT_REF.get()
-        if snap.exists:
-            apply_bot_config(snap.to_dict())
-    except Exception as e:
-        print(f"⚠️ Không khởi tạo bots/{BOT_ID}: {e}")
-
-    BOT_REF.on_snapshot(on_bot_config_snapshot)
-    threading.Thread(target=heartbeat_loop, daemon=True).start()
+    print("📡 MotionAI REAL-TIME BOT (v3.2 - Auto Email + Telegram Notify) IS ONLINE!")
 
     def monitor_loop():
         while True:
