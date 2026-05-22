@@ -20,57 +20,6 @@ function safeToDate(field) {
     return new Date(field);
 }
 
-// --- Firestore listener management (prevents duplicate onSnapshot leaks) ---
-const FIRESTORE_UNSUBS = {
-    user: null,
-    myOrders: null,
-    myTopups: null,
-    adminTopups: null,
-    adminOrders: null,
-    adminUsers: null,
-};
-
-function setFirestoreUnsub(key, unsub) {
-    FIRESTORE_UNSUBS[key]?.();
-    FIRESTORE_UNSUBS[key] = unsub;
-}
-
-function clearAllFirestoreUnsubs() {
-    Object.keys(FIRESTORE_UNSUBS).forEach((key) => {
-        FIRESTORE_UNSUBS[key]?.();
-        FIRESTORE_UNSUBS[key] = null;
-    });
-}
-
-const USER_ORDERS_LIMIT = 50;
-const USER_TOPUPS_LIMIT = 30;
-const ADMIN_LIST_LIMIT = 100;
-
-let cachedMyOrdersSnap = null;
-let cachedMyTopupsSnap = null;
-let cachedAdminTopupsSnap = null;
-let cachedAdminOrdersSnap = null;
-let cachedAdminUsersSnap = null;
-let adminTopupsListenerStatus = null;
-let adminOrdersListenerStatus = null;
-let adminUsersListenerActive = false;
-let adminSearchDebounceTimer = null;
-let myOrdersFirstLoad = true;
-let myTopupsFirstLoad = true;
-
-function getAdminSearchVal() {
-    return document.getElementById('admin-search-input')?.value.toLowerCase() || "";
-}
-
-function scheduleAdminPanelRerender() {
-    clearTimeout(adminSearchDebounceTimer);
-    adminSearchDebounceTimer = setTimeout(() => {
-        renderAdminTopupsList();
-        renderAdminOrdersList();
-        renderAdminUsersList();
-    }, 300);
-}
-
 // --- Data Constants ---
 const COIN_PACKAGES = [
     { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', usdPrice: '$1.99', amount: 40000, note: 'Gói giới hạn', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/3f159349-cbbc-401f-b584-6c2b561b56b0' },
@@ -238,10 +187,8 @@ window.switchLanguage = (lang) => {
     if (currentUser) {
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.innerText = t('dashboard.greeting', { name: currentUser.displayName });
-        if (cachedMyOrdersSnap) renderMyOrdersList(cachedMyOrdersSnap);
-        else loadMyOrders();
-        if (cachedMyTopupsSnap) renderMyTopupsList(cachedMyTopupsSnap);
-        else loadMyTopups();
+        loadMyOrders();
+        loadMyTopups();
     }
     renderPricing();
 };
@@ -575,7 +522,7 @@ async function handleUserLoggedIn(user) {
         }
     }
 
-    setFirestoreUnsub('user', onSnapshot(userRef, (snapshot) => {
+    onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.data();
             const currentCoins = data.coins || 0;
@@ -665,7 +612,9 @@ async function handleUserLoggedIn(user) {
                 document.getElementById('admin-panel').style.display = 'none';
             }
         }
-    }));
+    });
+
+
 
     loadMyOrders();
     loadMyTopups();
@@ -673,18 +622,6 @@ async function handleUserLoggedIn(user) {
 }
 
 function handleUserLoggedOut() {
-    clearAllFirestoreUnsubs();
-    cachedMyOrdersSnap = null;
-    cachedMyTopupsSnap = null;
-    cachedAdminTopupsSnap = null;
-    cachedAdminOrdersSnap = null;
-    cachedAdminUsersSnap = null;
-    adminTopupsListenerStatus = null;
-    adminOrdersListenerStatus = null;
-    adminUsersListenerActive = false;
-    myOrdersFirstLoad = true;
-    myTopupsFirstLoad = true;
-
     // Không hiện Auth Modal bắt buộc lúc đầu nữa
     const authModal = document.getElementById('auth-modal');
     if (authModal) authModal.style.display = 'none';
@@ -1599,13 +1536,34 @@ async function setupEventListeners() {
 }
 
 // --- Data Loading (Real-time) ---
-function renderMyOrdersList(snapshot) {
+function loadMyOrders() {
+    const { db, collection, query, where, onSnapshot } = window.firebase;
+    const q = query(
+        collection(db, "orders"),
+        where("userId", "==", currentUser.uid)
+    );
+
     const grid = document.getElementById('my-orders-grid');
     const countText = document.getElementById('orders-count-text');
-    if (!grid) return;
+
+    if (grid) {
+        grid.innerHTML = Array(4).fill(0).map(() => `
+            <div class="order-card skeleton-card">
+                <div class="skeleton" style="width:100%; aspect-ratio: 16/9; border-radius:12px;"></div>
+                <div style="padding: 1rem;">
+                    <div class="skeleton" style="width:60%; height:16px; margin-bottom:8px;"></div>
+                    <div class="skeleton" style="width:40%; height:12px;"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    let isFirstLoad = true;
+    onSnapshot(q, (snapshot) => {
+        if (!grid) return;
 
         // Detect changes for notifications
-        if (!myOrdersFirstLoad) {
+        if (!isFirstLoad) {
             snapshot.docChanges().forEach(change => {
                 if (change.type === "modified") {
                     const data = change.doc.data();
@@ -1624,7 +1582,7 @@ function renderMyOrdersList(snapshot) {
                 }
             });
         }
-        myOrdersFirstLoad = false;
+        isFirstLoad = false;
 
         isFirstTimeUser = snapshot.size === 0;
         orderCount = snapshot.size;
@@ -1711,43 +1669,35 @@ function renderMyOrdersList(snapshot) {
                 </div>
             `;
         }).join('');
+    });
 }
 
-function loadMyOrders() {
-    if (!currentUser) return;
-    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
-    const q = query(
-        collection(db, "orders"),
-        where("userId", "==", currentUser.uid),
-        orderBy("createdAt", "desc"),
-        limit(USER_ORDERS_LIMIT)
-    );
 
-    const grid = document.getElementById('my-orders-grid');
-    if (grid) {
-        grid.innerHTML = Array(4).fill(0).map(() => `
-            <div class="order-card skeleton-card">
-                <div class="skeleton" style="width:100%; aspect-ratio: 16/9; border-radius:12px;"></div>
-                <div style="padding: 1rem;">
-                    <div class="skeleton" style="width:60%; height:16px; margin-bottom:8px;"></div>
-                    <div class="skeleton" style="width:40%; height:12px;"></div>
-                </div>
-            </div>
+function loadMyTopups() {
+    const { db, collection, query, where, onSnapshot } = window.firebase;
+    const q = query(
+        collection(db, "topups"),
+        where("userId", "==", currentUser.uid)
+    );
+    const list = document.getElementById('my-topups-list');
+    if (list) {
+        list.innerHTML = Array(3).fill(0).map(() => `
+            <tr>
+                <td><div class="skeleton" style="width:100px; height:16px;"></div></td>
+                <td><div class="skeleton" style="width:60px; height:16px;"></div></td>
+                <td><div class="skeleton" style="width:40px; height:16px;"></div></td>
+                <td><div class="skeleton" style="width:80px; height:20px; border-radius:10px;"></div></td>
+                <td><div class="skeleton" style="width:100px; height:12px;"></div></td>
+            </tr>
         `).join('');
     }
 
-    setFirestoreUnsub('myOrders', onSnapshot(q, (snapshot) => {
-        cachedMyOrdersSnap = snapshot;
-        renderMyOrdersList(snapshot);
-    }));
-}
-
-function renderMyTopupsList(snapshot) {
-    const list = document.getElementById('my-topups-list');
-    if (!list) return;
+    let isFirstLoadTopup = true;
+    onSnapshot(q, (snapshot) => {
+        const list = document.getElementById('my-topups-list');
 
         // Detect changes for notifications
-        if (!myTopupsFirstLoad) {
+        if (!isFirstLoadTopup) {
             snapshot.docChanges().forEach(change => {
                 if (change.type === "modified") {
                     const data = change.doc.data();
@@ -1761,7 +1711,7 @@ function renderMyTopupsList(snapshot) {
                 }
             });
         }
-        myTopupsFirstLoad = false;
+        isFirstLoadTopup = false;
         if (snapshot.empty) {
             list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_topups')}</td></tr>`;
             return;
@@ -1791,34 +1741,7 @@ function renderMyTopupsList(snapshot) {
                 </tr>
             `;
         }).join('');
-}
-
-function loadMyTopups() {
-    if (!currentUser) return;
-    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
-    const q = query(
-        collection(db, "topups"),
-        where("userId", "==", currentUser.uid),
-        orderBy("createdAt", "desc"),
-        limit(USER_TOPUPS_LIMIT)
-    );
-    const list = document.getElementById('my-topups-list');
-    if (list) {
-        list.innerHTML = Array(3).fill(0).map(() => `
-            <tr>
-                <td><div class="skeleton" style="width:100px; height:16px;"></div></td>
-                <td><div class="skeleton" style="width:60px; height:16px;"></div></td>
-                <td><div class="skeleton" style="width:40px; height:16px;"></div></td>
-                <td><div class="skeleton" style="width:80px; height:20px; border-radius:10px;"></div></td>
-                <td><div class="skeleton" style="width:100px; height:12px;"></div></td>
-            </tr>
-        `).join('');
-    }
-
-    setFirestoreUnsub('myTopups', onSnapshot(q, (snapshot) => {
-        cachedMyTopupsSnap = snapshot;
-        renderMyTopupsList(snapshot);
-    }));
+    });
 }
 
 window.saveQRImage = () => {
@@ -1896,12 +1819,16 @@ window.makeAdmin = async () => {
     document.getElementById('user-admin-email').value = '';
 };
 
-function renderAdminUsersList() {
+window.loadAdminUsers = () => {
+    const { db, collection, onSnapshot, query, orderBy } = window.firebase;
     const list = document.getElementById('admin-users-list');
-    if (!list || !cachedAdminUsersSnap) return;
+    if (!list) return;
 
-    const searchVal = getAdminSearchVal();
-    const filteredDocs = cachedAdminUsersSnap.docs.filter(doc => {
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    const searchVal = document.getElementById('admin-search-input').value.toLowerCase();
+
+    onSnapshot(q, (snapshot) => {
+        const filteredDocs = snapshot.docs.filter(doc => {
             const d = doc.data();
             const text = `${d.displayName} ${d.email}`.toLowerCase();
             return text.includes(searchVal);
@@ -1974,30 +1901,12 @@ function renderAdminUsersList() {
         } else {
             paginationContainer.innerHTML = '';
         }
-}
-
-window.loadAdminUsers = () => {
-    const list = document.getElementById('admin-users-list');
-    if (!list) return;
-
-    if (adminUsersListenerActive) {
-        renderAdminUsersList();
-        return;
-    }
-
-    const { db, collection, onSnapshot, query, orderBy, limit } = window.firebase;
-    const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(ADMIN_LIST_LIMIT));
-
-    adminUsersListenerActive = true;
-    setFirestoreUnsub('adminUsers', onSnapshot(q, (snapshot) => {
-        cachedAdminUsersSnap = snapshot;
-        renderAdminUsersList();
-    }));
+    });
 };
 
 window.changeAdminUserPage = (newPage) => {
     window.currentAdminUserPage = newPage;
-    renderAdminUsersList();
+    window.loadAdminUsers();
 };
 
 window.updateUserCoins = async (userId) => {
@@ -2238,12 +2147,26 @@ window.deleteTopup = async (event, topupId) => {
     }
 };
 
-function renderAdminTopupsList() {
-    const snapshot = cachedAdminTopupsSnap;
-    const list = document.getElementById('admin-topups-list');
-    if (!list || !snapshot) return;
+function loadAdminPanel() {
+    console.log("Loading Admin Panel...");
+    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
 
-    const searchVal = getAdminSearchVal();
+    // Add search listener if not already added
+    if (!window.adminSearchInited) {
+        document.getElementById('admin-search-input')?.addEventListener('input', () => {
+            loadAdminPanel();
+        });
+        window.adminSearchInited = true;
+    }
+
+    // 1. Load Filtered Topups
+    const qTopups = query(collection(db, "topups"), where("status", "==", currentTopupStatus));
+    onSnapshot(qTopups,
+        (snapshot) => {
+            console.log("Topups data received:", snapshot.size);
+            const list = document.getElementById('admin-topups-list');
+            if (!list) return;
 
             if (snapshot.empty) {
                 list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không có dữ liệu đơn nạp</td></tr>';
@@ -2355,14 +2278,21 @@ function renderAdminTopupsList() {
             } else {
                 paginationContainer.innerHTML = '';
             }
-}
 
-function renderAdminOrdersList() {
-    const snapshot = cachedAdminOrdersSnap;
-    const list = document.getElementById('admin-orders-list');
-    if (!list || !snapshot) return;
+        },
+        (error) => {
+            console.error("Topups Snapshot Error:", error);
+            showToast("Lỗi tải danh sách nạp tiền: " + error.message);
+        }
+    );
 
-    const searchVal = getAdminSearchVal();
+    // 2. Load Filtered Orders
+    const qOrders = query(collection(db, "orders"), where("status", "==", currentOrderStatus));
+    onSnapshot(qOrders,
+        (snapshot) => {
+            console.log("Orders data received:", snapshot.size);
+            const list = document.getElementById('admin-orders-list');
+            if (!list) return;
 
             if (snapshot.empty) {
                 list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Chưa có đơn hàng nào trong mục này</td></tr>';
@@ -2474,69 +2404,23 @@ function renderAdminOrdersList() {
             } else {
                 paginationContainer.innerHTML = '';
             }
-}
 
-function loadAdminPanel() {
-    if (!window.adminSearchInited) {
-        document.getElementById('admin-search-input')?.addEventListener('input', scheduleAdminPanelRerender);
-        window.adminSearchInited = true;
-    }
-
-    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
-
-    if (adminTopupsListenerStatus !== currentTopupStatus) {
-        adminTopupsListenerStatus = currentTopupStatus;
-        const qTopups = query(
-            collection(db, "topups"),
-            where("status", "==", currentTopupStatus),
-            orderBy("createdAt", "desc"),
-            limit(ADMIN_LIST_LIMIT)
-        );
-        setFirestoreUnsub('adminTopups', onSnapshot(qTopups,
-            (snapshot) => {
-                cachedAdminTopupsSnap = snapshot;
-                renderAdminTopupsList();
-            },
-            (error) => {
-                console.error("Topups Snapshot Error:", error);
-                showToast("Lỗi tải danh sách nạp tiền: " + error.message);
-            }
-        ));
-    } else {
-        renderAdminTopupsList();
-    }
-
-    if (adminOrdersListenerStatus !== currentOrderStatus) {
-        adminOrdersListenerStatus = currentOrderStatus;
-        const qOrders = query(
-            collection(db, "orders"),
-            where("status", "==", currentOrderStatus),
-            orderBy("createdAt", "desc"),
-            limit(ADMIN_LIST_LIMIT)
-        );
-        setFirestoreUnsub('adminOrders', onSnapshot(qOrders,
-            (snapshot) => {
-                cachedAdminOrdersSnap = snapshot;
-                renderAdminOrdersList();
-            },
-            (error) => {
-                console.error("Orders Snapshot Error:", error);
-                showToast("Lỗi tải danh sách đơn hàng: " + error.message);
-            }
-        ));
-    } else {
-        renderAdminOrdersList();
-    }
+        },
+        (error) => {
+            console.error("Orders Snapshot Error:", error);
+            showToast("Lỗi tải danh sách đơn hàng: " + error.message);
+        }
+    );
 }
 
 window.changeAdminOrderPage = (newPage) => {
     window.currentAdminOrderPage = newPage;
-    renderAdminOrdersList();
+    loadAdminPanel();
 };
 
 window.changeAdminTopupPage = (newPage) => {
     window.currentAdminTopupPage = newPage;
-    renderAdminTopupsList();
+    loadAdminPanel();
 };
 
 window.openUserOrderDetail = async (orderId) => {
