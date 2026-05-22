@@ -184,23 +184,20 @@ def is_bot_active():
         return BOT_CONFIG.get("enabled", False)
 
 
-def heartbeat_loop():
+def manual_ping(online=True):
+    """Ghi trạng thái online/offline thủ công (1 write). Chạy: python bot.py ping | offline"""
     host = socket.gethostname()
-    while True:
-        try:
-            display = get_bot_display_name()
-            BOT_REF.set({
-                "lastHeartbeat": firestore.SERVER_TIMESTAMP,
-                "host": host,
-                "displayName": display,
-                "wifiSsid": get_wifi_ssid(),
-                "version": BOT_VERSION,
-                "status": "online",
-                "botId": BOT_ID,
-            }, merge=True)
-        except Exception as e:
-            print(f"⚠️ Heartbeat lỗi: {e}")
-        time.sleep(45)
+    status = "online" if online else "offline"
+    BOT_REF.set({
+        "status": status,
+        "lastPingAt": firestore.SERVER_TIMESTAMP,
+        "host": host,
+        "displayName": get_bot_display_name(),
+        "wifiSsid": get_wifi_ssid(),
+        "version": BOT_VERSION,
+        "botId": BOT_ID,
+    }, merge=True)
+    print(f"{'🟢' if online else '⚫'} bots/{BOT_ID} → {status}")
 
 
 def on_bot_config_snapshot(docs, changes, read_time):
@@ -600,7 +597,6 @@ def start_bot():
         host = socket.gethostname()
         base_payload = {
             "version": BOT_VERSION,
-            "status": "starting",
             "host": host,
             "displayName": get_bot_display_name(),
             "wifiSsid": get_wifi_ssid(),
@@ -609,6 +605,7 @@ def start_bot():
         if not snap.exists:
             base_payload.update({
                 "enabled": False,
+                "status": "offline",
                 "registeredAt": firestore.SERVER_TIMESTAMP,
             })
             print(f"📝 Bot mới — vào Admin → Bot → BẬT bot này khi cần dùng.")
@@ -620,7 +617,6 @@ def start_bot():
         print(f"⚠️ Không khởi tạo bots/{BOT_ID}: {e}")
 
     BOT_REF.on_snapshot(on_bot_config_snapshot)
-    threading.Thread(target=heartbeat_loop, daemon=True).start()
 
     def monitor_loop():
         while True:
@@ -641,4 +637,13 @@ def start_bot():
     while True: time.sleep(1)
 
 if __name__ == "__main__":
-    start_bot()
+    import sys
+    cmd = sys.argv[1].lower() if len(sys.argv) > 1 else ""
+    if cmd in ("ping", "online"):
+        init_bot_identity()
+        manual_ping(True)
+    elif cmd in ("offline", "off"):
+        init_bot_identity()
+        manual_ping(False)
+    else:
+        start_bot()
