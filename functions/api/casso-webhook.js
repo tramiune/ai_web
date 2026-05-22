@@ -157,7 +157,7 @@ async function fetchPendingTopups(token, projectId) {
         where: {
           fieldFilter: { field: { fieldPath: "status" }, op: "EQUAL", value: { stringValue: "pending" } }
         },
-        limit: 1000
+        limit: 100
       }
     })
   });
