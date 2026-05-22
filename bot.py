@@ -1,6 +1,7 @@
 import time
 import os
 import socket
+import subprocess
 import requests
 import firebase_admin
 import re
@@ -32,6 +33,41 @@ def get_bot_id():
     if custom:
         return re.sub(r"[^a-zA-Z0-9_-]", "-", custom)[:64]
     return re.sub(r"[^a-zA-Z0-9_-]", "-", socket.gethostname())[:64]
+
+
+def get_wifi_ssid():
+    """SSID Wi-Fi đang kết nối (Windows). Trả None nếu dùng dây / không lấy được."""
+    if os.name != "nt":
+        return None
+    try:
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        out = subprocess.check_output(
+            ["netsh", "wlan", "show", "interfaces"],
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            creationflags=flags,
+        ).decode("utf-8", errors="ignore")
+        for line in out.splitlines():
+            s = line.strip()
+            if s.startswith("SSID") and not s.startswith("BSSID"):
+                _, _, value = s.partition(":")
+                name = value.strip()
+                if name:
+                    return name[:64]
+    except Exception:
+        pass
+    return None
+
+
+def get_bot_display_name():
+    """Tên hiện trên Admin: BOT_NAME > Wi-Fi SSID > tên máy."""
+    custom = os.environ.get("BOT_NAME", "").strip()
+    if custom:
+        return custom[:64]
+    ssid = get_wifi_ssid()
+    if ssid:
+        return ssid
+    return socket.gethostname()[:64]
 
 
 def init_bot_identity():
@@ -150,13 +186,14 @@ def is_bot_active():
 
 def heartbeat_loop():
     host = socket.gethostname()
-    display = os.environ.get("BOT_NAME", "").strip() or host
     while True:
         try:
+            display = get_bot_display_name()
             BOT_REF.set({
                 "lastHeartbeat": firestore.SERVER_TIMESTAMP,
                 "host": host,
                 "displayName": display,
+                "wifiSsid": get_wifi_ssid(),
                 "version": BOT_VERSION,
                 "status": "online",
                 "botId": BOT_ID,
@@ -556,6 +593,7 @@ def check_finished_orders():
 def start_bot():
     init_bot_identity()
     print(f"📡 MotionAI BOT [{BOT_ID}] ({BOT_VERSION}) IS ONLINE!")
+    print(f"📛 Hiển thị Admin: {get_bot_display_name()}")
 
     try:
         snap = BOT_REF.get()
@@ -564,7 +602,8 @@ def start_bot():
             "version": BOT_VERSION,
             "status": "starting",
             "host": host,
-            "displayName": os.environ.get("BOT_NAME", "").strip() or host,
+            "displayName": get_bot_display_name(),
+            "wifiSsid": get_wifi_ssid(),
             "botId": BOT_ID,
         }
         if not snap.exists:
