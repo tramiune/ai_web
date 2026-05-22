@@ -166,9 +166,12 @@ def heartbeat_loop():
         time.sleep(45)
 
 
-def on_bot_config_snapshot(doc_snapshot, changes, read_time):
-    if doc_snapshot.exists:
-        apply_bot_config(doc_snapshot.to_dict())
+def on_bot_config_snapshot(docs, changes, read_time):
+    # Firestore SDK gọi callback với docs = list[DocumentSnapshot], không phải 1 snapshot.
+    for snap in docs:
+        if not getattr(snap, "exists", False):
+            continue
+        apply_bot_config(snap.to_dict())
         with BOT_CONFIG_LOCK:
             print(f"📋 [{BOT_ID}] cho phép hoạt động={BOT_CONFIG['enabled']}")
 
