@@ -1869,7 +1869,8 @@ setInterval(checkMaintenance, 60000);
 
 // --- Admin Dashboard Logic ---
 function isBotOnline(data) {
-    return data.status === 'online';
+    const hb = safeToDate(data.lastHeartbeat);
+    return hb && (Date.now() - hb.getTime() < 90000);
 }
 
 function isBotEnabled(data) {
@@ -1883,9 +1884,9 @@ function renderBotFleetCard(docSnap) {
     const online = isBotOnline(d);
     const active = isBotEnabled(d);
     const displayName = d.displayName || d.host || id;
-    const pingAt = safeToDate(d.lastPingAt);
-    const pingText = pingAt
-        ? pingAt.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+    const hb = safeToDate(d.lastHeartbeat);
+    const hbText = hb
+        ? hb.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
         : '—';
 
     let statusLabel = 'Offline';
@@ -1903,13 +1904,7 @@ function renderBotFleetCard(docSnap) {
                 </div>
                 <span class="bot-fleet-badge">${statusLabel}</span>
             </div>
-            <p class="bot-fleet-meta-line">Ping: ${pingText}</p>
-            <div class="bot-fleet-actions">
-                <button type="button" class="btn-secondary btn-sm" ${online ? 'disabled' : ''}
-                    onclick="window.setBotPingStatus('${escapeHTML(id)}', true)">Ping online</button>
-                <button type="button" class="btn-secondary btn-sm" ${!online ? 'disabled' : ''}
-                    onclick="window.setBotPingStatus('${escapeHTML(id)}', false)">Offline</button>
-            </div>
+            <p class="bot-fleet-meta-line">${online ? 'Máy online' : 'Máy không phản hồi'} · ${hbText}</p>
             <label class="bot-toggle-row bot-toggle-row--main">
                 <span><strong>Cho phép xử lý đơn</strong><small>Tắt = bot không làm gì (nạp đơn + trả hàng)</small></span>
                 <input type="checkbox" ${active ? 'checked' : ''}
@@ -1930,14 +1925,10 @@ function renderBotFleet(snapshot) {
         return;
     }
 
-    // Sắp theo tên/id cố định
     const docs = [...snapshot.docs].sort((a, b) => {
-        const label = (d, id) => (d.displayName || d.host || id).toLowerCase();
-        const la = label(a.data(), a.id);
-        const lb = label(b.data(), b.id);
-        const byName = la.localeCompare(lb, 'vi');
-        if (byName !== 0) return byName;
-        return a.id.localeCompare(b.id);
+        const ta = safeToDate(a.data().lastHeartbeat)?.getTime() || 0;
+        const tb = safeToDate(b.data().lastHeartbeat)?.getTime() || 0;
+        return tb - ta;
     });
 
     list.innerHTML = docs.map(renderBotFleetCard).join('');
@@ -1985,23 +1976,6 @@ window.setBotEnabled = async (botId, enabled) => {
             updatedAt: serverTimestamp()
         }, { merge: true });
         showToast(enabled ? `Đã cho phép bot ${botId} chạy` : `Đã khóa bot ${botId}`);
-    } catch (e) {
-        console.error(e);
-        showToast('Lỗi: ' + e.message);
-    }
-};
-
-window.setBotPingStatus = async (botId, online) => {
-    if (!currentUser || !botId) return;
-    const { db, doc, setDoc, serverTimestamp } = window.firebase;
-    try {
-        await setDoc(doc(db, 'bots', botId), {
-            status: online ? 'online' : 'offline',
-            lastPingAt: serverTimestamp(),
-            updatedBy: currentUser.email,
-            updatedAt: serverTimestamp()
-        }, { merge: true });
-        showToast(online ? `Đã ping online: ${botId}` : `Đã đánh dấu offline: ${botId}`);
     } catch (e) {
         console.error(e);
         showToast('Lỗi: ' + e.message);
