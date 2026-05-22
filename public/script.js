@@ -28,6 +28,7 @@ const FIRESTORE_UNSUBS = {
     adminTopups: null,
     adminOrders: null,
     adminUsers: null,
+    botSettings: null,
 };
 
 function setFirestoreUnsub(key, unsub) {
@@ -1867,6 +1868,120 @@ function checkMaintenance() {
 setInterval(checkMaintenance, 60000);
 
 // --- Admin Dashboard Logic ---
+function isBotOnline(data) {
+    const hb = safeToDate(data.lastHeartbeat);
+    return hb && (Date.now() - hb.getTime() < 90000);
+}
+
+function isBotEnabled(data) {
+    if (typeof data.enabled === 'boolean') return data.enabled;
+    return data.submitEnabled !== false && data.monitorEnabled !== false;
+}
+
+function renderBotFleetCard(docSnap) {
+    const id = docSnap.id;
+    const d = docSnap.data();
+    const online = isBotOnline(d);
+    const active = isBotEnabled(d);
+    const displayName = d.displayName || d.host || id;
+    const hb = safeToDate(d.lastHeartbeat);
+    const hbText = hb
+        ? hb.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+        : '—';
+
+    let statusLabel = 'Offline';
+    if (online && active) statusLabel = 'Đang chạy';
+    else if (online && !active) statusLabel = 'Đã khóa';
+    else if (!online && active) statusLabel = 'Offline (đang bật)';
+
+    return `
+        <article class="bot-fleet-card ${active ? 'bot-fleet-card--active' : 'bot-fleet-card--locked'} ${online ? 'bot-fleet-card--online' : ''}">
+            <div class="bot-fleet-card-head">
+                <span class="bot-status-dot ${online && active ? 'bot-status-dot--online' : 'bot-status-dot--offline'}"></span>
+                <div class="bot-fleet-card-title">
+                    <strong>${escapeHTML(displayName)}</strong>
+                    <code class="bot-id-tag">${escapeHTML(id)}</code>
+                </div>
+                <span class="bot-fleet-badge">${statusLabel}</span>
+            </div>
+            <p class="bot-fleet-meta-line">${online ? 'Máy online' : 'Máy không phản hồi'} · ${hbText}</p>
+            <label class="bot-toggle-row bot-toggle-row--main">
+                <span><strong>Cho phép xử lý đơn</strong><small>Tắt = bot không làm gì (nạp đơn + trả hàng)</small></span>
+                <input type="checkbox" ${active ? 'checked' : ''}
+                    onchange="window.setBotEnabled('${escapeHTML(id)}', this.checked)">
+            </label>
+        </article>
+    `;
+}
+
+function renderBotFleet(snapshot) {
+    const list = document.getElementById('bots-admin-list');
+    const warn = document.getElementById('bots-fleet-warning');
+    if (!list) return;
+
+    if (!snapshot || snapshot.empty) {
+        list.innerHTML = '<p class="bot-empty-msg">Chưa có bot nào. Chạy <code>python bot.py</code> trên máy để đăng ký.</p>';
+        if (warn) warn.style.display = 'none';
+        return;
+    }
+
+    const docs = [...snapshot.docs].sort((a, b) => {
+        const ta = safeToDate(a.data().lastHeartbeat)?.getTime() || 0;
+        const tb = safeToDate(b.data().lastHeartbeat)?.getTime() || 0;
+        return tb - ta;
+    });
+
+    list.innerHTML = docs.map(renderBotFleetCard).join('');
+
+    const activeBots = docs.filter(doc => isBotEnabled(doc.data()) && isBotOnline(doc.data()));
+    if (warn) {
+        if (activeBots.length > 1) {
+            warn.style.display = 'block';
+            warn.innerHTML = `⚠️ Đang có <b>${activeBots.length} bot</b> được phép chạy. Nên chỉ <b>bật 1 bot</b> (tắt bot lỗi, bật bot thay thế).`;
+        } else if (activeBots.length === 0) {
+            warn.style.display = 'block';
+            warn.innerHTML = '⚠️ Chưa có bot nào được phép chạy — đơn mới sẽ không được xử lý.';
+        } else {
+            warn.style.display = 'none';
+        }
+    }
+}
+
+window.loadBotSettings = () => {
+    const { db, collection, onSnapshot } = window.firebase;
+    if (FIRESTORE_UNSUBS.botSettings) return;
+
+    setFirestoreUnsub('botSettings', onSnapshot(collection(db, 'bots'), (snap) => {
+        renderBotFleet(snap);
+    }, (err) => {
+        console.error('Bot fleet listener error:', err);
+        showToast('Không đọc được danh sách bot: ' + err.message);
+    }));
+};
+
+window.refreshBotSettings = () => {
+    FIRESTORE_UNSUBS.botSettings?.();
+    FIRESTORE_UNSUBS.botSettings = null;
+    window.loadBotSettings();
+    showToast('Đã làm mới danh sách bot');
+};
+
+window.setBotEnabled = async (botId, enabled) => {
+    if (!currentUser || !botId) return;
+    const { db, doc, setDoc, serverTimestamp } = window.firebase;
+    try {
+        await setDoc(doc(db, 'bots', botId), {
+            enabled: enabled,
+            updatedBy: currentUser.email,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+        showToast(enabled ? `Đã cho phép bot ${botId} chạy` : `Đã khóa bot ${botId}`);
+    } catch (e) {
+        console.error(e);
+        showToast('Lỗi: ' + e.message);
+    }
+};
+
 window.switchAdminTab = (tabName) => {
     document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.admin-tab-content').forEach(content => content.classList.remove('active'));
@@ -1875,8 +1990,14 @@ window.switchAdminTab = (tabName) => {
     if (btn) btn.classList.add('active');
     document.getElementById(`admin-tab-${tabName}`).classList.add('active');
 
+    const adminControls = document.getElementById('admin-controls-bar');
+    if (adminControls) adminControls.style.display = tabName === 'bot' ? 'none' : 'block';
+
     if (tabName === 'users') {
         window.loadAdminUsers();
+    }
+    if (tabName === 'bot') {
+        window.loadBotSettings();
     }
 };
 

@@ -49,6 +49,12 @@ export const ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.
  *       allow create: if request.auth != null;
  *       allow update: if isAdmin();
  *     }
+ *
+ *     // Bot fleet (admin web panel ↔ bot.py, one doc per machine)
+ *     match /bots/{botId} {
+ *       allow read: if isAdmin();
+ *       allow write: if isAdmin();
+ *     }
  *   }
  * }
  */

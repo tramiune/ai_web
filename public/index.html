@@ -559,11 +559,12 @@
         <div class="admin-tabs" style="margin-bottom: 2rem;">
             <button class="admin-tab-btn active" onclick="switchAdminTab('orders')">Đơn hàng</button>
             <button class="admin-tab-btn" onclick="switchAdminTab('topups')">Nạp Coin</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('bot')">🤖 Bot</button>
             <button id="tab-users" class="admin-tab-btn" onclick="switchAdminTab('users')"
                 style="display: none;">Thành viên</button>
         </div>
 
-        <div class="admin-controls" style="margin: 0 0 1.5rem 0; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+        <div id="admin-controls-bar" class="admin-controls" style="margin: 0 0 1.5rem 0; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
             <div style="display: flex; gap: 1rem; align-items: center;">
                 <div style="flex: 1; position: relative;">
                     <input type="text" id="admin-search-input" class="form-control" 
@@ -635,6 +636,21 @@
                         <tbody id="admin-topups-list"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- Tab: Bot fleet -->
+        <div id="admin-tab-bot" class="admin-tab-content">
+            <div class="bot-fleet-header">
+                <div>
+                    <h2 style="margin:0 0 0.35rem; font-size:1.15rem;">Quản lý Bot</h2>
+                    <p class="bot-admin-note" style="margin:0;">Bot lỗi → <b>tắt</b>. Bot dự phòng → <b>bật</b>. Chỉ nên có 1 bot đang bật.</p>
+                </div>
+                <button type="button" class="btn-secondary" onclick="window.refreshBotSettings()">Làm mới</button>
+            </div>
+            <div id="bots-fleet-warning" class="bots-fleet-warning" style="display:none;"></div>
+            <div id="bots-admin-list" class="bots-admin-list">
+                <p class="bot-empty-msg">Chưa có bot. Chạy <code>python bot.py</code> trên máy để hiện ở đây.</p>
             </div>
         </div>
 
