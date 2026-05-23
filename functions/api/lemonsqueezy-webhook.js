@@ -133,6 +133,23 @@ export async function onRequestPost(context) {
                         `📝 Hóa đơn: #${attributes.order_number} (Lemon Squeezy)`;
         await notifyTelegram(message);
 
+        // Affiliate / Referral commission - isolated, must never block topup flow
+        try {
+            await payReferralCommission(accessToken, config.project_id, {
+                topupId: topupId,
+                referredUserId: userId,
+                referredUserEmail: attributes.user_email || '',
+                referredUserName: attributes.user_name || '',
+                baseCoins: coins,
+                gateway: 'lemonsqueezy'
+            });
+        } catch (refErr) {
+            console.error('[Referral] Lemon Squeezy commission error (non-blocking):', refErr.message);
+            try {
+                await notifyTelegram(`⚠️ <b>LỖI TRẢ HOA HỒNG GIỚI THIỆU (LEMON)</b>\nTopup: ${topupId}\nLỗi: ${refErr.message}`);
+            } catch (e) { /* swallow */ }
+        }
+
         return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
 
     } catch (err) {
@@ -272,4 +289,99 @@ async function notifyTelegram(text) {
   } catch (err) {
     console.error("Telegram Notify Error:", err.message);
   }
+}
+
+// --- Affiliate / Referral Commission (mirrors casso-webhook.js) ---
+const REFERRAL_COMMISSION_RATE = 0.10;
+
+/**
+ * Pay 10% referral commission in coins to the referrer of `referredUserId`.
+ * Idempotent via doc ID = topupId on referralEarnings collection.
+ */
+async function payReferralCommission(token, projectId, params) {
+  const { topupId, referredUserId, referredUserEmail, referredUserName, baseCoins, gateway } = params;
+  if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
+
+  const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
+  if (commissionCoins <= 0) return;
+
+  const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+  const authHeader = { "Authorization": `Bearer ${token}` };
+
+  const referredUserRes = await fetch(`${baseUrl}/users/${referredUserId}`, { headers: authHeader });
+  if (!referredUserRes.ok) {
+    if (referredUserRes.status === 404) return;
+    throw new Error(`Read referred user failed: ${referredUserRes.status}`);
+  }
+  const referredUserData = await referredUserRes.json();
+  const referredBy = referredUserData.fields?.referredBy?.stringValue;
+  if (!referredBy) return;
+  if (referredBy === referredUserId) return;
+
+  const earningsBody = {
+    fields: {
+      referrerId: { stringValue: referredBy },
+      referredUserId: { stringValue: referredUserId },
+      referredUserEmail: { stringValue: referredUserEmail || referredUserData.fields?.email?.stringValue || '' },
+      referredUserName: { stringValue: referredUserName || referredUserData.fields?.displayName?.stringValue || '' },
+      topupId: { stringValue: topupId },
+      baseCoins: { integerValue: baseCoins },
+      commissionCoins: { integerValue: commissionCoins },
+      commissionRate: { doubleValue: REFERRAL_COMMISSION_RATE },
+      gateway: { stringValue: gateway || 'unknown' },
+      payoutStatus: { stringValue: 'credited' },
+      createdAt: { timestampValue: new Date().toISOString() }
+    }
+  };
+
+  const createUrl = `${baseUrl}/referralEarnings?documentId=${encodeURIComponent(topupId)}`;
+  const createRes = await fetch(createUrl, {
+    method: "POST",
+    headers: { ...authHeader, "Content-Type": "application/json" },
+    body: JSON.stringify(earningsBody)
+  });
+
+  if (createRes.status === 409) {
+    console.log(`[Referral] Commission already paid for topup ${topupId} - skipped (idempotent).`);
+    return;
+  }
+  if (!createRes.ok) {
+    const txt = await createRes.text();
+    throw new Error(`Create referralEarnings failed (${createRes.status}): ${txt}`);
+  }
+
+  const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
+  if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
+  const referrerData = await referrerRes.json();
+  const currentCoins = parseInt(referrerData.fields?.coins?.integerValue || 0);
+
+  const patchRes = await fetch(`${baseUrl}/users/${referredBy}?updateMask.fieldPaths=coins&updateMask.fieldPaths=updatedAt`, {
+    method: "PATCH",
+    headers: { ...authHeader, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fields: {
+        coins: { integerValue: currentCoins + commissionCoins },
+        updatedAt: { timestampValue: new Date().toISOString() }
+      }
+    })
+  });
+  if (!patchRes.ok) {
+    const txt = await patchRes.text();
+    throw new Error(`Credit referrer coins failed (${patchRes.status}): ${txt}`);
+  }
+
+  console.log(`[Referral] Paid ${commissionCoins} coin commission to ${referredBy} for topup ${topupId} (gateway=${gateway})`);
+
+  try {
+    const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
+    const referrerEmail = referrerData.fields?.email?.stringValue || '';
+    await notifyTelegram(
+      `🎁 <b>HOA HỒNG GIỚI THIỆU (${gateway})</b>\n\n` +
+      `👤 Người giới thiệu: ${referrerName}\n` +
+      `📧 Email: ${referrerEmail}\n` +
+      `🪙 Hoa hồng: +${commissionCoins} Coin\n` +
+      `🛒 Người được mời: ${referredUserName || 'N/A'} (nạp ${baseCoins} Coin)\n` +
+      `🔑 Topup: ${topupId}`
+    );
+  } catch (e) { /* swallow */ }
 }

@@ -67,6 +67,8 @@ let selectedTopupPackage = null;
 let isFirstTimeUser = false; // Flag for special offer (0 or 1 order)
 let orderCount = 0; // Track total orders
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
+let referralEarningsUnsubscribe = null; // Cleanup handle for referralEarnings onSnapshot
+let referralCurrentCode = null; // User's referral code, populated when opening referral page
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
 // --- i18n Logic ---
 let currentLang = localStorage.getItem('app_lang');
@@ -193,6 +195,48 @@ window.switchLanguage = (lang) => {
     renderPricing();
 };
 
+// --- Referral / Affiliate Capture ---
+const REFERRAL_STORAGE_KEY = 'pending_ref_code';
+const REFERRAL_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REFERRAL_CODE_REGEX = /^[A-Z0-9]{6,12}$/;
+
+function captureReferralFromURL() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const code = (params.get('ref') || '').trim().toUpperCase();
+        if (!code) return;
+        if (!REFERRAL_CODE_REGEX.test(code)) {
+            console.warn('[Referral] Invalid ref code in URL:', code);
+            return;
+        }
+        const payload = JSON.stringify({ code, savedAt: Date.now() });
+        localStorage.setItem(REFERRAL_STORAGE_KEY, payload);
+        console.log('[Referral] Captured ref code from URL:', code);
+    } catch (e) {
+        console.warn('[Referral] Capture failed (non-blocking):', e.message);
+    }
+}
+
+function getPendingReferralCode() {
+    try {
+        const raw = localStorage.getItem(REFERRAL_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.code) return null;
+        if (Date.now() - (parsed.savedAt || 0) > REFERRAL_TTL_MS) {
+            localStorage.removeItem(REFERRAL_STORAGE_KEY);
+            return null;
+        }
+        return REFERRAL_CODE_REGEX.test(parsed.code) ? parsed.code : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function clearPendingReferralCode() {
+    try { localStorage.removeItem(REFERRAL_STORAGE_KEY); } catch (e) { }
+}
+
 // --- App Initialization ---
 export function initAppLogic() {
     // Global Error Handler for debugging
@@ -207,6 +251,9 @@ export function initAppLogic() {
         showToast("⚠️ Phát hiện lỗi hệ thống: " + msg);
         return false;
     };
+
+    // Capture ?ref=XXX before auth state initialises so it survives signup
+    captureReferralFromURL();
 
     const { auth, onAuthStateChanged } = window.firebase;
 
@@ -462,6 +509,8 @@ async function handleUserLoggedIn(user) {
     if (navHamburger) navHamburger.style.display = 'block';
     const topupItem = document.getElementById('topup-dropdown-item');
     if (topupItem) topupItem.style.display = 'flex';
+    const referralNavItem = document.getElementById('referral-dropdown-item-nav');
+    if (referralNavItem) referralNavItem.style.display = 'flex';
 
     // Toggle Dashboard sub-elements
     const dashIn = document.getElementById('dashboard-logged-in');
@@ -501,7 +550,30 @@ async function handleUserLoggedIn(user) {
         const defaultName = user.displayName || user.email.split('@')[0];
         const defaultPhoto = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
 
-        await setDoc(userRef, {
+        // Resolve pending referral code (if any) before creating user doc.
+        // Wrapped in try/catch so any affiliate error never blocks signup.
+        let referredBy = null;
+        try {
+            const pendingCode = getPendingReferralCode();
+            if (pendingCode) {
+                const refCodeSnap = await getDoc(doc(db, "referralCodes", pendingCode));
+                if (refCodeSnap.exists()) {
+                    const refUid = refCodeSnap.data().uid;
+                    if (refUid && refUid !== user.uid) {
+                        referredBy = refUid;
+                        console.log('[Referral] Linking new user to referrer:', refUid);
+                    } else {
+                        console.log('[Referral] Self-referral or invalid code, skipped.');
+                    }
+                } else {
+                    console.log('[Referral] Pending code not found in DB, skipped:', pendingCode);
+                }
+            }
+        } catch (e) {
+            console.warn('[Referral] Resolve referredBy failed (non-blocking):', e.message);
+        }
+
+        const newUserPayload = {
             uid: user.uid,
             displayName: defaultName,
             email: user.email,
@@ -510,7 +582,15 @@ async function handleUserLoggedIn(user) {
             role: isBootstrapSuperAdmin ? 'super-admin' : 'user', // Tự động gán role vào DB
             createdAt: window.firebase.serverTimestamp(),
             updatedAt: window.firebase.serverTimestamp()
-        });
+        };
+        if (referredBy) newUserPayload.referredBy = referredBy;
+
+        await setDoc(userRef, newUserPayload);
+
+        // Clear the pending ref code after a successful signup attempt.
+        if (referredBy) {
+            try { clearPendingReferralCode(); } catch (e) { }
+        }
 
         // Gửi thông báo Telegram khi có user mới đăng ký
         // sendTelegramMessage(`🆕 <b>USER MỚI ĐĂNG KÝ!</b>\n👤 Tên: ${escapeHTML(defaultName)}\n📧 Email: ${escapeHTML(user.email)}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`);
@@ -644,12 +724,22 @@ function handleUserLoggedOut() {
     if (topupPage) topupPage.style.display = 'none';
     const topupItem = document.getElementById('topup-dropdown-item');
     if (topupItem) topupItem.style.display = 'none';
+    const referralNavItem = document.getElementById('referral-dropdown-item-nav');
+    if (referralNavItem) referralNavItem.style.display = 'none';
+    const referralPage = document.getElementById('referral-page');
+    if (referralPage) referralPage.style.display = 'none';
     const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
     if (adminProfileItem) adminProfileItem.style.display = 'none';
     const adminDivider = document.getElementById('admin-dropdown-divider');
     if (adminDivider) adminDivider.style.display = 'none';
     const adminNavItem = document.getElementById('admin-dropdown-item-nav');
     if (adminNavItem) adminNavItem.style.display = 'none';
+
+    // Tear down referral earnings listener if any
+    if (referralEarningsUnsubscribe) {
+        try { referralEarningsUnsubscribe(); } catch (e) { }
+        referralEarningsUnsubscribe = null;
+    }
 
     isFirstTimeUser = false;
     updateFirstOrderUI();
@@ -687,11 +777,20 @@ function showLanding() {
 }
 
 function hideAllPages() {
-    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel', 'build-channel-page'];
+    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel', 'build-channel-page', 'referral-page'];
     pages.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
+}
+
+function showReferralPage() {
+    hideAllPages();
+    document.getElementById('referral-page').style.display = 'block';
+    window.scrollTo(0, 0);
+    if (typeof openReferralPage === 'function') {
+        openReferralPage();
+    }
 }
 
 window.toggleDashboard = () => {
@@ -715,6 +814,8 @@ window.navTo = (target) => {
         showTopupHistory();
     } else if (target === 'build-channel-page') {
         showBuildChannel();
+    } else if (target === 'referral-page') {
+        showReferralPage();
     } else if (target === 'admin-panel') {
         showAdminPanel();
     } else if (target === 'landing-page') {
@@ -1983,7 +2084,17 @@ window.deleteUserAdmin = async (userId) => {
 window.approveTopup = async (topupId, userId, coins) => {
     if (!confirm(`Xác nhận duyệt nạp ${coins} Coin?`)) return;
 
-    const { db, doc, runTransaction, serverTimestamp } = window.firebase;
+    const { db, doc, getDoc, runTransaction, serverTimestamp } = window.firebase;
+
+    // Snapshot topup data before mutation (used later for referral)
+    let topupSnapshot = null;
+    try {
+        const tSnap = await getDoc(doc(db, "topups", topupId));
+        if (tSnap.exists()) topupSnapshot = tSnap.data();
+    } catch (e) {
+        console.warn('Could not pre-read topup doc:', e.message);
+    }
+
     try {
         await runTransaction(db, async (transaction) => {
             const userRef = doc(db, "users", userId);
@@ -1996,6 +2107,17 @@ window.approveTopup = async (topupId, userId, coins) => {
             transaction.update(topupRef, { status: 'approved' });
         });
         showToast("Đã duyệt thành công!");
+
+        // Affiliate / Referral - non-blocking, isolated
+        try {
+            await payReferralCommissionClient(topupId, userId, coins, 'admin', {
+                userEmail: topupSnapshot ? topupSnapshot.userEmail : '',
+                userName: topupSnapshot ? topupSnapshot.userName : ''
+            });
+        } catch (refErr) {
+            console.error('[Referral] Admin commission error (non-blocking):', refErr);
+            // Soft-fail; admin can still retry / inspect referralEarnings doc
+        }
     } catch (e) {
         console.error(e);
         showToast("Lỗi khi duyệt nạp tiền.");
@@ -2828,4 +2950,243 @@ window.switchPaymentTab = (tabName) => {
         }
     }
 };
+
+// ==========================================
+// Referral / Affiliate System
+// ==========================================
+
+const REFERRAL_COMMISSION_RATE = 0.10;
+const REFERRAL_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
+const REFERRAL_CODE_LENGTH = 8;
+
+function generateReferralCode() {
+    let out = '';
+    const chars = REFERRAL_CODE_ALPHABET;
+    for (let i = 0; i < REFERRAL_CODE_LENGTH; i++) {
+        out += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return out;
+}
+
+async function ensureReferralCode(uid) {
+    const { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } = window.firebase;
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) throw new Error('User doc not found');
+
+    const existing = userSnap.data().referralCode;
+    if (existing && /^[A-Z0-9]{6,12}$/.test(existing)) {
+        // Verify the mapping doc still exists (might be missing for legacy code path)
+        try {
+            const mapSnap = await getDoc(doc(db, "referralCodes", existing));
+            if (!mapSnap.exists()) {
+                await setDoc(doc(db, "referralCodes", existing), {
+                    uid: uid,
+                    createdAt: serverTimestamp()
+                });
+            }
+        } catch (e) {
+            console.warn('[Referral] Could not verify mapping doc:', e.message);
+        }
+        return existing;
+    }
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const candidate = generateReferralCode();
+        const mapRef = doc(db, "referralCodes", candidate);
+        const mapSnap = await getDoc(mapRef);
+        if (mapSnap.exists()) continue;
+
+        await setDoc(mapRef, { uid: uid, createdAt: serverTimestamp() });
+        await updateDoc(userRef, { referralCode: candidate });
+        return candidate;
+    }
+    throw new Error('Could not allocate unique referral code after 5 attempts');
+}
+
+async function openReferralPage() {
+    if (!currentUser) {
+        showToast(t('common.toast_login_required') || 'Vui lòng đăng nhập');
+        return;
+    }
+
+    const linkInput = document.getElementById('referral-link-input');
+    const codeDisplay = document.getElementById('referral-code-display');
+    const listEl = document.getElementById('referral-earnings-list');
+    const statInvited = document.getElementById('referral-stat-invited');
+    const statEarned = document.getElementById('referral-stat-earned');
+    const statTopups = document.getElementById('referral-stat-topups');
+
+    if (linkInput) linkInput.value = t('common.loading') || 'Loading...';
+    if (codeDisplay) codeDisplay.innerText = '...';
+
+    try {
+        const code = await ensureReferralCode(currentUser.uid);
+        referralCurrentCode = code;
+        const origin = window.location.origin;
+        const link = `${origin}/?ref=${code}`;
+        if (linkInput) linkInput.value = link;
+        if (codeDisplay) codeDisplay.innerText = code;
+    } catch (e) {
+        console.error('[Referral] ensureReferralCode failed:', e);
+        if (linkInput) linkInput.value = '';
+        if (codeDisplay) codeDisplay.innerText = '—';
+        showToast(t('common.error') + ': ' + (e.message || e));
+        return;
+    }
+
+    // Subscribe to referralEarnings for this user
+    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
+
+    if (referralEarningsUnsubscribe) {
+        try { referralEarningsUnsubscribe(); } catch (e) { }
+        referralEarningsUnsubscribe = null;
+    }
+
+    const q = query(
+        collection(db, "referralEarnings"),
+        where("referrerId", "==", currentUser.uid),
+        orderBy("createdAt", "desc")
+    );
+
+    referralEarningsUnsubscribe = onSnapshot(q, (snapshot) => {
+        if (!listEl) return;
+
+        if (snapshot.empty) {
+            listEl.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('referral.empty')}</td></tr>`;
+            if (statInvited) statInvited.innerText = '0';
+            if (statEarned) statEarned.innerText = '0';
+            if (statTopups) statTopups.innerText = '0';
+            return;
+        }
+
+        const rows = [];
+        const uniqueFriends = new Set();
+        let totalCommission = 0;
+        let totalTopups = 0;
+
+        snapshot.docs.forEach(docSnap => {
+            const d = docSnap.data();
+            uniqueFriends.add(d.referredUserId);
+            totalCommission += d.commissionCoins || 0;
+            totalTopups += 1;
+
+            const friendName = escapeHTML(d.referredUserName || 'Khách');
+            const friendEmail = escapeHTML(d.referredUserEmail || '');
+            const dateStr = safeToDate(d.createdAt) ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN') : '—';
+            const gatewayLabel = d.gateway === 'casso' ? 'Casso (VietQR)'
+                : d.gateway === 'lemonsqueezy' ? 'Lemon Squeezy'
+                : d.gateway === 'admin' ? (t('referral.gateway_admin') || 'Admin duyệt')
+                : (d.gateway || '—');
+
+            rows.push(`
+                <tr>
+                    <td>${friendName}<br><small style="opacity:0.6;">${friendEmail}</small></td>
+                    <td>${d.baseCoins || 0} Coin</td>
+                    <td style="color:#ffde00; font-weight:700;">+${d.commissionCoins || 0} Coin</td>
+                    <td>${gatewayLabel}</td>
+                    <td>${dateStr}</td>
+                </tr>
+            `);
+        });
+
+        listEl.innerHTML = rows.join('');
+        if (statInvited) statInvited.innerText = String(uniqueFriends.size);
+        if (statEarned) statEarned.innerText = String(totalCommission);
+        if (statTopups) statTopups.innerText = String(totalTopups);
+    }, (err) => {
+        console.error('[Referral] earnings snapshot error:', err);
+        if (listEl) listEl.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff6b6b; padding:2rem;">${escapeHTML(err.message || 'Lỗi tải dữ liệu')}</td></tr>`;
+    });
+}
+window.openReferralPage = openReferralPage;
+
+window.copyReferralLink = () => {
+    const input = document.getElementById('referral-link-input');
+    if (!input || !input.value) return;
+    try {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(input.value);
+        } else {
+            document.execCommand('copy');
+        }
+        showToast(t('referral.copied') || 'Đã sao chép link!');
+    } catch (e) {
+        showToast(t('common.error') + ': ' + e.message);
+    }
+};
+
+window.shareReferralTelegram = () => {
+    const input = document.getElementById('referral-link-input');
+    if (!input || !input.value) return;
+    const msg = t('referral.share_msg') || 'Tham gia MotionAI Studio cùng mình - biến ảnh thành video AI cực chất!';
+    const url = `https://t.me/share/url?url=${encodeURIComponent(input.value)}&text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+};
+
+/**
+ * Client-side commission payment. Called from admin approveTopup flow.
+ * Idempotent: uses topupId as referralEarnings doc ID.
+ * Wrapped in try/catch by caller; this function may throw on hard errors.
+ */
+async function payReferralCommissionClient(topupId, referredUserId, baseCoins, gateway, snapshotData) {
+    const { db, doc, getDoc, setDoc, runTransaction, serverTimestamp } = window.firebase;
+
+    if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
+
+    const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
+    if (commissionCoins <= 0) return;
+
+    // 1. Check if commission already paid for this topup
+    const earningRef = doc(db, "referralEarnings", topupId);
+    const earningSnap = await getDoc(earningRef);
+    if (earningSnap.exists()) {
+        console.log('[Referral] Commission already paid for topup:', topupId);
+        return;
+    }
+
+    // 2. Load referred user to find referrer
+    const referredUserRef = doc(db, "users", referredUserId);
+    const referredUserSnap = await getDoc(referredUserRef);
+    if (!referredUserSnap.exists()) return;
+    const referredData = referredUserSnap.data();
+    const referrerId = referredData.referredBy;
+    if (!referrerId) return; // User wasn't referred
+    if (referrerId === referredUserId) return; // Self-ref safety
+
+    // 3. Atomically credit commission + write earnings record
+    const referrerRef = doc(db, "users", referrerId);
+    await runTransaction(db, async (transaction) => {
+        // Re-check inside transaction to avoid race
+        const earningInTxn = await transaction.get(earningRef);
+        if (earningInTxn.exists()) return;
+
+        const referrerSnap = await transaction.get(referrerRef);
+        if (!referrerSnap.exists()) return;
+        const currentCoins = referrerSnap.data().coins || 0;
+
+        transaction.update(referrerRef, {
+            coins: currentCoins + commissionCoins,
+            updatedAt: serverTimestamp()
+        });
+        transaction.set(earningRef, {
+            referrerId: referrerId,
+            referredUserId: referredUserId,
+            referredUserEmail: (snapshotData && snapshotData.userEmail) || referredData.email || '',
+            referredUserName: (snapshotData && snapshotData.userName) || referredData.displayName || '',
+            topupId: topupId,
+            baseCoins: baseCoins,
+            commissionCoins: commissionCoins,
+            commissionRate: REFERRAL_COMMISSION_RATE,
+            gateway: gateway || 'unknown',
+            payoutStatus: 'credited',
+            createdAt: serverTimestamp()
+        });
+    });
+
+    console.log(`[Referral] Paid ${commissionCoins} coin commission to ${referrerId} for topup ${topupId}`);
+}
+window.payReferralCommissionClient = payReferralCommissionClient;
 

@@ -8,7 +8,29 @@ window.TRANSLATIONS = {
             terms: "Điều khoản",
             privacy: "Bảo mật",
             home: "Chọn Model AI",
-            build_channel: "Xây kênh 1000 fl / 21 ngày"
+            build_channel: "Xây kênh 1000 fl / 21 ngày",
+            referral: "Giới thiệu bạn bè"
+        },
+        referral: {
+            title: "Giới thiệu bạn bè - Nhận 10% Coin",
+            how_title: "Cách hoạt động",
+            how_desc: "Chia sẻ link cá nhân. Mỗi khi người bạn mời nạp Coin, bạn nhận ngay 10% Coin về ví — vĩnh viễn, không giới hạn lượt nạp.",
+            your_link: "Link giới thiệu của bạn",
+            copy_btn: "Sao chép",
+            code_hint: "Mã giới thiệu của bạn: <b id=\"referral-code-display\">—</b>",
+            stat_total_invited: "Tổng người đã mời",
+            stat_total_earned: "Tổng Coin hoa hồng",
+            stat_total_topups: "Lượt nạp đã thưởng",
+            earnings_title: "Lịch sử hoa hồng",
+            col_friend: "Người được mời",
+            col_base: "Coin họ nạp",
+            col_commission: "Hoa hồng (10%)",
+            col_gateway: "Kênh",
+            col_date: "Thời gian",
+            empty: "Chưa có hoa hồng nào. Hãy chia sẻ link để bắt đầu nhận thưởng!",
+            copied: "Đã sao chép link!",
+            share_msg: "Tham gia MotionAI Studio cùng mình - biến ảnh thành video AI cực chất!",
+            gateway_admin: "Admin duyệt"
         },
         models: {
             title: "Chọn Model AI Tạo Video",
@@ -251,7 +273,29 @@ window.TRANSLATIONS = {
             terms: "Terms",
             privacy: "Privacy",
             home: "Select AI Model",
-            build_channel: "1k Followers / 21 days"
+            build_channel: "1k Followers / 21 days",
+            referral: "Refer a Friend"
+        },
+        referral: {
+            title: "Refer Friends - Earn 10% Coins",
+            how_title: "How it works",
+            how_desc: "Share your personal link. Every time a friend you invited tops up Coins, you instantly receive 10% Coins to your wallet - lifetime, unlimited top-ups.",
+            your_link: "Your referral link",
+            copy_btn: "Copy",
+            code_hint: "Your referral code: <b id=\"referral-code-display\">—</b>",
+            stat_total_invited: "Total friends invited",
+            stat_total_earned: "Total commission Coins",
+            stat_total_topups: "Rewarded top-ups",
+            earnings_title: "Commission history",
+            col_friend: "Friend",
+            col_base: "Their top-up coins",
+            col_commission: "Commission (10%)",
+            col_gateway: "Channel",
+            col_date: "Time",
+            empty: "No commissions yet. Share your link to start earning!",
+            copied: "Link copied!",
+            share_msg: "Join MotionAI Studio with me - turn photos into amazing AI videos!",
+            gateway_admin: "Admin approval"
         },
         models: {
             title: "Select AI Video Model",

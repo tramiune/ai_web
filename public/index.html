@@ -67,6 +67,16 @@
                             <span data-i18n="dashboard.topup_history">Lịch sử nạp</span>
                         </a>
                         <hr class="dropdown-divider">
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('referral-page')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M22 11h-6"></path>
+                                <path d="M19 8v6"></path>
+                            </svg>
+                            <span data-i18n="navbar.referral">Giới thiệu bạn bè</span>
+                        </a>
+                        <hr class="dropdown-divider">
                         <a href="javascript:void(0)" id="admin-dropdown-item-profile" class="dropdown-item"
                             onclick="window.navTo('admin-panel')" style="display: none;">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -146,6 +156,17 @@
                                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                             </svg>
                             <span data-i18n="dashboard.topup_history">Lịch sử nạp</span>
+                        </a>
+                        <a href="javascript:void(0)" id="referral-dropdown-item-nav" class="dropdown-item"
+                            onclick="window.navTo('referral-page')" style="display: none;">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M22 11h-6"></path>
+                                <path d="M19 8v6"></path>
+                            </svg>
+                            <span data-i18n="navbar.referral">Giới thiệu bạn bè</span>
                         </a>
                         <a href="javascript:void(0)" id="admin-dropdown-item-nav" class="dropdown-item"
                             onclick="window.navTo('admin-panel')" style="display: none;">
@@ -502,6 +523,109 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Referral Page -->
+    <div id="referral-page" class="dashboard" style="display: none;">
+        <div class="db-header">
+            <div class="user-info-section">
+                <h1 class="user-greeting-text">Chào mừng, User! ✨</h1>
+                <p class="user-email-text" style="opacity: 0.6; font-size: 0.9rem;"></p>
+            </div>
+
+            <div class="wallet-card">
+                <div class="wallet-icon">
+                    <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)"
+                            fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2" />
+                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)" />
+                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <div class="wallet-info">
+                    <span class="wallet-label" data-i18n="dashboard.balance">Số dư Coin</span>
+                    <div class="wallet-value"><span class="coin-balance-text">0</span></div>
+                </div>
+                <button class="topup-pill-btn" onclick="window.openTopupModal()">
+                    <span>+</span> <span data-i18n="dashboard.topup">Nạp thêm</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="section-header" style="text-align: left; margin-bottom: 1.5rem; margin-top: 2rem; display: flex; align-items: center; justify-content: space-between;">
+            <h2 data-i18n="referral.title">Giới thiệu bạn bè - Nhận 10% Coin</h2>
+            <button class="btn-secondary" onclick="window.navTo('user-dashboard')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">
+                <span data-i18n="modals.back">Quay lại</span>
+            </button>
+        </div>
+
+        <div class="glass-card" style="padding: 2rem; margin-bottom: 2rem; background: linear-gradient(135deg, rgba(0, 242, 254, 0.08), rgba(168, 85, 247, 0.08)); border: 1px solid rgba(0, 242, 254, 0.25);">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 2.5rem;">🎁</div>
+                <div>
+                    <h3 style="margin: 0 0 0.3rem 0;" data-i18n="referral.how_title">Cách hoạt động</h3>
+                    <p style="margin: 0; opacity: 0.75; font-size: 0.9rem;" data-i18n="referral.how_desc">Chia sẻ link cá nhân. Mỗi khi người bạn mời nạp Coin, bạn nhận ngay 10% Coin về ví — vĩnh viễn, không giới hạn lượt nạp.</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <label style="display: block; font-size: 0.85rem; opacity: 0.7; margin-bottom: 0.5rem;" data-i18n="referral.your_link">Link giới thiệu của bạn</label>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <input id="referral-link-input" type="text" readonly value=""
+                        style="flex: 1; min-width: 250px; padding: 0.75rem 1rem; border-radius: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; font-family: monospace; font-size: 0.9rem;">
+                    <button id="referral-copy-btn" class="btn-primary" onclick="window.copyReferralLink()" style="padding: 0.75rem 1.25rem; font-size: 0.85rem; white-space: nowrap;">
+                        <svg style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        <span data-i18n="referral.copy_btn">Sao chép</span>
+                    </button>
+                    <button class="btn-secondary" onclick="window.shareReferralTelegram()" style="padding: 0.75rem 1.25rem; font-size: 0.85rem; white-space: nowrap;">
+                        <svg style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 2L11 13"></path>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+                        </svg>
+                        Telegram
+                    </button>
+                </div>
+                <p style="margin-top: 0.6rem; font-size: 0.75rem; opacity: 0.55;" data-i18n="referral.code_hint">Mã giới thiệu của bạn: <b id="referral-code-display">—</b></p>
+            </div>
+        </div>
+
+        <div class="referral-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+                <div style="font-size: 0.85rem; opacity: 0.6; margin-bottom: 0.5rem;" data-i18n="referral.stat_total_invited">Tổng người đã mời</div>
+                <div id="referral-stat-invited" style="font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, #00f2fe, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">0</div>
+            </div>
+            <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+                <div style="font-size: 0.85rem; opacity: 0.6; margin-bottom: 0.5rem;" data-i18n="referral.stat_total_earned">Tổng Coin hoa hồng</div>
+                <div id="referral-stat-earned" style="font-size: 2.2rem; font-weight: 700; color: #ffde00;">0</div>
+            </div>
+            <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+                <div style="font-size: 0.85rem; opacity: 0.6; margin-bottom: 0.5rem;" data-i18n="referral.stat_total_topups">Lượt nạp đã thưởng</div>
+                <div id="referral-stat-topups" style="font-size: 2.2rem; font-weight: 700;">0</div>
+            </div>
+        </div>
+
+        <div class="section-header" style="text-align: left; margin-bottom: 1rem;">
+            <h3 data-i18n="referral.earnings_title">Lịch sử hoa hồng</h3>
+        </div>
+        <div class="data-table-container" style="background: var(--bg-card); border-radius: var(--radius-md);">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th data-i18n="referral.col_friend">Người được mời</th>
+                        <th data-i18n="referral.col_base">Coin họ nạp</th>
+                        <th data-i18n="referral.col_commission">Hoa hồng (10%)</th>
+                        <th data-i18n="referral.col_gateway">Kênh</th>
+                        <th data-i18n="referral.col_date">Thời gian</th>
+                    </tr>
+                </thead>
+                <tbody id="referral-earnings-list">
+                    <tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;" data-i18n="referral.empty">Chưa có hoa hồng nào. Hãy chia sẻ link để bắt đầu nhận thưởng!</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 

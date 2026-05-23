@@ -82,6 +82,21 @@ export async function onRequestPost(context) {
                            `📝 Nội dung: ${code}\n` +
                            `🔑 Mã GD: \`${tidDisplay}\``;
            await notifyTelegram(message);
+
+           // Affiliate / Referral commission - isolated, must never block topup flow
+           try {
+             await payReferralCommission(accessToken, config.project_id, {
+               topupId: topup.id,
+               referredUserId: topup.userId,
+               referredUserEmail: topup.userEmail,
+               referredUserName: topup.userName,
+               baseCoins: coins,
+               gateway: 'casso'
+             });
+           } catch (refErr) {
+             console.error('[Referral] Casso commission error (non-blocking):', refErr.message);
+             try { await notifyTelegram(`⚠️ *LỖI TRẢ HOA HỒNG GIỚI THIỆU (CASSO)*\nTopup: ${topup.id}\nLỗi: ${refErr.message}`); } catch (e) { }
+           }
         }
       }
 
@@ -220,4 +235,110 @@ async function notifyTelegram(text) {
   } catch (err) {
     console.error("Telegram Notify Error:", err.message);
   }
+}
+
+// --- Affiliate / Referral Commission ---
+const REFERRAL_COMMISSION_RATE = 0.10;
+
+/**
+ * Pay 10% referral commission in coins to the referrer of `referredUserId`.
+ * Idempotent: uses topupId as the referralEarnings doc ID and aborts if it already exists.
+ * Safe to call after grantCoins has succeeded; never re-throws to caller's main flow
+ * (caller wraps in try/catch but this function itself signals errors via throw so
+ *  callers can decide whether to notify).
+ */
+async function payReferralCommission(token, projectId, params) {
+  const { topupId, referredUserId, referredUserEmail, referredUserName, baseCoins, gateway } = params;
+  if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
+
+  const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
+  if (commissionCoins <= 0) return;
+
+  const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+  const authHeader = { "Authorization": `Bearer ${token}` };
+
+  // 1. Read referred user doc to discover referredBy
+  const referredUserRes = await fetch(`${baseUrl}/users/${referredUserId}`, { headers: authHeader });
+  if (!referredUserRes.ok) {
+    if (referredUserRes.status === 404) return;
+    throw new Error(`Read referred user failed: ${referredUserRes.status}`);
+  }
+  const referredUserData = await referredUserRes.json();
+  const referredBy = referredUserData.fields?.referredBy?.stringValue;
+  if (!referredBy) return; // not referred
+  if (referredBy === referredUserId) return; // self-ref safety
+
+  // 2. Idempotency: create-only earnings doc using documentId query param.
+  // Firestore returns 409 ALREADY_EXISTS if a doc with that ID is present.
+  const earningsBody = {
+    fields: {
+      referrerId: { stringValue: referredBy },
+      referredUserId: { stringValue: referredUserId },
+      referredUserEmail: { stringValue: referredUserEmail || referredUserData.fields?.email?.stringValue || '' },
+      referredUserName: { stringValue: referredUserName || referredUserData.fields?.displayName?.stringValue || '' },
+      topupId: { stringValue: topupId },
+      baseCoins: { integerValue: baseCoins },
+      commissionCoins: { integerValue: commissionCoins },
+      commissionRate: { doubleValue: REFERRAL_COMMISSION_RATE },
+      gateway: { stringValue: gateway || 'unknown' },
+      payoutStatus: { stringValue: 'credited' },
+      createdAt: { timestampValue: new Date().toISOString() }
+    }
+  };
+
+  const createUrl = `${baseUrl}/referralEarnings?documentId=${encodeURIComponent(topupId)}`;
+  const createRes = await fetch(createUrl, {
+    method: "POST",
+    headers: { ...authHeader, "Content-Type": "application/json" },
+    body: JSON.stringify(earningsBody)
+  });
+
+  if (createRes.status === 409) {
+    console.log(`[Referral] Commission already paid for topup ${topupId} - skipped (idempotent).`);
+    return;
+  }
+  if (!createRes.ok) {
+    const txt = await createRes.text();
+    throw new Error(`Create referralEarnings failed (${createRes.status}): ${txt}`);
+  }
+
+  // 3. Credit commission coins to referrer.
+  // NOTE: not strictly atomic with step 2; if this step fails the earnings doc
+  // is the source of truth and we'll see the discrepancy. We surface error so
+  // caller logs/notifies admin to manually correct.
+  const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
+  if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
+  const referrerData = await referrerRes.json();
+  const currentCoins = parseInt(referrerData.fields?.coins?.integerValue || 0);
+
+  const patchRes = await fetch(`${baseUrl}/users/${referredBy}?updateMask.fieldPaths=coins&updateMask.fieldPaths=updatedAt`, {
+    method: "PATCH",
+    headers: { ...authHeader, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fields: {
+        coins: { integerValue: currentCoins + commissionCoins },
+        updatedAt: { timestampValue: new Date().toISOString() }
+      }
+    })
+  });
+  if (!patchRes.ok) {
+    const txt = await patchRes.text();
+    throw new Error(`Credit referrer coins failed (${patchRes.status}): ${txt}`);
+  }
+
+  console.log(`[Referral] Paid ${commissionCoins} coin commission to ${referredBy} for topup ${topupId} (gateway=${gateway})`);
+
+  // Telegram notification (fire-and-forget; failures don't matter here)
+  try {
+    const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
+    const referrerEmail = referrerData.fields?.email?.stringValue || '';
+    await notifyTelegram(
+      `🎁 *HOA HỒNG GIỚI THIỆU \\(${gateway}\\)*\n\n` +
+      `👤 Người giới thiệu: ${referrerName}\n` +
+      `📧 Email: ${referrerEmail}\n` +
+      `🪙 Hoa hồng: +${commissionCoins} Coin\n` +
+      `🛒 Người được mời nạp: ${referredUserName || 'N/A'} \\(${commissionCoins * 10} Coin gói nạp\\)\n` +
+      `🔑 Topup ID: ${topupId}`
+    );
+  } catch (e) { /* swallow */ }
 }
