@@ -738,6 +738,16 @@ async function handleUserLoggedIn(user) {
                     const tabUsersEl = document.getElementById('tab-users');
                     if (tabUsersEl) tabUsersEl.style.display = 'block';
                 }
+
+                // [TỐI ƯU - DEFENSIVE] Nếu user đang xem admin panel ngay lúc này
+                // (ví dụ: refresh trang khi đang ở admin, hoặc vừa được cấp quyền admin
+                // và đã navigate vào admin panel) -> đảm bảo có subscription.
+                // Hàm subscribeAdmin* có guard idempotent (fbHas) nên KHÔNG leak
+                // dù listener này fire nhiều lần.
+                const adminPanelEl = document.getElementById('admin-panel');
+                if (adminPanelEl && adminPanelEl.style.display === 'block') {
+                    loadAdminPanel();
+                }
             } else {
                 // Hide Admin Panel nav links
                 const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
