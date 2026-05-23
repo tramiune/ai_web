@@ -1266,11 +1266,45 @@ window.handlePreview = (input, containerId) => {
 };
 
 // --- File Upload Helper ---
+// Tên file của khách (đặc biệt video tải từ TikTok/SnapTik) thường chứa các ký tự
+// gây hỏng URL như '#', '?', '&', '+', '%' và khoảng trắng đã URL-encode sẵn.
+// Khi qua nhiều bước encode/decode (client -> worker -> Firestore -> render HTML)
+// chỉ cần một '%23' bị "hoàn nguyên" về '#' là toàn bộ phần đuôi tên file sẽ bị
+// browser xem như URL fragment -> không tới được worker -> R2 trả "file không tồn tại".
+// Vì vậy: làm sạch tên file NGAY TRƯỚC khi ghép vào key upload.
+function sanitizeUploadFileName(name) {
+    if (!name) return 'file';
+
+    // Tách extension (.mp4, .png, ...)
+    const lastDot = name.lastIndexOf('.');
+    let base = lastDot > 0 ? name.substring(0, lastDot) : name;
+    let ext  = lastDot > 0 ? name.substring(lastDot)   : '';
+
+    // Chuẩn hoá Unicode về NFC để Vietnamese ký tự không bị tách combining marks lẻ
+    try { base = base.normalize('NFC'); ext = ext.normalize('NFC'); } catch (_) {}
+
+    // Loại bỏ ký tự gây lỗi URL/đường dẫn:
+    //   # ? & + % = ' " < > \ : ; | * \r \n \t / và các whitespace -> '_'
+    const dangerous = /[#?&+%='"<>\\:;|*\/\s\u0000-\u001F\u007F]+/g;
+    base = base.replace(dangerous, '_');
+    ext  = ext.replace(/[^A-Za-z0-9.]/g, '');
+
+    // Gộp dấu '_' liên tiếp & cắt '_' ở 2 đầu
+    base = base.replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+
+    // Giới hạn độ dài tên file để tránh key R2 quá dài
+    if (base.length > 80) base = base.substring(0, 80);
+    if (!base) base = 'file';
+
+    return base + ext;
+}
+
 async function uploadFile(file, folder) {
     let workerUrl = "https://motionai-upload-api.traderfinn0312.workers.dev";
     if (workerUrl.endsWith('/')) workerUrl = workerUrl.slice(0, -1);
 
-    const fileName = `${folder}/${Date.now()}_${file.name}`;
+    const safeName = sanitizeUploadFileName(file.name);
+    const fileName = `${folder}/${Date.now()}_${safeName}`;
     const fetchUrl = `${workerUrl}/?file=${encodeURIComponent(fileName)}&t=${Date.now()}`;
 
     const progressVal = document.getElementById('progress-val');
