@@ -987,6 +987,33 @@ window.copyToClipboard = (text) => {
     });
 };
 
+// Copy link kết quả trong admin order detail modal
+window.copyAdminResultLink = () => {
+    const input = document.getElementById('admin-result-link');
+    if (!input) return;
+    const link = input.value.trim();
+    if (!link) {
+        showToast("⚠️ Chưa có link kết quả để copy");
+        return;
+    }
+    // Fallback cho trình duyệt cũ / context không phải HTTPS
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => {
+            showToast("✅ Đã copy link kết quả!");
+        }).catch(() => {
+            input.select();
+            input.setSelectionRange(0, 99999);
+            try { document.execCommand('copy'); showToast("✅ Đã copy link kết quả!"); }
+            catch (e) { showToast("❌ Không thể copy: " + e.message); }
+        });
+    } else {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        try { document.execCommand('copy'); showToast("✅ Đã copy link kết quả!"); }
+        catch (e) { showToast("❌ Không thể copy: " + e.message); }
+    }
+};
+
 
 // --- Rendering ---
 function renderPricing() {

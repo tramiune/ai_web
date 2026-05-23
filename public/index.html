@@ -1147,8 +1147,19 @@
                     </div>
                     <div class="form-group">
                         <label>🎬 Link kết quả (Video/Ảnh)</label>
-                        <input type="url" class="form-control" id="admin-result-link" placeholder="https://..."
-                            style="margin-bottom: 0.8rem;">
+                        <div style="display: flex; gap: 6px; margin-bottom: 0.8rem;">
+                            <input type="url" class="form-control" id="admin-result-link" placeholder="https://..."
+                                style="flex: 1; margin-bottom: 0;">
+                            <button type="button" class="btn-secondary" onclick="window.copyAdminResultLink()"
+                                title="Copy link kết quả"
+                                style="padding: 0 14px; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+                                <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>Copy</span>
+                            </button>
+                        </div>
 
                         <div class="glass-card"
                             style="padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
