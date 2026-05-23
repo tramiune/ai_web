@@ -287,11 +287,16 @@ export async function onWebhookRequest(context) {
 // --- Helpers ------------------------------------------------------------------
 
 function readPaypalConfig(env) {
+    const envName = String(env?.PAYPAL_ENV || PAYPAL_DEFAULTS.env || 'sandbox').trim().toLowerCase();
+    const clientId = String(env?.PAYPAL_CLIENT_ID || PAYPAL_DEFAULTS.clientId || '').trim();
+    const clientSecret = String(env?.PAYPAL_CLIENT_SECRET || PAYPAL_DEFAULTS.clientSecret || '').trim();
+    const webhookId = String(env?.PAYPAL_WEBHOOK_ID || PAYPAL_DEFAULTS.webhookId || '').trim();
+
     return {
-        env: (env?.PAYPAL_ENV || PAYPAL_DEFAULTS.env || 'sandbox').toLowerCase(),
-        clientId: env?.PAYPAL_CLIENT_ID || PAYPAL_DEFAULTS.clientId,
-        clientSecret: env?.PAYPAL_CLIENT_SECRET || PAYPAL_DEFAULTS.clientSecret,
-        webhookId: env?.PAYPAL_WEBHOOK_ID || PAYPAL_DEFAULTS.webhookId
+        env: envName === 'live' ? 'live' : 'sandbox',
+        clientId,
+        clientSecret,
+        webhookId
     };
 }
 
