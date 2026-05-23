@@ -67,9 +67,54 @@ let selectedTopupPackage = null;
 let isFirstTimeUser = false; // Flag for special offer (0 or 1 order)
 let orderCount = 0; // Track total orders
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
-let referralEarningsUnsubscribe = null; // Cleanup handle for referralEarnings onSnapshot
+let referralEarningsUnsubscribe = null; // Cleanup handle for referralEarnings onSnapshot (legacy - giờ dùng FB_LISTENERS)
 let referralCurrentCode = null; // User's referral code, populated when opening referral page
 const SUPER_ADMIN_EMAILS = ["traderfinn0312@gmail.com", "dinhhoangvan.hh@gmail.com"]; // Danh sách admin khởi tạo
+
+// =====================================================================
+// FIREBASE LISTENER REGISTRY (chống leak listener gây tốn reads)
+// =====================================================================
+// Trước đây code gọi onSnapshot(...) khắp nơi mà KHÔNG bao giờ unsubscribe.
+// Hậu quả: mỗi lần re-subscribe (đổi ngôn ngữ, đổi tab, gõ search, đổi trang)
+// lại chồng thêm listener mới -> tốn reads gấp N lần.
+//
+// Cơ chế: mọi listener đều gắn vào registry này theo "key". Trước khi tạo
+// listener mới ở cùng key, registry tự động unsub cái cũ. Logout -> unsub all.
+//
+// Keys đang dùng:
+//   - userProfile     : doc(users/{uid}) - profile + coins của user hiện tại
+//   - myOrders        : query orders của user hiện tại
+//   - myTopups        : query topups của user hiện tại
+//   - adminOrders     : admin tab Orders (theo currentOrderStatus)
+//   - adminTopups     : admin tab Topups (theo currentTopupStatus)
+//   - adminUsers      : admin tab Users
+//   - referralEarnings: hoa hồng giới thiệu của user hiện tại
+const FB_LISTENERS = Object.create(null);
+
+// Cache snapshot data để re-render mà không phải re-subscribe
+// (tiết kiệm reads khi user gõ search, đổi trang pagination, đổi ngôn ngữ).
+const FB_CACHE = Object.create(null);
+
+function fbUnsub(key) {
+    const fn = FB_LISTENERS[key];
+    if (typeof fn === 'function') {
+        try { fn(); } catch (e) { console.warn('[FB] Unsub error', key, e); }
+    }
+    FB_LISTENERS[key] = null;
+}
+
+function fbSub(key, unsubscribeFn) {
+    fbUnsub(key); // luôn cleanup cái cũ trước khi gắn cái mới
+    FB_LISTENERS[key] = unsubscribeFn;
+}
+
+function fbUnsubAll() {
+    Object.keys(FB_LISTENERS).forEach(fbUnsub);
+}
+
+function fbHas(key) {
+    return typeof FB_LISTENERS[key] === 'function';
+}
 // --- i18n Logic ---
 let currentLang = localStorage.getItem('app_lang');
 if (!['vi', 'en'].includes(currentLang)) {
@@ -189,8 +234,10 @@ window.switchLanguage = (lang) => {
     if (currentUser) {
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.innerText = t('dashboard.greeting', { name: currentUser.displayName });
-        loadMyOrders();
-        loadMyTopups();
+        // [TỐI ƯU] Đổi ngôn ngữ chỉ re-render từ cache, KHÔNG re-subscribe Firebase.
+        // Trước đây gọi loadMyOrders/loadMyTopups -> chồng listener mới mỗi lần đổi ngôn ngữ.
+        renderMyOrders();
+        renderMyTopups();
     }
     renderPricing();
 };
@@ -602,13 +649,15 @@ async function handleUserLoggedIn(user) {
         }
     }
 
-    onSnapshot(userRef, (snapshot) => {
+    fbSub('userProfile', onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.data();
             const currentCoins = data.coins || 0;
 
-            // Log Login Event to Firebase
-            logFirebaseEvent('login', { method: 'Firebase' });
+            // [TỐI ƯU] KHÔNG còn log 'login' event ở đây nữa.
+            // Listener này fire mỗi khi user.coins / role / v.v. thay đổi (nhiều lần),
+            // log 'login' ở đây sẽ làm sai lệch analytics + tốn write phụ.
+            // Login event đã được log đúng ở callback đăng nhập rồi.
 
             // Tự động nhận biết nạp coin thành công
             const topupModal = document.getElementById('topup-modal');
@@ -667,6 +716,15 @@ async function handleUserLoggedIn(user) {
             const isAdmin = data.role === 'admin' || data.role === 'super-admin';
             const isSuperAdmin = data.role === 'super-admin';
 
+            // [TỐI ƯU] Lưu trạng thái admin vào window để các nơi khác đọc.
+            // KHÔNG còn auto-call loadAdminPanel ở đây nữa - hàm đó sẽ chỉ chạy khi
+            // admin click vào trang Admin Panel (hook vào showAdminPanel).
+            // Trước đây: mỗi khi user.coins đổi -> listener fire -> loadAdminPanel
+            // -> +2 listener (orders + topups) leak liên tục.
+            window.__currentUserData = data;
+            window.__isAdmin = isAdmin;
+            window.__isSuperAdmin = isSuperAdmin;
+
             if (isAdmin) {
                 // Show Admin Panel nav links
                 const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
@@ -676,9 +734,9 @@ async function handleUserLoggedIn(user) {
                 const adminNavItem = document.getElementById('admin-dropdown-item-nav');
                 if (adminNavItem) adminNavItem.style.display = 'flex';
 
-                loadAdminPanel();
                 if (isSuperAdmin) {
-                    document.getElementById('tab-users').style.display = 'block';
+                    const tabUsersEl = document.getElementById('tab-users');
+                    if (tabUsersEl) tabUsersEl.style.display = 'block';
                 }
 
                 // [TỐI ƯU - DEFENSIVE] Nếu user đang xem admin panel ngay lúc này
@@ -698,11 +756,17 @@ async function handleUserLoggedIn(user) {
                 if (adminDivider) adminDivider.style.display = 'none';
                 const adminNavItem = document.getElementById('admin-dropdown-item-nav');
                 if (adminNavItem) adminNavItem.style.display = 'none';
-                
-                document.getElementById('admin-panel').style.display = 'none';
+
+                // Nếu user vừa bị gỡ quyền admin -> cleanup admin listener đang sống
+                fbUnsub('adminOrders');
+                fbUnsub('adminTopups');
+                fbUnsub('adminUsers');
+
+                const adminPanelEl = document.getElementById('admin-panel');
+                if (adminPanelEl) adminPanelEl.style.display = 'none';
             }
         }
-    });
+    }));
 
 
 
@@ -745,11 +809,22 @@ function handleUserLoggedOut() {
     const adminNavItem = document.getElementById('admin-dropdown-item-nav');
     if (adminNavItem) adminNavItem.style.display = 'none';
 
-    // Tear down referral earnings listener if any
-    if (referralEarningsUnsubscribe) {
-        try { referralEarningsUnsubscribe(); } catch (e) { }
-        referralEarningsUnsubscribe = null;
-    }
+    // [TỐI ƯU] Cleanup TẤT CẢ Firebase listener khi logout.
+    // Trước đây chỉ unsub referralEarnings -> các listener khác (myOrders, myTopups,
+    // userProfile, adminOrders, adminTopups, adminUsers) tiếp tục sống và đọc data
+    // dù user đã logout.
+    fbUnsubAll();
+
+    // Reset các flag/cache liên quan
+    window.__isAdmin = false;
+    window.__isSuperAdmin = false;
+    window.__currentUserData = null;
+    adminSubscribedOrderStatus = null;
+    adminSubscribedTopupStatus = null;
+    Object.keys(FB_CACHE).forEach(k => { delete FB_CACHE[k]; });
+
+    // Legacy var (giờ đã unsub trong fbUnsubAll, để null cho an toàn)
+    referralEarningsUnsubscribe = null;
 
     isFirstTimeUser = false;
     updateFirstOrderUI();
@@ -779,6 +854,9 @@ function showAdminPanel() {
     hideAllPages();
     document.getElementById('admin-panel').style.display = 'block';
     window.scrollTo(0, 0);
+    // [TỐI ƯU] Chỉ subscribe admin Firebase listener khi admin VÀO trang admin.
+    // Trước đây listener được tạo từ trong user-profile listener -> chạy sai chỗ.
+    if (window.__isAdmin) loadAdminPanel();
 }
 
 function showLanding() {
@@ -818,6 +896,18 @@ window.showDashboard = showDashboard;
 
 // Helper for navbar links
 window.navTo = (target) => {
+    // [TỐI ƯU - MỨC 3] Khi rời khỏi trang admin -> unsub các listener admin để
+    // không còn read khi admin không xem panel. Khi quay lại sẽ subscribe lại.
+    // (Listener của user thường: myOrders/myTopups giữ nguyên vì user có thể nhận
+    // toast khi đơn hàng chuyển trạng thái dù đang ở landing page.)
+    if (target !== 'admin-panel') {
+        fbUnsub('adminOrders');
+        fbUnsub('adminTopups');
+        fbUnsub('adminUsers');
+        adminSubscribedOrderStatus = null;
+        adminSubscribedTopupStatus = null;
+    }
+
     if (target === 'user-dashboard') {
         showDashboard();
     } else if (target === 'topup-history-page') {
@@ -1681,7 +1771,17 @@ async function setupEventListeners() {
 }
 
 // --- Data Loading (Real-time) ---
+// [TỐI ƯU] Tách subscribe & render. Subscribe chỉ chạy 1 lần đầu (cache vào FB_CACHE.myOrders).
+// Khi đổi ngôn ngữ hoặc cần re-render -> chỉ gọi renderMyOrders() (KHÔNG re-fetch / re-subscribe).
 function loadMyOrders() {
+    if (!currentUser) return;
+
+    // Đã có listener đang sống -> chỉ re-render từ cache, không re-subscribe
+    if (fbHas('myOrders')) {
+        renderMyOrders();
+        return;
+    }
+
     const { db, collection, query, where, onSnapshot } = window.firebase;
     const q = query(
         collection(db, "orders"),
@@ -1689,7 +1789,6 @@ function loadMyOrders() {
     );
 
     const grid = document.getElementById('my-orders-grid');
-    const countText = document.getElementById('orders-count-text');
 
     if (grid) {
         grid.innerHTML = Array(4).fill(0).map(() => `
@@ -1704,23 +1803,16 @@ function loadMyOrders() {
     }
 
     let isFirstLoad = true;
-    onSnapshot(q, (snapshot) => {
-        if (!grid) return;
-
-        // Detect changes for notifications
+    fbSub('myOrders', onSnapshot(q, (snapshot) => {
+        // Toast khi có order thay đổi trạng thái
         if (!isFirstLoad) {
             snapshot.docChanges().forEach(change => {
                 if (change.type === "modified") {
                     const data = change.doc.data();
-                    const oldData = snapshot.docs.find(d => d.id === change.doc.id)?.data(); // This is not reliable, use a different way
-                    // Actually docChanges() only gives us the NEW data. 
-                    // To be sure it's a status change, we could compare or just notify on any mod.
                     const orderId = change.doc.id.substring(change.doc.id.length - 6).toUpperCase();
                     const statusVN = STATUS_MAP()[data.status] || data.status;
-
                     if (data.status === 'completed') {
                         showToast(`🎉 Đơn hàng #${orderId} đã hoàn thành!`);
-                        // Optional: play sound
                     } else {
                         showToast(`ℹ️ Đơn hàng #${orderId} chuyển sang: ${statusVN}`);
                     }
@@ -1729,32 +1821,44 @@ function loadMyOrders() {
         }
         isFirstLoad = false;
 
+        // Cache snapshot data
+        FB_CACHE.myOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
         isFirstTimeUser = snapshot.size === 0;
         orderCount = snapshot.size;
         console.log("🔍 loadMyOrders: orderCount =", orderCount, "=> isFirstTimeUser =", isFirstTimeUser);
         updateFirstOrderUI();
 
-        if (snapshot.empty) {
-            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">🎬</div>
-                <div>${t('status.no_orders')}</div>
-            </div>`;
-            if (countText) countText.innerText = '';
-            return;
-        }
+        renderMyOrders();
+    }));
+}
 
-        // Manual sort by time
-        const sortedDocs = [...snapshot.docs].sort((a, b) => {
-            const timeA = a.data().createdAt?.seconds || 0;
-            const timeB = b.data().createdAt?.seconds || 0;
-            return timeB - timeA;
-        });
+function renderMyOrders() {
+    const grid = document.getElementById('my-orders-grid');
+    const countText = document.getElementById('orders-count-text');
+    if (!grid) return;
 
-        if (countText) countText.innerText = `${sortedDocs.length} Videos`;
+    const docs = FB_CACHE.myOrders || [];
 
-        grid.innerHTML = sortedDocs.map(doc => {
-            const d = doc.data();
-            const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
+    if (docs.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; opacity: 0.5; padding: 4rem 2rem; background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed var(--glass-border);">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">🎬</div>
+            <div>${t('status.no_orders')}</div>
+        </div>`;
+        if (countText) countText.innerText = '';
+        return;
+    }
+
+    const sortedDocs = [...docs].sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+    });
+
+    if (countText) countText.innerText = `${sortedDocs.length} Videos`;
+
+    grid.innerHTML = sortedDocs.map(d => {
+            const orderId = d.id.substring(d.id.length - 6).toUpperCase();
             const createdDateObj = safeToDate(d.createdAt);
             const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
             const statusVN = STATUS_MAP()[d.status] || d.status;
@@ -1770,7 +1874,7 @@ function loadMyOrders() {
             const delayNote = isPendingLong ? `<div class="order-delay-note">${t('dashboard.delay_note')}</div>` : '';
 
             return `
-                <div class="order-card ${isNew ? 'new-order-highlight' : ''}" onclick="${isCompleted && d.resultLink ? `window.playOrderVideo(event, '${d.resultLink}')` : `window.openUserOrderDetail('${doc.id}')`}">
+                <div class="order-card ${isNew ? 'new-order-highlight' : ''}" onclick="${isCompleted && d.resultLink ? `window.playOrderVideo(event, '${d.resultLink}')` : `window.openUserOrderDetail('${d.id}')`}">
                     <div class="order-thumb-wrapper">
                         <img src="${d.characterImageLink}" class="order-thumb">
                         
@@ -1807,18 +1911,25 @@ function loadMyOrders() {
                                         📥 Tải về
                                     </a>
                                 ` : ''}
-                                <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${doc.id}')">${t('dashboard.action_view_details')}</button>
+                                <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${d.id}')">${t('dashboard.action_view_details')}</button>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
-    });
 }
 
 
+// [TỐI ƯU] Tách subscribe & render. Subscribe 1 lần, re-render miễn phí khi đổi ngôn ngữ.
 function loadMyTopups() {
+    if (!currentUser) return;
+
+    if (fbHas('myTopups')) {
+        renderMyTopups();
+        return;
+    }
+
     const { db, collection, query, where, onSnapshot } = window.firebase;
     const q = query(
         collection(db, "topups"),
@@ -1838,16 +1949,12 @@ function loadMyTopups() {
     }
 
     let isFirstLoadTopup = true;
-    onSnapshot(q, (snapshot) => {
-        const list = document.getElementById('my-topups-list');
-
-        // Detect changes for notifications
+    fbSub('myTopups', onSnapshot(q, (snapshot) => {
+        // Toast khi có topup approved/rejected
         if (!isFirstLoadTopup) {
             snapshot.docChanges().forEach(change => {
                 if (change.type === "modified") {
                     const data = change.doc.data();
-                    const statusVN = STATUS_MAP()[data.status] || data.status;
-
                     if (data.status === 'approved') {
                         showToast(`✨ Đơn nạp ${data.packageName} đã được DUYỆT!`);
                     } else if (data.status === 'rejected') {
@@ -1857,36 +1964,44 @@ function loadMyTopups() {
             });
         }
         isFirstLoadTopup = false;
-        if (snapshot.empty) {
-            list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_topups')}</td></tr>`;
-            return;
-        }
 
-        // Sắp xếp thủ công trên client
-        const sortedDocs = [...snapshot.docs].sort((a, b) => {
-            const dateA = safeToDate(a.data().createdAt);
-            const dateB = safeToDate(b.data().createdAt);
-            const timeA = dateA ? dateA.getTime() : 0;
-            const timeB = dateB ? dateB.getTime() : 0;
-            return timeB - timeA;
-        });
+        FB_CACHE.myTopups = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderMyTopups();
+    }));
+}
 
-        list.innerHTML = sortedDocs.map(doc => {
-            const d = doc.data();
-            const createdDateObj = safeToDate(d.createdAt);
-            const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
-            const statusVN = STATUS_MAP()[d.status] || d.status;
-            return `
-                <tr>
-                    <td>${d.packageName}</td>
-                    <td>${d.amount ? d.amount.toLocaleString() : 0}đ</td>
-                    <td>${d.coins}</td>
-                    <td><span class="status-badge status-${d.status}">${statusVN}</span></td>
-                    <td>${date}</td>
-                </tr>
-            `;
-        }).join('');
+function renderMyTopups() {
+    const list = document.getElementById('my-topups-list');
+    if (!list) return;
+
+    const docs = FB_CACHE.myTopups || [];
+    if (docs.length === 0) {
+        list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">${t('status.no_topups')}</td></tr>`;
+        return;
+    }
+
+    const sortedDocs = [...docs].sort((a, b) => {
+        const dateA = safeToDate(a.createdAt);
+        const dateB = safeToDate(b.createdAt);
+        const timeA = dateA ? dateA.getTime() : 0;
+        const timeB = dateB ? dateB.getTime() : 0;
+        return timeB - timeA;
     });
+
+    list.innerHTML = sortedDocs.map(d => {
+        const createdDateObj = safeToDate(d.createdAt);
+        const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
+        const statusVN = STATUS_MAP()[d.status] || d.status;
+        return `
+            <tr>
+                <td>${d.packageName}</td>
+                <td>${d.amount ? d.amount.toLocaleString() : 0}đ</td>
+                <td>${d.coins}</td>
+                <td><span class="status-badge status-${d.status}">${statusVN}</span></td>
+                <td>${date}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 window.saveQRImage = () => {
@@ -1941,11 +2056,12 @@ window.switchAdminTab = (tabName) => {
 
     const btn = document.querySelector(`button[onclick*="switchAdminTab('${tabName}')"]`);
     if (btn) btn.classList.add('active');
-    document.getElementById(`admin-tab-${tabName}`).classList.add('active');
+    const contentEl = document.getElementById(`admin-tab-${tabName}`);
+    if (contentEl) contentEl.classList.add('active');
 
-    if (tabName === 'users') {
-        window.loadAdminUsers();
-    }
+    // [TỐI ƯU - MỨC 3] Chỉ subscribe đúng tab đang active. Tab khác -> unsub.
+    adminActiveTab = tabName;
+    refreshActiveAdminSubscription();
 };
 
 window.makeAdmin = async () => {
@@ -1964,94 +2080,137 @@ window.makeAdmin = async () => {
     document.getElementById('user-admin-email').value = '';
 };
 
-window.loadAdminUsers = () => {
-    const { db, collection, onSnapshot, query, orderBy } = window.firebase;
+// ----- USERS (Super-admin only tab) -----
+function subscribeAdminUsers() {
+    const { db, collection, onSnapshot, query, orderBy, limit } = window.firebase;
+
+    if (fbHas('adminUsers')) {
+        renderAdminUsers();
+        return;
+    }
+
+    const q = query(
+        collection(db, "users"),
+        orderBy("createdAt", "desc"),
+        limit(ADMIN_QUERY_LIMIT * 2) // users ít thay đổi, cho phép 200
+    );
+
+    fbSub('adminUsers', onSnapshot(q, (snapshot) => {
+        FB_CACHE.adminUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        FB_CACHE.adminUsersTruncated = snapshot.size === ADMIN_QUERY_LIMIT * 2;
+        renderAdminUsers();
+    }));
+}
+
+function renderAdminUsers() {
     const list = document.getElementById('admin-users-list');
     if (!list) return;
 
-    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
-    const searchVal = document.getElementById('admin-search-input').value.toLowerCase();
+    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
 
-    onSnapshot(q, (snapshot) => {
-        const filteredDocs = snapshot.docs.filter(doc => {
-            const d = doc.data();
-            const text = `${d.displayName} ${d.email}`.toLowerCase();
-            return text.includes(searchVal);
-        });
+    const hasFullCache = !!FB_CACHE.adminUsersFull;
+    const allDocs = (searchVal && hasFullCache)
+        ? FB_CACHE.adminUsersFull
+        : (FB_CACHE.adminUsers || []);
 
-        // --- Client-side Pagination for Users ---
-        const ITEMS_PER_PAGE = 10;
-        if (!window.currentAdminUserPage) window.currentAdminUserPage = 1;
-        const totalPages = Math.ceil(filteredDocs.length / ITEMS_PER_PAGE);
-        
-        if (window.currentAdminUserPage > totalPages && totalPages > 0) {
-            window.currentAdminUserPage = totalPages;
-        }
-
-        const startIndex = (window.currentAdminUserPage - 1) * ITEMS_PER_PAGE;
-        const pageData = filteredDocs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-        list.innerHTML = pageData.map(doc => {
-            const d = doc.data();
-            return `
-                <tr>
-                    <td>
-                        <div style="font-weight:600;">${escapeHTML(d.displayName || 'Khách')}</div>
-                        <div style="font-size:0.75rem; opacity:0.6;">${escapeHTML(d.email || '')}</div>
-                    </td>
-                    <td>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <input type="number" value="${d.coins || 0}" 
-                                   style="width: 80px; padding: 4px 8px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white;"
-                                   id="user-coins-${doc.id}">
-                            <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem;" 
-                                    onclick="window.updateUserCoins('${doc.id}')">Lưu</button>
-                        </div>
-                    </td>
-                    <td><span class="status-badge" style="background: ${d.role === 'admin' ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}">${d.role || 'user'}</span></td>
-                    <td>
-                        <div style="display:flex; gap:6px;">
-                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; white-space:nowrap;" onclick="window.makeAdminDirect('${doc.id}', '${d.role}')">
-                                ${d.role === 'admin' ? 'Gỡ Admin' : 'Làm Admin'}
-                            </button>
-                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; color: #ff1744; border-color: rgba(255, 23, 68, 0.3);"
-                                    onclick="window.deleteUserAdmin('${doc.id}')">
-                                Xoá
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        // Render Pagination Controls for Users
-        let paginationContainer = document.getElementById('admin-users-pagination');
-        if (!paginationContainer) {
-            paginationContainer = document.createElement('div');
-            paginationContainer.id = 'admin-users-pagination';
-            paginationContainer.style.display = 'flex';
-            paginationContainer.style.justifyContent = 'center';
-            paginationContainer.style.alignItems = 'center';
-            paginationContainer.style.gap = '15px';
-            paginationContainer.style.marginTop = '20px';
-            list.parentElement.parentElement.appendChild(paginationContainer); // Appending to the table container
-        }
-
-        if (totalPages > 1) {
-            paginationContainer.innerHTML = `
-                <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage - 1})" ${window.currentAdminUserPage === 1 ? 'disabled' : ''}>Trước</button>
-                <span>Trang ${window.currentAdminUserPage} / ${totalPages}</span>
-                <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage + 1})" ${window.currentAdminUserPage === totalPages ? 'disabled' : ''}>Sau</button>
-            `;
-        } else {
-            paginationContainer.innerHTML = '';
-        }
+    const filteredDocs = allDocs.filter(d => {
+        const text = `${d.displayName || ''} ${d.email || ''}`.toLowerCase();
+        return text.includes(searchVal);
     });
+
+    // Empty state khi đang search + bị truncate -> mời user search rộng
+    if (filteredDocs.length === 0 && searchVal && FB_CACHE.adminUsersTruncated && !hasFullCache) {
+        list.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem;">
+            <div style="opacity:0.7; margin-bottom: 1rem;">Không tìm thấy "<b>${escapeHTML(searchVal)}</b>" trong ${ADMIN_QUERY_LIMIT * 2} user mới nhất.</div>
+            <button class="btn-primary" onclick="window.fetchAllAdminCollection('users')" style="padding: 8px 16px;">🔍 Tìm trong toàn bộ</button>
+        </td></tr>`;
+        document.getElementById('admin-users-pagination')?.remove();
+        return;
+    }
+
+    const ITEMS_PER_PAGE = 10;
+    if (!window.currentAdminUserPage) window.currentAdminUserPage = 1;
+    const totalPages = Math.ceil(filteredDocs.length / ITEMS_PER_PAGE);
+
+    if (window.currentAdminUserPage > totalPages && totalPages > 0) {
+        window.currentAdminUserPage = totalPages;
+    }
+
+    const startIndex = (window.currentAdminUserPage - 1) * ITEMS_PER_PAGE;
+    const pageData = filteredDocs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    list.innerHTML = pageData.map(d => {
+        return `
+            <tr>
+                <td>
+                    <div style="font-weight:600;">${escapeHTML(d.displayName || 'Khách')}</div>
+                    <div style="font-size:0.75rem; opacity:0.6;">${escapeHTML(d.email || '')}</div>
+                </td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="number" value="${d.coins || 0}" 
+                               style="width: 80px; padding: 4px 8px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white;"
+                               id="user-coins-${d.id}">
+                        <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem;" 
+                                onclick="window.updateUserCoins('${d.id}')">Lưu</button>
+                    </div>
+                </td>
+                <td><span class="status-badge" style="background: ${d.role === 'admin' ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}">${d.role || 'user'}</span></td>
+                <td>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; white-space:nowrap;" onclick="window.makeAdminDirect('${d.id}', '${d.role}')">
+                            ${d.role === 'admin' ? 'Gỡ Admin' : 'Làm Admin'}
+                        </button>
+                        <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; color: #ff1744; border-color: rgba(255, 23, 68, 0.3);"
+                                onclick="window.deleteUserAdmin('${d.id}')">
+                            Xoá
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    let paginationContainer = document.getElementById('admin-users-pagination');
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'admin-users-pagination';
+        paginationContainer.style.display = 'flex';
+        paginationContainer.style.justifyContent = 'center';
+        paginationContainer.style.alignItems = 'center';
+        paginationContainer.style.gap = '15px';
+        paginationContainer.style.marginTop = '20px';
+        list.parentElement.parentElement.appendChild(paginationContainer);
+    }
+
+    let infoNote = '';
+    if (hasFullCache) {
+        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">(Đang search trong toàn bộ ${FB_CACHE.adminUsersFull.length} user)</span>`;
+    } else if (FB_CACHE.adminUsersTruncated) {
+        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(Đang hiển thị ${ADMIN_QUERY_LIMIT * 2} mới nhất${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('users')" style="color:#ffde00;">tìm trong toàn bộ?</a>` : ''})</span>`;
+    }
+
+    if (totalPages > 1) {
+        paginationContainer.innerHTML = `
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage - 1})" ${window.currentAdminUserPage === 1 ? 'disabled' : ''}>Trước</button>
+            <span>Trang ${window.currentAdminUserPage} / ${totalPages}${infoNote}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage + 1})" ${window.currentAdminUserPage === totalPages ? 'disabled' : ''}>Sau</button>
+        `;
+    } else {
+        paginationContainer.innerHTML = infoNote;
+    }
+}
+
+// Public alias (giữ tương thích các nơi đang gọi)
+window.loadAdminUsers = () => {
+    if (!window.__isAdmin) return;
+    subscribeAdminUsers();
 };
 
+// [TỐI ƯU] Đổi trang -> chỉ render lại
 window.changeAdminUserPage = (newPage) => {
     window.currentAdminUserPage = newPage;
-    window.loadAdminUsers();
+    renderAdminUsers();
 };
 
 window.updateUserCoins = async (userId) => {
@@ -2276,7 +2435,12 @@ window.switchTopupSubTab = (status) => {
     document.querySelectorAll('#admin-tab-topups .sub-tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-status') === status);
     });
-    loadAdminPanel();
+    window.currentAdminTopupPage = 1;
+    // Invalidate full cache vì status đã đổi (data set khác)
+    delete FB_CACHE.adminTopupsFull;
+    delete FB_CACHE.adminTopupsFullStatus;
+    // [TỐI ƯU] Đổi sub-tab -> chỉ subscribe lại topups (orders/users không động vào)
+    subscribeAdminTopups();
 };
 
 window.switchOrderSubTab = (status) => {
@@ -2284,7 +2448,10 @@ window.switchOrderSubTab = (status) => {
     document.querySelectorAll('#admin-tab-orders .sub-tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-status') === status);
     });
-    loadAdminPanel();
+    window.currentAdminOrderPage = 1;
+    delete FB_CACHE.adminOrdersFull;
+    delete FB_CACHE.adminOrdersFullStatus;
+    subscribeAdminOrders();
 };
 
 window.deleteOrder = async (event, orderId) => {
@@ -2313,280 +2480,465 @@ window.deleteTopup = async (event, topupId) => {
     }
 };
 
-function loadAdminPanel() {
-    console.log("Loading Admin Panel...");
-    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
-    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
+// =====================================================================
+// ADMIN PANEL — KIẾN TRÚC TỐI ƯU FIREBASE READS
+// =====================================================================
+// Trước đây loadAdminPanel() làm 2 việc cùng lúc và bị gọi loạn xạ:
+//   - Tạo onSnapshot mới cho TOPUPS + ORDERS (KHÔNG unsub cái cũ -> leak)
+//   - Render UI dựa trên search/pagination
+// Bị gọi từ: search keystroke (mỗi ký tự), sub-tab switch, đổi trang,
+// và TỆ NHẤT là từ user-profile listener (mỗi lần coin đổi).
+//
+// Giải pháp:
+//   1) Tách rõ "subscribe" vs "render". Subscribe gắn vào FB_LISTENERS registry.
+//   2) Search input -> debounce 300ms -> chỉ render lại từ cache, KHÔNG re-subscribe.
+//   3) Pagination -> chỉ render lại, KHÔNG re-subscribe.
+//   4) Switch sub-tab (đổi status filter) -> unsub cũ + sub query mới (vì where khác).
+//   5) Switch tab (orders/topups/users) -> unsub các tab khác (Mức 3: subscribe per active tab).
+//   6) Tất cả query admin có orderBy('createdAt','desc') + limit(100) (Mức 2).
 
-    // Add search listener if not already added
-    if (!window.adminSearchInited) {
-        document.getElementById('admin-search-input')?.addEventListener('input', () => {
-            loadAdminPanel();
-        });
-        window.adminSearchInited = true;
+let adminActiveTab = 'orders';            // 'orders' | 'topups' | 'users'
+let adminSubscribedOrderStatus = null;    // status đang sub cho orders
+let adminSubscribedTopupStatus = null;    // status đang sub cho topups
+let adminSearchDebounceTimer = null;
+const ADMIN_QUERY_LIMIT = 100;            // chỉ realtime-listen 100 doc mới nhất
+
+// =====================================================================
+// SEARCH IN FULL COLLECTION (one-shot, không listener)
+// =====================================================================
+// Default search chỉ tìm trong limit(100) realtime cache. Nếu admin cần tìm
+// đơn cũ hơn (ngoài top 100), bấm nút "Tìm trong toàn bộ" -> 1 lần getDocs
+// không limit, cache vào FB_CACHE.adminXxxFull, search trên đó.
+// Cache full bị huỷ khi đổi sub-tab (vì where status khác).
+window.fetchAllAdminCollection = async function (type) {
+    if (!window.__isAdmin) return;
+    const { db, collection, query, where, getDocs, orderBy } = window.firebase;
+
+    let q;
+    let cacheKey, statusKey, statusVal;
+
+    if (type === 'orders') {
+        statusVal = currentOrderStatus;
+        q = query(collection(db, 'orders'), where('status', '==', statusVal), orderBy('createdAt', 'desc'));
+        cacheKey = 'adminOrdersFull';
+        statusKey = 'adminOrdersFullStatus';
+    } else if (type === 'topups') {
+        statusVal = currentTopupStatus;
+        q = query(collection(db, 'topups'), where('status', '==', statusVal), orderBy('createdAt', 'desc'));
+        cacheKey = 'adminTopupsFull';
+        statusKey = 'adminTopupsFullStatus';
+    } else if (type === 'users') {
+        q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+        cacheKey = 'adminUsersFull';
+        statusKey = null;
+    } else {
+        return;
     }
 
-    // 1. Load Filtered Topups
-    const qTopups = query(collection(db, "topups"), where("status", "==", currentTopupStatus));
-    onSnapshot(qTopups,
-        (snapshot) => {
-            console.log("Topups data received:", snapshot.size);
-            const list = document.getElementById('admin-topups-list');
-            if (!list) return;
+    showToast('🔍 Đang tải toàn bộ dữ liệu...');
+    try {
+        const snapshot = await getDocs(q);
+        FB_CACHE[cacheKey] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (statusKey) FB_CACHE[statusKey] = statusVal;
 
-            if (snapshot.empty) {
-                list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không có dữ liệu đơn nạp</td></tr>';
-                return;
-            }
+        if (type === 'orders') renderAdminOrders();
+        else if (type === 'topups') renderAdminTopups();
+        else if (type === 'users') renderAdminUsers();
 
-            const filteredDocs = snapshot.docs.filter(doc => {
-                const d = doc.data();
-                const text = `${d.userName} ${d.userEmail} ${d.transferContent} ${d.packageName}`.toLowerCase();
-                return text.includes(searchVal);
-            });
+        showToast(`✅ Đã tải ${snapshot.size} bản ghi`);
+    } catch (e) {
+        console.error('Fetch all error:', e);
+        showToast('Lỗi tải dữ liệu: ' + e.message);
+    }
+};
 
-            if (filteredDocs.length === 0) {
-                list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
-                return;
-            }
-
-            // 1. Convert to objects and sort by time
-            let dataList = filteredDocs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            // 2. Group by User (sort users by their latest request)
-            const userLatestTime = {};
-            dataList.forEach(d => {
-                const time = d.createdAt?.toMillis ? d.createdAt.toMillis() : (d.createdAt || 0);
-                if (!userLatestTime[d.userId] || time > userLatestTime[d.userId]) {
-                    userLatestTime[d.userId] = time;
-                }
-            });
-
-            dataList.sort((a, b) => {
-                if (a.userId !== b.userId) {
-                    return userLatestTime[b.userId] - userLatestTime[a.userId];
-                }
-                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-                return timeB - timeA;
-            });
-
-            // --- Client-side Pagination for Topups ---
-            const ITEMS_PER_PAGE = 10;
-            if (!window.currentAdminTopupPage) window.currentAdminTopupPage = 1;
-            const totalPages = Math.ceil(dataList.length / ITEMS_PER_PAGE);
-            
-            if (window.currentAdminTopupPage > totalPages && totalPages > 0) {
-                window.currentAdminTopupPage = totalPages;
-            }
-
-            const startIndex = (window.currentAdminTopupPage - 1) * ITEMS_PER_PAGE;
-            const pageData = dataList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-            let lastUserId = null;
-            let groupColor = 'transparent';
-            const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
-            let colorIdx = 0;
-
-            list.innerHTML = pageData.map(d => {
-                if (d.userId !== lastUserId) {
-                    groupColor = groupColors[colorIdx % 2];
-                    colorIdx++;
-                    lastUserId = d.userId;
-                }
-                const safeUrl = d.proofLink ? d.proofLink.replace(/'/g, "\\'") : '';
-                return `
-                    <tr style="background: ${groupColor}; transition: background 0.3s ease;">
-                        <td>${escapeHTML(d.userName) || 'N/A'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
-                        <td>${escapeHTML(d.packageName) || ''}<br><strong>${d.amount ? d.amount.toLocaleString() : 0}đ</strong></td>
-                        <td style="color: #ffde00; font-weight: 700;">${escapeHTML(d.transferContent) || ''}</td>
-                        <td>
-                            <div class="proof-thumbnail" style="width: 50px; height: 50px; border-radius: 4px; overflow: hidden; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.viewFullImage('${safeUrl}')">
-                                <img src="${d.proofLink}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/50?text=Lỗi'">
-                            </div>
-                        </td>
-                        <td>
-                            <div style="display: flex; gap: 4px; align-items: center;">
-                                ${currentTopupStatus === 'pending' ? `
-                                    <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${d.id}', '${d.userId}', ${d.coins})">Duyệt</button>
-                                    <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${d.id}')">Hủy</button>
-                                ` : `
-                                    <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
-                                `}
-                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${d.id}')" title="Xóa">
-                                    <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            // Render Pagination Controls for Topups
-            let paginationContainer = document.getElementById('admin-topups-pagination');
-            if (!paginationContainer) {
-                paginationContainer = document.createElement('div');
-                paginationContainer.id = 'admin-topups-pagination';
-                paginationContainer.style.display = 'flex';
-                paginationContainer.style.justifyContent = 'center';
-                paginationContainer.style.alignItems = 'center';
-                paginationContainer.style.gap = '15px';
-                paginationContainer.style.marginTop = '20px';
-                list.parentElement.parentElement.appendChild(paginationContainer); // Appending to the table container
-            }
-
-            if (totalPages > 1) {
-                paginationContainer.innerHTML = `
-                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage - 1})" ${window.currentAdminTopupPage === 1 ? 'disabled' : ''}>Trước</button>
-                    <span>Trang ${window.currentAdminTopupPage} / ${totalPages}</span>
-                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage + 1})" ${window.currentAdminTopupPage === totalPages ? 'disabled' : ''}>Sau</button>
-                `;
-            } else {
-                paginationContainer.innerHTML = '';
-            }
-
-        },
-        (error) => {
-            console.error("Topups Snapshot Error:", error);
-            showToast("Lỗi tải danh sách nạp tiền: " + error.message);
-        }
-    );
-
-    // 2. Load Filtered Orders
-    const qOrders = query(collection(db, "orders"), where("status", "==", currentOrderStatus));
-    onSnapshot(qOrders,
-        (snapshot) => {
-            console.log("Orders data received:", snapshot.size);
-            const list = document.getElementById('admin-orders-list');
-            if (!list) return;
-
-            if (snapshot.empty) {
-                list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Chưa có đơn hàng nào trong mục này</td></tr>';
-                document.getElementById('admin-orders-pagination')?.remove();
-                return;
-            }
-
-            const filteredDocs = snapshot.docs.filter(doc => {
-                const d = doc.data();
-                const orderId = doc.id.substring(doc.id.length - 6).toUpperCase();
-                const text = `${orderId} ${d.userName} ${d.userEmail} ${d.packageName} ${d.serviceType}`.toLowerCase();
-                return text.includes(searchVal);
-            });
-
-            if (filteredDocs.length === 0) {
-                list.innerHTML = '<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
-                document.getElementById('admin-orders-pagination')?.remove();
-                return;
-            }
-
-            // 1. Convert to objects and sort by time
-            let dataList = filteredDocs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            // 2. Group by User (sort users by their latest request)
-            const userLatestTime = {};
-            dataList.forEach(d => {
-                const time = d.createdAt?.toMillis ? d.createdAt.toMillis() : (d.createdAt || 0);
-                if (!userLatestTime[d.userId] || time > userLatestTime[d.userId]) {
-                    userLatestTime[d.userId] = time;
-                }
-            });
-
-            dataList.sort((a, b) => {
-                if (a.userId !== b.userId) {
-                    return userLatestTime[b.userId] - userLatestTime[a.userId];
-                }
-                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-                return timeB - timeA;
-            });
-
-            // --- Client-side Pagination ---
-            const ITEMS_PER_PAGE = 10;
-            if (!window.currentAdminOrderPage) window.currentAdminOrderPage = 1;
-            const totalPages = Math.ceil(dataList.length / ITEMS_PER_PAGE);
-            
-            if (window.currentAdminOrderPage > totalPages && totalPages > 0) {
-                window.currentAdminOrderPage = totalPages;
-            }
-
-            const startIndex = (window.currentAdminOrderPage - 1) * ITEMS_PER_PAGE;
-            const pageData = dataList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-            let lastUserId = null;
-            let groupColor = 'transparent';
-            const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
-            let colorIdx = 0;
-
-            list.innerHTML = pageData.map(d => {
-                if (d.userId !== lastUserId) {
-                    groupColor = groupColors[colorIdx % 2];
-                    colorIdx++;
-                    lastUserId = d.userId;
-                }
-                const orderId = d.id.substring(d.id.length - 6).toUpperCase();
-                return `
-                    <tr style="background: ${groupColor}; transition: background 0.3s ease;">
-                        <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${orderId}</td>
-                        <td>${escapeHTML(d.userName) || 'Khách'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
-                        <td>${escapeHTML(d.packageName) || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
-                        <td>${d.costCoins || 0} Coin</td>
-                        <td>
-                            <div style="display: flex; gap: 6px; align-items: center;">
-                                <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${d.id}')">Cập nhật</button>
-                                <button class="download-pill-btn image-btn" style="padding: 4px; border-radius: 6px;" title="Tải ảnh" onclick="window.downloadUrl(event, '${d.characterImageLink}')">
-                                    <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="21 15 16 10 5 21"></polyline></svg>
-                                </button>
-                                <button class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="Tải video mẫu" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
-                                    <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
-                                </button>
-                                <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${d.id}')" title="Xóa đơn hàng">
-                                    <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            // Render Pagination Controls
-            let paginationContainer = document.getElementById('admin-orders-pagination');
-            if (!paginationContainer) {
-                paginationContainer = document.createElement('div');
-                paginationContainer.id = 'admin-orders-pagination';
-                paginationContainer.style.display = 'flex';
-                paginationContainer.style.justifyContent = 'center';
-                paginationContainer.style.alignItems = 'center';
-                paginationContainer.style.gap = '15px';
-                paginationContainer.style.marginTop = '20px';
-                list.parentElement.parentElement.appendChild(paginationContainer); // Appending to the table container
-            }
-
-            if (totalPages > 1) {
-                paginationContainer.innerHTML = `
-                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage - 1})" ${window.currentAdminOrderPage === 1 ? 'disabled' : ''}>Trước</button>
-                    <span>Trang ${window.currentAdminOrderPage} / ${totalPages}</span>
-                    <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage + 1})" ${window.currentAdminOrderPage === totalPages ? 'disabled' : ''}>Sau</button>
-                `;
-            } else {
-                paginationContainer.innerHTML = '';
-            }
-
-        },
-        (error) => {
-            console.error("Orders Snapshot Error:", error);
-            showToast("Lỗi tải danh sách đơn hàng: " + error.message);
-        }
-    );
+function setupAdminSearchInputOnce() {
+    if (window.adminSearchInited) return;
+    const input = document.getElementById('admin-search-input');
+    if (!input) return;
+    input.addEventListener('input', () => {
+        // Debounce: gõ liền tù tì 5 ký tự chỉ render 1 lần
+        clearTimeout(adminSearchDebounceTimer);
+        adminSearchDebounceTimer = setTimeout(() => {
+            // Reset về trang 1 mỗi khi search đổi
+            window.currentAdminOrderPage = 1;
+            window.currentAdminTopupPage = 1;
+            window.currentAdminUserPage = 1;
+            if (adminActiveTab === 'orders') renderAdminOrders();
+            else if (adminActiveTab === 'topups') renderAdminTopups();
+            else if (adminActiveTab === 'users') renderAdminUsers();
+        }, 300);
+    });
+    window.adminSearchInited = true;
 }
 
+// Entry point chính: gọi khi admin VÀO trang admin panel (showAdminPanel)
+// hoặc khi cần re-load full panel (vd: sau xoá đơn).
+function loadAdminPanel() {
+    console.log("Loading Admin Panel...");
+    if (!window.__isAdmin) return;
+    setupAdminSearchInputOnce();
+    refreshActiveAdminSubscription();
+}
+
+// Đảm bảo CHỈ tab đang active có subscription. Các tab khác được unsub.
+function refreshActiveAdminSubscription() {
+    if (!window.__isAdmin) {
+        fbUnsub('adminOrders');
+        fbUnsub('adminTopups');
+        fbUnsub('adminUsers');
+        return;
+    }
+
+    if (adminActiveTab === 'orders') {
+        fbUnsub('adminTopups');
+        fbUnsub('adminUsers');
+        subscribeAdminOrders();
+    } else if (adminActiveTab === 'topups') {
+        fbUnsub('adminOrders');
+        fbUnsub('adminUsers');
+        subscribeAdminTopups();
+    } else if (adminActiveTab === 'users') {
+        fbUnsub('adminOrders');
+        fbUnsub('adminTopups');
+        subscribeAdminUsers();
+    }
+}
+
+// ----- TOPUPS -----
+function subscribeAdminTopups() {
+    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
+    const status = currentTopupStatus;
+
+    // Đã sub cho status này rồi -> chỉ render từ cache (zero read)
+    if (fbHas('adminTopups') && adminSubscribedTopupStatus === status) {
+        renderAdminTopups();
+        return;
+    }
+    adminSubscribedTopupStatus = status;
+
+    const q = query(
+        collection(db, "topups"),
+        where("status", "==", status),
+        orderBy("createdAt", "desc"),
+        limit(ADMIN_QUERY_LIMIT)
+    );
+    fbSub('adminTopups', onSnapshot(q, (snapshot) => {
+        FB_CACHE.adminTopups = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        FB_CACHE.adminTopupsTruncated = snapshot.size === ADMIN_QUERY_LIMIT;
+        renderAdminTopups();
+    }, (error) => {
+        console.error("Topups Snapshot Error:", error);
+        showToast("Lỗi tải danh sách nạp tiền: " + error.message);
+    }));
+}
+
+function renderAdminTopups() {
+    const list = document.getElementById('admin-topups-list');
+    if (!list) return;
+
+    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
+
+    // Nếu user đã bấm "Tìm trong toàn bộ" cho status hiện tại -> dùng full cache
+    const hasFullCache = !!FB_CACHE.adminTopupsFull && FB_CACHE.adminTopupsFullStatus === currentTopupStatus;
+    const allDocs = (searchVal && hasFullCache)
+        ? FB_CACHE.adminTopupsFull
+        : (FB_CACHE.adminTopups || []);
+
+    if (allDocs.length === 0) {
+        list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không có dữ liệu đơn nạp</td></tr>';
+        document.getElementById('admin-topups-pagination')?.remove();
+        return;
+    }
+
+    const filteredDocs = allDocs.filter(d => {
+        const text = `${d.userName} ${d.userEmail} ${d.transferContent} ${d.packageName}`.toLowerCase();
+        return text.includes(searchVal);
+    });
+
+    if (filteredDocs.length === 0) {
+        // Nếu đang search + data đã bị truncate + chưa load full -> mời user bấm tìm rộng
+        if (searchVal && FB_CACHE.adminTopupsTruncated && !hasFullCache) {
+            list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:2rem;">
+                <div style="opacity:0.7; margin-bottom: 1rem;">Không tìm thấy "<b>${escapeHTML(searchVal)}</b>" trong ${ADMIN_QUERY_LIMIT} đơn nạp mới nhất.</div>
+                <button class="btn-primary" onclick="window.fetchAllAdminCollection('topups')" style="padding: 8px 16px;">🔍 Tìm trong toàn bộ</button>
+            </td></tr>`;
+        } else {
+            list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+        }
+        document.getElementById('admin-topups-pagination')?.remove();
+        return;
+    }
+
+    // Group by User (sort users by their latest request)
+    const userLatestTime = {};
+    filteredDocs.forEach(d => {
+        const time = d.createdAt?.toMillis ? d.createdAt.toMillis() : (d.createdAt || 0);
+        if (!userLatestTime[d.userId] || time > userLatestTime[d.userId]) {
+            userLatestTime[d.userId] = time;
+        }
+    });
+
+    const dataList = [...filteredDocs].sort((a, b) => {
+        if (a.userId !== b.userId) {
+            return userLatestTime[b.userId] - userLatestTime[a.userId];
+        }
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+        return timeB - timeA;
+    });
+
+    const ITEMS_PER_PAGE = 10;
+    if (!window.currentAdminTopupPage) window.currentAdminTopupPage = 1;
+    const totalPages = Math.ceil(dataList.length / ITEMS_PER_PAGE);
+
+    if (window.currentAdminTopupPage > totalPages && totalPages > 0) {
+        window.currentAdminTopupPage = totalPages;
+    }
+
+    const startIndex = (window.currentAdminTopupPage - 1) * ITEMS_PER_PAGE;
+    const pageData = dataList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    let lastUserId = null;
+    let groupColor = 'transparent';
+    const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
+    let colorIdx = 0;
+
+    list.innerHTML = pageData.map(d => {
+        if (d.userId !== lastUserId) {
+            groupColor = groupColors[colorIdx % 2];
+            colorIdx++;
+            lastUserId = d.userId;
+        }
+        const safeUrl = d.proofLink ? d.proofLink.replace(/'/g, "\\'") : '';
+        return `
+            <tr style="background: ${groupColor}; transition: background 0.3s ease;">
+                <td>${escapeHTML(d.userName) || 'N/A'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
+                <td>${escapeHTML(d.packageName) || ''}<br><strong>${d.amount ? d.amount.toLocaleString() : 0}đ</strong></td>
+                <td style="color: #ffde00; font-weight: 700;">${escapeHTML(d.transferContent) || ''}</td>
+                <td>
+                    <div class="proof-thumbnail" style="width: 50px; height: 50px; border-radius: 4px; overflow: hidden; border: 1px solid var(--glass-border); cursor: pointer;" onclick="window.viewFullImage('${safeUrl}')">
+                        <img src="${d.proofLink}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/50?text=Lỗi'">
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        ${currentTopupStatus === 'pending' ? `
+                            <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${d.id}', '${d.userId}', ${d.coins})">Duyệt</button>
+                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${d.id}')">Hủy</button>
+                        ` : `
+                            <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
+                        `}
+                        <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${d.id}')" title="Xóa">
+                            <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Pagination Controls
+    let paginationContainer = document.getElementById('admin-topups-pagination');
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'admin-topups-pagination';
+        paginationContainer.style.display = 'flex';
+        paginationContainer.style.justifyContent = 'center';
+        paginationContainer.style.alignItems = 'center';
+        paginationContainer.style.gap = '15px';
+        paginationContainer.style.marginTop = '20px';
+        list.parentElement.parentElement.appendChild(paginationContainer);
+    }
+
+    // Note + nút "Tìm trong toàn bộ" khi đang search và data bị truncate
+    let infoNote = '';
+    if (hasFullCache) {
+        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">(Đang search trong toàn bộ ${FB_CACHE.adminTopupsFull.length} bản ghi)</span>`;
+    } else if (FB_CACHE.adminTopupsTruncated) {
+        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(Đang hiển thị ${ADMIN_QUERY_LIMIT} mới nhất${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('topups')" style="color:#ffde00;">tìm trong toàn bộ?</a>` : ''})</span>`;
+    }
+
+    if (totalPages > 1) {
+        paginationContainer.innerHTML = `
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage - 1})" ${window.currentAdminTopupPage === 1 ? 'disabled' : ''}>Trước</button>
+            <span>Trang ${window.currentAdminTopupPage} / ${totalPages}${infoNote}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage + 1})" ${window.currentAdminTopupPage === totalPages ? 'disabled' : ''}>Sau</button>
+        `;
+    } else {
+        paginationContainer.innerHTML = infoNote;
+    }
+}
+
+// ----- ORDERS -----
+function subscribeAdminOrders() {
+    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
+    const status = currentOrderStatus;
+
+    if (fbHas('adminOrders') && adminSubscribedOrderStatus === status) {
+        renderAdminOrders();
+        return;
+    }
+    adminSubscribedOrderStatus = status;
+
+    const q = query(
+        collection(db, "orders"),
+        where("status", "==", status),
+        orderBy("createdAt", "desc"),
+        limit(ADMIN_QUERY_LIMIT)
+    );
+    fbSub('adminOrders', onSnapshot(q, (snapshot) => {
+        FB_CACHE.adminOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        FB_CACHE.adminOrdersTruncated = snapshot.size === ADMIN_QUERY_LIMIT;
+        renderAdminOrders();
+    }, (error) => {
+        console.error("Orders Snapshot Error:", error);
+        showToast("Lỗi tải danh sách đơn hàng: " + error.message);
+    }));
+}
+
+function renderAdminOrders() {
+    const list = document.getElementById('admin-orders-list');
+    if (!list) return;
+
+    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || "";
+
+    // Nếu user đã bấm "Tìm trong toàn bộ" cho status hiện tại -> dùng full cache
+    const hasFullCache = !!FB_CACHE.adminOrdersFull && FB_CACHE.adminOrdersFullStatus === currentOrderStatus;
+    const allDocs = (searchVal && hasFullCache)
+        ? FB_CACHE.adminOrdersFull
+        : (FB_CACHE.adminOrders || []);
+
+    if (allDocs.length === 0) {
+        list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Chưa có đơn hàng nào trong mục này</td></tr>';
+        document.getElementById('admin-orders-pagination')?.remove();
+        return;
+    }
+
+    const filteredDocs = allDocs.filter(d => {
+        const orderId = d.id.substring(d.id.length - 6).toUpperCase();
+        const text = `${orderId} ${d.userName} ${d.userEmail} ${d.packageName} ${d.serviceType}`.toLowerCase();
+        return text.includes(searchVal);
+    });
+
+    if (filteredDocs.length === 0) {
+        if (searchVal && FB_CACHE.adminOrdersTruncated && !hasFullCache) {
+            list.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem;">
+                <div style="opacity:0.7; margin-bottom: 1rem;">Không tìm thấy "<b>${escapeHTML(searchVal)}</b>" trong ${ADMIN_QUERY_LIMIT} đơn hàng mới nhất.</div>
+                <button class="btn-primary" onclick="window.fetchAllAdminCollection('orders')" style="padding: 8px 16px;">🔍 Tìm trong toàn bộ</button>
+            </td></tr>`;
+        } else {
+            list.innerHTML = '<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+        }
+        document.getElementById('admin-orders-pagination')?.remove();
+        return;
+    }
+
+    // Group by User (sort users by their latest request)
+    const userLatestTime = {};
+    filteredDocs.forEach(d => {
+        const time = d.createdAt?.toMillis ? d.createdAt.toMillis() : (d.createdAt || 0);
+        if (!userLatestTime[d.userId] || time > userLatestTime[d.userId]) {
+            userLatestTime[d.userId] = time;
+        }
+    });
+
+    const dataList = [...filteredDocs].sort((a, b) => {
+        if (a.userId !== b.userId) {
+            return userLatestTime[b.userId] - userLatestTime[a.userId];
+        }
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+        return timeB - timeA;
+    });
+
+    const ITEMS_PER_PAGE = 10;
+    if (!window.currentAdminOrderPage) window.currentAdminOrderPage = 1;
+    const totalPages = Math.ceil(dataList.length / ITEMS_PER_PAGE);
+
+    if (window.currentAdminOrderPage > totalPages && totalPages > 0) {
+        window.currentAdminOrderPage = totalPages;
+    }
+
+    const startIndex = (window.currentAdminOrderPage - 1) * ITEMS_PER_PAGE;
+    const pageData = dataList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    let lastUserId = null;
+    let groupColor = 'transparent';
+    const groupColors = ['rgba(255, 255, 255, 0.03)', 'transparent'];
+    let colorIdx = 0;
+
+    list.innerHTML = pageData.map(d => {
+        if (d.userId !== lastUserId) {
+            groupColor = groupColors[colorIdx % 2];
+            colorIdx++;
+            lastUserId = d.userId;
+        }
+        const orderId = d.id.substring(d.id.length - 6).toUpperCase();
+        return `
+            <tr style="background: ${groupColor}; transition: background 0.3s ease;">
+                <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${orderId}</td>
+                <td>${escapeHTML(d.userName) || 'Khách'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
+                <td>${escapeHTML(d.packageName) || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
+                <td>${d.costCoins || 0} Coin</td>
+                <td>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${d.id}')">Cập nhật</button>
+                        <button class="download-pill-btn image-btn" style="padding: 4px; border-radius: 6px;" title="Tải ảnh" onclick="window.downloadUrl(event, '${d.characterImageLink}')">
+                            <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="21 15 16 10 5 21"></polyline></svg>
+                        </button>
+                        <button class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="Tải video mẫu" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
+                            <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
+                        </button>
+                        <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${d.id}')" title="Xóa đơn hàng">
+                            <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Pagination Controls
+    let paginationContainer = document.getElementById('admin-orders-pagination');
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'admin-orders-pagination';
+        paginationContainer.style.display = 'flex';
+        paginationContainer.style.justifyContent = 'center';
+        paginationContainer.style.alignItems = 'center';
+        paginationContainer.style.gap = '15px';
+        paginationContainer.style.marginTop = '20px';
+        list.parentElement.parentElement.appendChild(paginationContainer);
+    }
+
+    let infoNote = '';
+    if (hasFullCache) {
+        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">(Đang search trong toàn bộ ${FB_CACHE.adminOrdersFull.length} bản ghi)</span>`;
+    } else if (FB_CACHE.adminOrdersTruncated) {
+        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(Đang hiển thị ${ADMIN_QUERY_LIMIT} mới nhất${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('orders')" style="color:#ffde00;">tìm trong toàn bộ?</a>` : ''})</span>`;
+    }
+
+    if (totalPages > 1) {
+        paginationContainer.innerHTML = `
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage - 1})" ${window.currentAdminOrderPage === 1 ? 'disabled' : ''}>Trước</button>
+            <span>Trang ${window.currentAdminOrderPage} / ${totalPages}${infoNote}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage + 1})" ${window.currentAdminOrderPage === totalPages ? 'disabled' : ''}>Sau</button>
+        `;
+    } else {
+        paginationContainer.innerHTML = infoNote;
+    }
+}
+
+// [TỐI ƯU] Đổi trang -> chỉ render lại từ cache, KHÔNG re-subscribe
 window.changeAdminOrderPage = (newPage) => {
     window.currentAdminOrderPage = newPage;
-    loadAdminPanel();
+    renderAdminOrders();
 };
 
 window.changeAdminTopupPage = (newPage) => {
     window.currentAdminTopupPage = newPage;
-    loadAdminPanel();
+    renderAdminTopups();
 };
 
 window.openUserOrderDetail = async (orderId) => {
@@ -3046,20 +3398,17 @@ async function openReferralPage() {
     }
 
     // Subscribe to referralEarnings for this user
-    const { db, collection, query, where, onSnapshot, orderBy } = window.firebase;
-
-    if (referralEarningsUnsubscribe) {
-        try { referralEarningsUnsubscribe(); } catch (e) { }
-        referralEarningsUnsubscribe = null;
-    }
+    // [TỐI ƯU] Dùng FB_LISTENERS registry. fbSub tự unsub cái cũ trước khi tạo mới.
+    const { db, collection, query, where, onSnapshot, orderBy, limit } = window.firebase;
 
     const q = query(
         collection(db, "referralEarnings"),
         where("referrerId", "==", currentUser.uid),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
+        limit(200)
     );
 
-    referralEarningsUnsubscribe = onSnapshot(q, (snapshot) => {
+    fbSub('referralEarnings', onSnapshot(q, (snapshot) => {
         if (!listEl) return;
 
         if (snapshot.empty) {
@@ -3107,7 +3456,7 @@ async function openReferralPage() {
     }, (err) => {
         console.error('[Referral] earnings snapshot error:', err);
         if (listEl) listEl.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff6b6b; padding:2rem;">${escapeHTML(err.message || 'Lỗi tải dữ liệu')}</td></tr>`;
-    });
+    }));
 }
 window.openReferralPage = openReferralPage;
 
