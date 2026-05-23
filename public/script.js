@@ -21,11 +21,14 @@ function safeToDate(field) {
 }
 
 // --- Data Constants ---
+// IMPORTANT: usdPrice here is for display only. Server-side `PACKAGES` in
+// functions/api/paypal.js is the source of truth for the actual charge.
+// Keep them in sync (id + coins + USD value).
 const COIN_PACKAGES = [
-    { id: 'starter_v2', name: 'Starter', coins: 20, price: '40.000đ', usdPrice: '$1.99', amount: 40000, note: 'Gói giới hạn', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/3f159349-cbbc-401f-b584-6c2b561b56b0' },
-    { id: 'creator', name: 'Creator', coins: 100, price: '100.000đ', usdPrice: '$4.99', amount: 100000, featured: true, note: 'Tặng 50 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/a3b6ba4b-ecf5-4c8a-b327-e41fa155da02' },
-    { id: 'studio', name: 'Studio', coins: 550, price: '500.000đ', usdPrice: '$24.99', amount: 500000, note: 'Tặng 300 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/aae30c4f-4684-483b-9177-31deb0bd33d7' },
-    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, note: 'Tặng 600 Coin', lemonsqueezyUrl: 'https://motionaistudio.lemonsqueezy.com/checkout/buy/324a1578-2352-4930-b5d9-3e086aaff17a' }
+    { id: 'starter_v2', name: 'Starter',    coins: 20,   price: '40.000đ',   usdPrice: '$2.99',  amount: 40000,   note: 'Gói giới hạn' },
+    { id: 'creator',    name: 'Creator',    coins: 100,  price: '100.000đ',  usdPrice: '$5.99',  amount: 100000, featured: true, note: 'Tặng 50 Coin' },
+    { id: 'studio',     name: 'Studio',     coins: 550,  price: '500.000đ',  usdPrice: '$24.99', amount: 500000,  note: 'Tặng 300 Coin' },
+    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, note: 'Tặng 600 Coin' }
 ];
 
 const AI_MODELS = [
@@ -1219,9 +1222,14 @@ window.openPricingModal = () => {
 window.selectTopup = async (id) => {
     if (!currentUser) return login();
 
-
-
     selectedTopupPackage = COIN_PACKAGES.find(p => p.id === id);
+
+    // Reset PayPal Buttons so they re-render against the new package's amount
+    // next time user opens the international tab.
+    _paypalLastPackageId = null;
+    const ppContainer = document.getElementById('paypal-button-container');
+    if (ppContainer) ppContainer.innerHTML = '';
+    setPaypalStatus('');
 
     // Lưu số dư hiện tại để theo dõi biến động khi nạp
     initialCoinsBeforeTopup = parseInt(document.getElementById('coin-balance').innerText) || 0;
@@ -3227,7 +3235,7 @@ async function sendCompletionEmail(orderId, orderData) {
 }
 
 // ==========================================
-// NEW: 4 Model AI & Lemon Squeezy Integration
+// 4 Model AI & Payment Tabs (Casso + PayPal)
 // ==========================================
 
 export function renderAIModels() {
@@ -3318,38 +3326,191 @@ window.switchPaymentTab = (tabName) => {
         intlBtn.classList.remove('active');
         vietqrContent.style.display = 'block';
         intlContent.style.display = 'none';
-    } else {
-        vietqrBtn.classList.remove('active');
-        intlBtn.classList.add('active');
-        vietqrContent.style.display = 'none';
-        intlContent.style.display = 'block';
-
-        // Cập nhật thông tin gói USD tương ứng
-        if (selectedTopupPackage) {
-            const intlInfo = document.getElementById('intl-package-info');
-            if (intlInfo) {
-                intlInfo.innerHTML = `
-                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">Selected Package</div>
-                    <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${selectedTopupPackage.name}</div>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">+${selectedTopupPackage.coins} Coins</div>
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">Price: ${selectedTopupPackage.usdPrice || '$4.99'}</div>
-                `;
-            }
-
-            // Gắn link thanh toán Lemon Squeezy kèm custom data user_id
-            const payBtn = document.getElementById('btn-lemonsqueezy-pay');
-            if (payBtn) {
-                const checkoutUrl = `${selectedTopupPackage.lemonsqueezyUrl}?checkout[custom][user_id]=${currentUser.uid}&checkout[custom][package_id]=${selectedTopupPackage.id}&checkout[email]=${encodeURIComponent(currentUser.email || '')}`;
-                payBtn.href = checkoutUrl;
-
-                // Khởi tạo Lemon Squeezy Popup
-                if (window.LemonSqueezy) {
-                    window.LemonSqueezy.Setup();
-                }
-            }
-        }
+        return;
     }
+
+    vietqrBtn.classList.remove('active');
+    intlBtn.classList.add('active');
+    vietqrContent.style.display = 'none';
+    intlContent.style.display = 'block';
+
+    if (!selectedTopupPackage) return;
+
+    const intlInfo = document.getElementById('intl-package-info');
+    if (intlInfo) {
+        intlInfo.innerHTML = `
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">Selected Package</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${selectedTopupPackage.name}</div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">+${selectedTopupPackage.coins} Coins</div>
+            <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">Price: ${selectedTopupPackage.usdPrice || '$5.99'}</div>
+        `;
+    }
+
+    // Lazy-mount PayPal buttons for the currently selected package.
+    mountPaypalButtons(selectedTopupPackage).catch(err => {
+        console.error('[PayPal] mountPaypalButtons failed:', err);
+        setPaypalStatus('Lỗi tải PayPal: ' + (err.message || err), '#ff6b6b');
+    });
 };
+
+// ==========================================
+// PayPal Smart Buttons Integration
+// ==========================================
+
+// Cached PayPal config from /api/paypal-config (clientId + env).
+let _paypalConfig = null;
+// Resolves to true when SDK script has loaded once.
+let _paypalSdkPromise = null;
+// Last package we rendered buttons for, so we can re-render when user switches package.
+let _paypalLastPackageId = null;
+
+function setPaypalStatus(text, color) {
+    const el = document.getElementById('paypal-status');
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = color || 'var(--text-muted)';
+}
+
+async function fetchPaypalConfig() {
+    if (_paypalConfig) return _paypalConfig;
+    const res = await fetch('/api/paypal-config');
+    if (!res.ok) throw new Error(`paypal-config HTTP ${res.status}`);
+    _paypalConfig = await res.json();
+    return _paypalConfig;
+}
+
+function loadPaypalSdk(clientId, currency) {
+    if (_paypalSdkPromise) return _paypalSdkPromise;
+    _paypalSdkPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        // disable-funding=credit,paylater so we only show wallet + card; tweak as needed.
+        s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency || 'USD')}&intent=capture&components=buttons`;
+        s.async = true;
+        s.onload = () => resolve(window.paypal);
+        s.onerror = () => reject(new Error('Could not load PayPal SDK'));
+        document.head.appendChild(s);
+    });
+    return _paypalSdkPromise;
+}
+
+async function mountPaypalButtons(pkg) {
+    if (!pkg) return;
+    if (!currentUser) {
+        setPaypalStatus('Please log in to pay with PayPal.', '#ff6b6b');
+        return;
+    }
+
+    const container = document.getElementById('paypal-button-container');
+    if (!container) return;
+
+    // If the same package is already rendered, skip - PayPal buttons are idempotent
+    // per container, and re-rendering causes a flash.
+    if (_paypalLastPackageId === pkg.id && container.childElementCount > 0) {
+        return;
+    }
+
+    setPaypalStatus('Loading PayPal...', 'var(--text-muted)');
+    container.innerHTML = '';
+
+    const cfg = await fetchPaypalConfig();
+    if (!cfg.clientId) {
+        setPaypalStatus('PayPal chưa được cấu hình (thiếu Client ID).', '#ff6b6b');
+        return;
+    }
+
+    // Show sandbox banner if applicable.
+    const banner = document.getElementById('paypal-sandbox-banner');
+    if (banner) banner.style.display = cfg.env === 'sandbox' ? 'block' : 'none';
+
+    const paypal = await loadPaypalSdk(cfg.clientId, cfg.currency || 'USD');
+    if (!paypal || !paypal.Buttons) {
+        setPaypalStatus('Lỗi: PayPal SDK không khả dụng.', '#ff6b6b');
+        return;
+    }
+
+    paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
+
+        createOrder: async () => {
+            setPaypalStatus('Creating order...', 'var(--text-muted)');
+            const res = await fetch('/api/paypal-create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: currentUser.uid,
+                    packageId: pkg.id,
+                    userEmail: currentUser.email || ''
+                })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.orderID) {
+                throw new Error(data.error || `Create order failed (${res.status})`);
+            }
+            return data.orderID;
+        },
+
+        onApprove: async (data) => {
+            setPaypalStatus('Processing payment...', 'var(--text-muted)');
+            try {
+                const res = await fetch('/api/paypal-capture-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderID: data.orderID })
+                });
+                const result = await res.json();
+                if (!res.ok) {
+                    throw new Error(result.error || `Capture failed (${res.status})`);
+                }
+                if (result.status === 'COMPLETED') {
+                    setPaypalStatus('✅ Thanh toán thành công! Coin sẽ được cộng trong vài giây...', '#27ae60');
+                    showToast('🎉 Thanh toán PayPal thành công! Coin sẽ tự cộng.');
+                    // The webhook is the source of truth for coin grant; the
+                    // Firebase onSnapshot on the user doc will refresh the
+                    // balance display automatically.
+                    if (typeof ttq !== 'undefined') {
+                        try {
+                            ttq.track('CompletePayment', {
+                                value: parseFloat((pkg.usdPrice || '$0').replace('$', '')),
+                                currency: 'USD',
+                                content_id: pkg.id
+                            });
+                        } catch (e) { /* swallow */ }
+                    }
+                    logFirebaseEvent('purchase', {
+                        currency: 'USD',
+                        value: parseFloat((pkg.usdPrice || '$0').replace('$', '')),
+                        transaction_id: data.orderID,
+                        items: [{ item_id: pkg.id, item_name: pkg.name }]
+                    });
+                } else {
+                    setPaypalStatus(`Status: ${result.status}. If coin doesn't arrive in 1 min, contact support.`, '#ffde00');
+                }
+            } catch (err) {
+                console.error('[PayPal] onApprove error:', err);
+                setPaypalStatus('Lỗi capture: ' + (err.message || err), '#ff6b6b');
+                showToast('⚠️ Lỗi PayPal: ' + (err.message || err));
+            }
+        },
+
+        onCancel: () => {
+            setPaypalStatus('Bạn đã hủy thanh toán PayPal.', 'var(--text-muted)');
+        },
+
+        onError: (err) => {
+            console.error('[PayPal] Buttons error:', err);
+            setPaypalStatus('Lỗi PayPal: ' + (err.message || err), '#ff6b6b');
+        }
+    }).render('#paypal-button-container').then(() => {
+        _paypalLastPackageId = pkg.id;
+        setPaypalStatus('', 'var(--text-muted)');
+    }).catch(err => {
+        console.error('[PayPal] Buttons render error:', err);
+        setPaypalStatus('Lỗi hiển thị PayPal: ' + (err.message || err), '#ff6b6b');
+    });
+}
+
+// Expose for debugging from devtools.
+window.__paypal = { fetchPaypalConfig, mountPaypalButtons };
 
 // ==========================================
 // Referral / Affiliate System
@@ -3472,6 +3633,7 @@ async function openReferralPage() {
             const friendEmail = escapeHTML(d.referredUserEmail || '');
             const dateStr = safeToDate(d.createdAt) ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN') : '—';
             const gatewayLabel = d.gateway === 'casso' ? 'Casso (VietQR)'
+                : d.gateway === 'paypal' ? 'PayPal'
                 : d.gateway === 'lemonsqueezy' ? 'Lemon Squeezy'
                 : d.gateway === 'admin' ? (t('referral.gateway_admin') || 'Admin duyệt')
                 : (d.gateway || '—');

@@ -1,21 +1,40 @@
 import { onRequestPost as onCassoRequestPost } from './functions/api/casso-webhook.js';
-import { onRequestPost as onLemonSqueezyRequestPost } from './functions/api/lemonsqueezy-webhook.js';
+import {
+  onConfigRequest as onPaypalConfigRequest,
+  onCreateOrderRequest as onPaypalCreateOrderRequest,
+  onCaptureOrderRequest as onPaypalCaptureOrderRequest,
+  onWebhookRequest as onPaypalWebhookRequest
+} from './functions/api/paypal.js';
 
 export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
-    
-    // Nếu khách gọi vào link webhook Casso
-    if (url.pathname === '/api/casso-webhook') {
+    const method = request.method;
+
+    // --- Casso (VietQR) webhook ----------------------------------------------
+    if (url.pathname === '/api/casso-webhook' && method === 'POST') {
       return onCassoRequestPost({ request, env, context });
     }
 
-    // Nếu khách gọi vào link webhook Lemon Squeezy
-    if (url.pathname === '/api/lemonsqueezy-webhook') {
-      return onLemonSqueezyRequestPost({ request, env, context });
+    // --- PayPal (International) ----------------------------------------------
+    // Public config (GET): returns clientId + env for the JS SDK on the frontend.
+    if (url.pathname === '/api/paypal-config' && method === 'GET') {
+      return onPaypalConfigRequest({ request, env, context });
+    }
+    // Smart Buttons createOrder callback target.
+    if (url.pathname === '/api/paypal-create-order' && method === 'POST') {
+      return onPaypalCreateOrderRequest({ request, env, context });
+    }
+    // Smart Buttons onApprove callback target.
+    if (url.pathname === '/api/paypal-capture-order' && method === 'POST') {
+      return onPaypalCaptureOrderRequest({ request, env, context });
+    }
+    // Server-to-server webhook from PayPal (PAYMENT.CAPTURE.COMPLETED etc.).
+    if (url.pathname === '/api/paypal-webhook' && method === 'POST') {
+      return onPaypalWebhookRequest({ request, env, context });
     }
 
-    // Nếu không phải link API, thì trả về lỗi 404 (để Cloudflare Assets tự xử lý phần web tĩnh)
-    return new Response("Not Found", { status: 404 });
+    // Not an API route - let Cloudflare Assets serve static files.
+    return new Response('Not Found', { status: 404 });
   }
 };
