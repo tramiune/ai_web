@@ -34,6 +34,20 @@ export default {
       return onPaypalWebhookRequest({ request, env, context });
     }
 
+    // Geo hint for auto language: VN → vi, everything else → en.
+    if (url.pathname === '/api/geo' && method === 'GET') {
+      const country = request.headers.get('CF-IPCountry')
+        || request.headers.get('cf-ipcountry')
+        || 'XX';
+      return new Response(JSON.stringify({ country }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
     // Not an API route - let Cloudflare Assets serve static files.
     return new Response('Not Found', { status: 404 });
   }

@@ -119,9 +119,37 @@ function fbHas(key) {
     return typeof FB_LISTENERS[key] === 'function';
 }
 // --- i18n Logic ---
-let currentLang = localStorage.getItem('app_lang');
+// Priority: manual choice in localStorage > geo (VN=vi, else=en) > browser language.
+const LANG_STORAGE_KEY = 'app_lang';
+
+function detectLangFromBrowser() {
+    const langs = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
+    for (const l of langs) {
+        if (String(l).toLowerCase().startsWith('vi')) return 'vi';
+    }
+    return 'en';
+}
+
+async function resolveInitialLanguage() {
+    const saved = localStorage.getItem(LANG_STORAGE_KEY);
+    if (['vi', 'en'].includes(saved)) return saved;
+
+    try {
+        const res = await fetch('/api/geo', { cache: 'no-store' });
+        if (res.ok) {
+            const data = await res.json();
+            return data.country === 'VN' ? 'vi' : 'en';
+        }
+    } catch (e) {
+        console.warn('[i18n] Geo detection failed, using browser fallback:', e.message);
+    }
+
+    return detectLangFromBrowser();
+}
+
+let currentLang = localStorage.getItem(LANG_STORAGE_KEY);
 if (!['vi', 'en'].includes(currentLang)) {
-    currentLang = 'vi';
+    currentLang = detectLangFromBrowser();
 }
 window.currentLang = currentLang;
 
@@ -181,6 +209,8 @@ window.STATUS_MAP = STATUS_MAP;
 window.SERVICE_TYPE_MAP = SERVICE_TYPE_MAP;
 
 export function applyTranslations() {
+    document.documentElement.lang = currentLang === 'en' ? 'en' : 'vi';
+
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         const translation = t(key);
@@ -225,9 +255,10 @@ window.toggleUserMenu = (e) => {
 };
 
 window.switchLanguage = (lang) => {
+    if (!['vi', 'en'].includes(lang)) return;
     currentLang = lang;
     window.currentLang = lang;
-    localStorage.setItem('app_lang', lang);
+    localStorage.setItem(LANG_STORAGE_KEY, lang);
     applyTranslations();
 
     // Close lang menu after switch
@@ -288,7 +319,12 @@ function clearPendingReferralCode() {
 }
 
 // --- App Initialization ---
-export function initAppLogic() {
+export async function initAppLogic() {
+    if (!localStorage.getItem(LANG_STORAGE_KEY)) {
+        currentLang = await resolveInitialLanguage();
+        window.currentLang = currentLang;
+    }
+
     // Global Error Handler for debugging
     window.onerror = function (msg, url, lineNo, columnNo, error) {
         const message = [
