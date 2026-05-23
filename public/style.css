@@ -3273,6 +3273,24 @@ section {
   color: rgba(255, 255, 255, 0.3);
 }
 
+/* Mobile: stack search input và Test Tele button thành 2 hàng để search không bị che */
+@media (max-width: 640px) {
+  .admin-controls > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.6rem !important;
+  }
+  .admin-controls > div > div:first-child {
+    width: 100%;
+  }
+  .admin-controls .btn-secondary {
+    align-self: flex-end;
+    height: 38px !important;
+    padding: 6px 14px !important;
+    font-size: 0.85rem;
+  }
+}
+
 /* ========== Forced Auth Modal ========== */
 .auth-modal-overlay {
   position: fixed;

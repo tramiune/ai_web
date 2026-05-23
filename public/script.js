@@ -2711,9 +2711,15 @@ function renderAdminTopups() {
             lastUserId = d.userId;
         }
         const safeUrl = d.proofLink ? d.proofLink.replace(/'/g, "\\'") : '';
+        const createdDateObj = safeToDate(d.createdAt);
+        const dateStr = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
         return `
             <tr style="background: ${groupColor}; transition: background 0.3s ease;">
-                <td>${escapeHTML(d.userName) || 'N/A'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
+                <td>
+                    <div>${escapeHTML(d.userName) || 'N/A'}</div>
+                    <small style="opacity:0.6;">${escapeHTML(d.userEmail) || ''}</small>
+                    ${dateStr ? `<div style="font-size:0.7rem; color:#9ca3af; margin-top:2px;">🕐 ${dateStr}</div>` : ''}
+                </td>
                 <td>${escapeHTML(d.packageName) || ''}<br><strong>${d.amount ? d.amount.toLocaleString() : 0}đ</strong></td>
                 <td style="color: #ffde00; font-weight: 700;">${escapeHTML(d.transferContent) || ''}</td>
                 <td>
@@ -2875,9 +2881,14 @@ function renderAdminOrders() {
             lastUserId = d.userId;
         }
         const orderId = d.id.substring(d.id.length - 6).toUpperCase();
+        const createdDateObj = safeToDate(d.createdAt);
+        const dateStr = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
         return `
             <tr style="background: ${groupColor}; transition: background 0.3s ease;">
-                <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${orderId}</td>
+                <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">
+                    #${orderId}
+                    ${dateStr ? `<div style="font-size:0.7rem; color:#9ca3af; font-weight:normal; margin-top:4px;">🕐 ${dateStr}</div>` : ''}
+                </td>
                 <td>${escapeHTML(d.userName) || 'Khách'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
                 <td>${escapeHTML(d.packageName) || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
                 <td>${d.costCoins || 0} Coin</td>
