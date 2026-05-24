@@ -535,6 +535,100 @@ button {
   overflow: hidden;
 }
 
+.pricing-pay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+  width: 100%;
+}
+
+.price-card--coin {
+  padding: 1.75rem 1.25rem 1.5rem;
+}
+
+.price-card--coin:hover {
+  transform: translateY(-4px);
+}
+
+.price-card-note {
+  min-height: 1.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.65rem;
+  line-height: 1.3;
+}
+
+.coin-amount-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-bottom: 0.15rem;
+}
+
+.coin-amount-display .coin-icon-svg {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.coin-amount-num {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.price-card-bonus-hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  min-height: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.price-card-bonus-hint--empty {
+  visibility: hidden;
+}
+
+.price-card--coin .price-value {
+  margin-bottom: 1.25rem;
+}
+
+.pricing-pay-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pricing-pay-btn:hover {
+  border-color: rgba(0, 242, 254, 0.45);
+  background: rgba(0, 242, 254, 0.08);
+  color: #fff;
+}
+
+.pricing-pay-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 .price-card:hover {
   transform: translateY(-10px);
   border-color: var(--primary);

@@ -865,18 +865,8 @@
             </div>
 
             <div class="modal-body" style="padding: 1rem; text-align: center;">
-                <!-- Tab Selector -->
-                <div class="payment-tabs-container" style="display: flex; gap: 10px; margin-bottom: 1.5rem; justify-content: center;">
-                    <button class="payment-tab-btn active" id="tab-vietqr-btn" onclick="window.switchPaymentTab('vietqr')" data-i18n="payment.tab_vietqr">
-                        🇻🇳 Chuyển khoản VietQR
-                    </button>
-                    <button class="payment-tab-btn" id="tab-intl-btn" onclick="window.switchPaymentTab('intl')" data-i18n="payment.tab_intl">
-                        🌎 Thẻ Quốc Tế / PayPal
-                    </button>
-                </div>
-
                 <!-- VietQR Content -->
-                <div id="payment-content-vietqr" class="payment-tab-content active">
+                <div id="payment-content-vietqr" class="payment-tab-content">
                     <div class="topup-qr-container"
                         style="background: var(--bg-card-hover); padding: 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
                         <div class="bank-header"
@@ -934,7 +924,7 @@
                         </div>
 
                         <div id="intl-package-info" style="margin-bottom: 1.5rem; padding: 1.2rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                            <!-- Filled by switchPaymentTab('intl') -->
+                            <!-- Filled by selectTopup('intl') -->
                         </div>
 
                         <!-- PayPal Buttons render here. Initialized once after SDK loads. -->

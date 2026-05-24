@@ -107,6 +107,7 @@ const SERVICE_PACKAGES = [
 
 let currentUser = null;
 let selectedTopupPackage = null;
+let selectedPaymentMethod = 'vietqr';
 let isFirstTimeUser = false; // Flag for special offer (0 or 1 order)
 let orderCount = 0; // Track total orders
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
@@ -1079,41 +1080,44 @@ window.copyAdminResultLink = () => {
 
 // --- Rendering ---
 function renderPricing() {
-    // Render into landing page section if it exists
     const coinGrid = document.getElementById('coin-packages');
     const modalCoinGrid = document.getElementById('modal-coin-packages');
-
-    // Filter packages based on 10k purchase count (Limit 1)
     const filteredPackages = COIN_PACKAGES;
 
-    const html = filteredPackages.map(pkg => `
-        <div class="price-card ${pkg.featured ? 'featured' : ''}">
-            ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured')}</div>` : ''}
-            ${(() => { const noteText = t(`pricing.notes.${pkg.id}`); return noteText && !noteText.startsWith('pricing.notes.') ? `<div class="bonus-tag">${noteText}</div>` : ''; })()}
-            
-                <div class="coin-visual-wrapper" style="margin-bottom: 4px;">
-                    <svg class="coin-icon-svg" style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
-                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
-                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    <span>${pkg.coins}</span>
-                </div>
-                ${pkg.hasBonus ? `<div style="font-size: 0.75rem; color: #a0a0a0; margin-bottom: 10px; font-weight: 500;">${t('pricing.bonus_included_note')}</div>` : `<div style="height: 22px; margin-bottom: 10px;"></div>`}
+    const bankPayIcon = `<svg class="pricing-pay-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 10h18M7 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    const intlPayIcon = `<svg class="pricing-pay-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.5"/><path d="M6 15h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    const coinIcon = `<svg class="coin-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/><path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/><path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
+    const html = filteredPackages.map(pkg => {
+        const noteText = t(`pricing.notes.${pkg.id}`);
+        const showNote = noteText && !noteText.startsWith('pricing.notes.');
+        return `
+        <div class="price-card price-card--coin">
+            <div class="price-card-note">${showNote ? noteText : '&#8203;'}</div>
+            <div class="coin-amount-display">
+                ${coinIcon}
+                <span class="coin-amount-num">${pkg.coins}</span>
+            </div>
+            <div class="price-card-bonus-hint${pkg.hasBonus ? '' : ' price-card-bonus-hint--empty'}">${t('pricing.bonus_included_note')}</div>
             <div class="price-value">${pkg.price}</div>
-            
             <ul class="pkg-features">
                 <li><span class="check-icon">✓</span> ${t('pricing.instant_credit')}</li>
                 <li><span class="check-icon">✓</span> ${t('pricing.high_quality')}</li>
                 <li><span class="check-icon">✓</span> ${t('pricing.no_expiry')}</li>
             </ul>
-
-            <button class="btn-primary" onclick="window.selectTopup('${pkg.id}')" style="width: 100%; margin-top: auto;">
-                ${t('pricing.buy_now')}
-            </button>
+            <div class="pricing-pay-actions">
+                <button type="button" class="pricing-pay-btn" onclick="window.selectTopup('${pkg.id}', 'vietqr')">
+                    ${bankPayIcon}
+                    <span>${t('pricing.pay_vietqr')}</span>
+                </button>
+                <button type="button" class="pricing-pay-btn" onclick="window.selectTopup('${pkg.id}', 'intl')">
+                    ${intlPayIcon}
+                    <span>${t('pricing.pay_intl')}</span>
+                </button>
+            </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     if (coinGrid) coinGrid.innerHTML = html;
     if (modalCoinGrid) modalCoinGrid.innerHTML = html;
@@ -1278,32 +1282,44 @@ window.openPricingModal = () => {
     logFirebaseEvent('view_item_list', { item_list_name: 'Topup Packages' });
 };
 
-window.selectTopup = async (id) => {
+window.selectTopup = async (id, method = 'vietqr') => {
     if (!currentUser) return login();
 
     selectedTopupPackage = COIN_PACKAGES.find(p => p.id === id);
+    selectedPaymentMethod = method === 'intl' ? 'intl' : 'vietqr';
 
-    // Reset PayPal Buttons so they re-render against the new package's amount
-    // next time user opens the international tab.
     _paypalLastPackageId = null;
     const ppContainer = document.getElementById('paypal-button-container');
     if (ppContainer) ppContainer.innerHTML = '';
     setPaypalStatus('');
 
-    // Lưu số dư hiện tại để theo dõi biến động khi nạp
     initialCoinsBeforeTopup = parseInt((document.getElementById('coin-balance') || document.querySelector('.coin-balance-text'))?.innerText) || 0;
 
-    // Close pricing modal if open
     closeModal('pricing-modal');
+    showPaymentPanel(selectedPaymentMethod);
 
-    // Reset payment tab to vietqr
-    setTimeout(() => {
-        if (window.switchPaymentTab) {
-            window.switchPaymentTab('vietqr');
+    if (selectedPaymentMethod === 'intl') {
+        if (typeof ttq !== 'undefined') {
+            ttq.track('InitiateCheckout', {
+                value: parseFloat(String(selectedTopupPackage.usdPrice || '0').replace(/[^0-9.]/g, '')) || 0,
+                currency: 'USD',
+                content_id: selectedTopupPackage.id
+            });
         }
-    }, 100);
+        logFirebaseEvent('begin_checkout', {
+            value: parseFloat(String(selectedTopupPackage.usdPrice || '0').replace(/[^0-9.]/g, '')) || 0,
+            currency: 'USD',
+            items: [{ item_id: selectedTopupPackage.id, item_name: selectedTopupPackage.name }]
+        });
+        renderIntlPackageInfo();
+        mountPaypalButtons(selectedTopupPackage).catch(err => {
+            console.error('[PayPal] mountPaypalButtons failed:', err);
+            setPaypalStatus(t('payment.paypal_load_error', { msg: err.message || err }), '#ff6b6b');
+        });
+        window.openModal('topup-modal');
+        return;
+    }
 
-    // TikTok Pixel: InitiateCheckout
     if (typeof ttq !== 'undefined') {
         ttq.track('InitiateCheckout', {
             value: selectedTopupPackage.amount,
@@ -1312,19 +1328,16 @@ window.selectTopup = async (id) => {
         });
     }
 
-    // Firebase Analytics: begin_checkout
     logFirebaseEvent('begin_checkout', {
         value: selectedTopupPackage.amount,
         currency: 'VND',
         items: [{ item_id: selectedTopupPackage.id, item_name: selectedTopupPackage.name }]
     });
 
-    // --- Tự động tạo bản ghi nạp tiền để Webhook Casso có thể tìm thấy ---
     const { db, collection, addDoc, serverTimestamp, query, where, getDocs } = window.firebase;
     let transferContent = "";
     
     try {
-        // [FIX]: Kiểm tra xem user đã có đơn pending nào cho gói này chưa
         const q = query(
             collection(db, "topups"),
             where("userId", "==", currentUser.uid),
@@ -1335,12 +1348,10 @@ window.selectTopup = async (id) => {
         const snapshot = await getDocs(q);
         
         if (!snapshot.empty) {
-            // Tái sử dụng đơn nạp cũ
             const existingDoc = snapshot.docs[0].data();
             transferContent = existingDoc.transferContent;
             console.log("♻️ Tái sử dụng đơn nạp tiền cũ đang chờ:", transferContent);
         } else {
-            // Tạo mã nạp mới
             const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
             transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
             
@@ -1360,7 +1371,6 @@ window.selectTopup = async (id) => {
         }
     } catch (err) {
         console.error("Lỗi khi kiểm tra/tạo bản ghi nạp tiền:", err);
-        // Fallback tạo mã offline nếu lỗi
         const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
         transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
     }
@@ -1388,10 +1398,8 @@ window.selectTopup = async (id) => {
         </div>
     `;
 
-
     document.getElementById('transfer-code').innerText = transferContent;
 
-    // QR Loading handling
     const qrImg = document.getElementById('qr-code-img');
     const qrLoader = document.getElementById('qr-loader');
 
@@ -1404,9 +1412,8 @@ window.selectTopup = async (id) => {
         document.getElementById('btn-save-qr').style.display = 'block';
     };
 
-    // Generate VietQR Link
     const amount = selectedTopupPackage.amount;
-    const bankId = "OCB"; // OCB Bank
+    const bankId = "OCB";
     const accNo = "CASS0965951536";
     const accName = "VAN DINH HOANG";
     const qrUrl = `https://img.vietqr.io/image/${bankId}-${accNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accName)}`;
@@ -3372,45 +3379,35 @@ window.createVideoWithModel = (modelId) => {
     window.openOrderModal();
 };
 
-window.switchPaymentTab = (tabName) => {
-    const vietqrBtn = document.getElementById('tab-vietqr-btn');
-    const intlBtn = document.getElementById('tab-intl-btn');
+function renderIntlPackageInfo() {
+    if (!selectedTopupPackage) return;
+    const intlInfo = document.getElementById('intl-package-info');
+    if (!intlInfo) return;
+    intlInfo.innerHTML = `
+        <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">${t('payment.intl_selected_package')}</div>
+        <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${packageDisplayName(selectedTopupPackage)}</div>
+        <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${t('payment.intl_coins', { coins: selectedTopupPackage.coins })}</div>
+        <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">${t('payment.intl_price', { price: selectedTopupPackage.usdPrice || '$5.99' })}</div>
+    `;
+}
+
+function showPaymentPanel(method) {
     const vietqrContent = document.getElementById('payment-content-vietqr');
     const intlContent = document.getElementById('payment-content-intl');
+    if (!vietqrContent || !intlContent) return;
 
-    if (!vietqrBtn || !intlBtn || !vietqrContent || !intlContent) return;
-
-    if (tabName === 'vietqr') {
-        vietqrBtn.classList.add('active');
-        intlBtn.classList.remove('active');
-        vietqrContent.style.display = 'block';
-        intlContent.style.display = 'none';
+    if (method === 'intl') {
+        vietqrContent.style.display = 'none';
+        intlContent.style.display = 'block';
         return;
     }
 
-    vietqrBtn.classList.remove('active');
-    intlBtn.classList.add('active');
-    vietqrContent.style.display = 'none';
-    intlContent.style.display = 'block';
+    vietqrContent.style.display = 'block';
+    intlContent.style.display = 'none';
+}
 
-    if (!selectedTopupPackage) return;
-
-    const intlInfo = document.getElementById('intl-package-info');
-    if (intlInfo) {
-        intlInfo.innerHTML = `
-            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">${t('payment.intl_selected_package')}</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${packageDisplayName(selectedTopupPackage)}</div>
-            <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${t('payment.intl_coins', { coins: selectedTopupPackage.coins })}</div>
-            <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">${t('payment.intl_price', { price: selectedTopupPackage.usdPrice || '$5.99' })}</div>
-        `;
-    }
-
-    // Lazy-mount PayPal buttons for the currently selected package.
-    mountPaypalButtons(selectedTopupPackage).catch(err => {
-        console.error('[PayPal] mountPaypalButtons failed:', err);
-        setPaypalStatus(t('payment.paypal_load_error', { msg: err.message || err }), '#ff6b6b');
-    });
-};
+// Kept for backward compatibility if anything still calls it.
+window.switchPaymentTab = (tabName) => showPaymentPanel(tabName);
 
 // ==========================================
 // PayPal Smart Buttons Integration
