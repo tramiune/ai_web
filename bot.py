@@ -22,6 +22,7 @@ browser_lock = threading.Lock()
 
 TELEGRAM_BOT_TOKEN = "8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc"
 TELEGRAM_CHAT_ID = "6067707939"
+AIDANCING_LOW_BALANCE_THRESHOLD = 10
 
 def send_telegram_message(text):
     try:
@@ -36,6 +37,40 @@ def send_telegram_message(text):
             print(f"❌ Lỗi gửi tin nhắn Telegram: {res.status_code} - {res.text}")
     except Exception as e:
         print(f"❌ Lỗi kết nối gửi Telegram: {e}")
+
+def scrape_aidancing_balance(page):
+    """Đọc số coin còn lại trên header aidancing.net (vd: 101.0)."""
+    try:
+        val = page.evaluate('''() => {
+            const pick = (s) => {
+                const m = String(s).trim().match(/^(\\d+(?:\\.\\d+)?)$/);
+                return m ? parseFloat(m[1]) : null;
+            };
+            const scopes = document.querySelectorAll('header *, nav *, [class*="wallet"], [class*="balance"], [class*="coin"]');
+            for (const el of scopes) {
+                if (el.children.length > 0) continue;
+                const v = pick(el.textContent);
+                if (v !== null && v >= 0 && v < 100000) return v;
+            }
+            return null;
+        }''')
+        if val is not None:
+            return float(val)
+    except Exception as e:
+        print(f"⚠️ Không đọc được balance aidancing: {e}")
+    return None
+
+def alert_low_aidancing_balance(balance, extra=''):
+    if balance is None or balance >= AIDANCING_LOW_BALANCE_THRESHOLD:
+        return
+    msg = (
+        f"🚨🚨 <b>CẢNH BÁO KHẨN — SẮP HẾT COIN AIDANCING!</b>\n\n"
+        f"💰 Số dư aidancing.net: <b>{balance}</b> Coin\n"
+        f"⚠️ Dưới ngưỡng {AIDANCING_LOW_BALANCE_THRESHOLD} Coin — "
+        f"<b>nạp gấp</b> trước khi bot không tạo được đơn!\n"
+        f"{extra}"
+    )
+    send_telegram_message(msg)
 
 def download_file(url, filename, cookies=None):
     print(f"📥 Tải file: {filename}...")
@@ -187,6 +222,21 @@ def submit_to_aidancing(order_id):
                 print("🌐 Đang kiểm tra danh sách Job cũ trên Dashboard...")
                 page.goto(DASHBOARD_URL, timeout=60000)
                 page.wait_for_timeout(3000)
+
+                balance = scrape_aidancing_balance(page)
+                if balance is not None:
+                    print(f"💰 Aidancing balance: {balance} Coin")
+                if balance is not None and balance < AIDANCING_LOW_BALANCE_THRESHOLD:
+                    short_id = order_id[-6:].upper()
+                    user_name = data.get('userName', 'Khách hàng')
+                    alert_low_aidancing_balance(
+                        balance,
+                        extra=(
+                            f"\n📋 Bot đang nạp đơn: #{short_id}\n"
+                            f"👤 Khách: {user_name}"
+                        )
+                    )
+
                 old_job_ids = set(re.findall(r'\b\d{6}\b', page.content()))
                 print(f"📦 Đã ghi nhận {len(old_job_ids)} Job ID cũ.")
 
