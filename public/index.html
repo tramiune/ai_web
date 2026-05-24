@@ -42,6 +42,19 @@
             </a>
 
             <div id="auth-section" style="display: flex; align-items: center; gap: 0.8rem;">
+                <!-- Navbar coin balance + top-up -->
+                <div id="navbar-coin-widget" class="navbar-coin-widget" style="display: none;">
+                    <div class="navbar-coin-balance" aria-live="polite">
+                        <svg class="navbar-coin-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
+                            <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
+                        </svg>
+                        <span id="coin-balance" class="coin-balance-text">0</span>
+                    </div>
+                    <button type="button" class="navbar-coin-add-btn" onclick="window.openTopupModal()"
+                        data-i18n-title="dashboard.topup" title="Nạp thêm" aria-label="Nạp thêm">+</button>
+                </div>
+
                 <!-- 1. Logged In State (Avatar) -->
                 <div id="user-profile-menu" class="user-profile-dropdown" style="display: none;">
                     <div class="user-avatar-wrapper" onclick="window.toggleUserMenu(event)">
@@ -53,6 +66,23 @@
                             <span id="dropdown-user-email">email@gmail.com</span>
                         </div>
                         <hr class="dropdown-divider">
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('landing-page')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                            </svg>
+                            <span data-i18n="navbar.home">Home</span>
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('user-dashboard')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
+                            </svg>
+                            <span data-i18n="navbar.dashboard">Dashboard</span>
+                        </a>
                         <a href="javascript:void(0)" class="dropdown-item premium-nav-item" onclick="window.navTo('build-channel-page')">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
@@ -66,7 +96,6 @@
                             </svg>
                             <span data-i18n="dashboard.topup_history">Lịch sử nạp</span>
                         </a>
-                        <hr class="dropdown-divider">
                         <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('referral-page')">
                             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -83,7 +112,7 @@
                                 stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                             </svg>
-                            <span>Admin Panel</span>
+                            <span data-i18n="navbar.admin_panel">Admin Panel</span>
                         </a>
                         <hr id="admin-dropdown-divider" class="dropdown-divider" style="display: none;">
                         <a href="javascript:void(0)" class="dropdown-item" style="color: var(--danger);"
@@ -106,75 +135,10 @@
                     </div>
                     <div id="lang-menu" class="dropdown-content">
                         <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('vi')">
-                            <span class="lang-flag">🇻🇳</span> Tiếng Việt
+                            <span class="lang-flag">🇻🇳</span> <span data-i18n="lang.vi">Tiếng Việt</span>
                         </a>
                         <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('en')">
-                            <span class="lang-flag">🇺🇸</span> English
-                        </a>
-                    </div>
-                </div>
-
-                <!-- 3. Navigation Hamburger (3 lines) -->
-                <div id="nav-hamburger-menu" class="nav-hamburger-dropdown" style="display: none;">
-                    <div class="hamburger-btn" onclick="window.toggleNavMenu(event)">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div id="nav-menu" class="dropdown-content">
-                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.navTo('landing-page')">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path
-                                    d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
-                                </path>
-                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                            </svg>
-                            <span data-i18n="navbar.home">Home</span>
-                        </a>
-                        <a href="javascript:void(0)" id="db-dropdown-item" class="dropdown-item"
-                            onclick="window.navTo('user-dashboard')" style="display: none;">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="3" y1="9" x2="21" y2="9"></line>
-                                <line x1="9" y1="21" x2="9" y2="9"></line>
-                            </svg>
-                            <span data-i18n="navbar.dashboard">Dashboard</span>
-                        </a>
-                        <a href="javascript:void(0)" class="dropdown-item premium-nav-item" onclick="window.navTo('build-channel-page')">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                            </svg>
-                            <span data-i18n="navbar.build_channel">Xây kênh 1000 fl / 21 ngày</span>
-                        </a>
-
-                        <a href="javascript:void(0)" id="topup-dropdown-item" class="dropdown-item"
-                            onclick="window.navTo('topup-history-page')" style="display: none;">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                            <span data-i18n="dashboard.topup_history">Lịch sử nạp</span>
-                        </a>
-                        <a href="javascript:void(0)" id="referral-dropdown-item-nav" class="dropdown-item"
-                            onclick="window.navTo('referral-page')" style="display: none;">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M22 11h-6"></path>
-                                <path d="M19 8v6"></path>
-                            </svg>
-                            <span data-i18n="navbar.referral">Giới thiệu bạn bè</span>
-                        </a>
-                        <a href="javascript:void(0)" id="admin-dropdown-item-nav" class="dropdown-item"
-                            onclick="window.navTo('admin-panel')" style="display: none;">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                            </svg>
-                            <span>Admin Panel</span>
+                            <span class="lang-flag">🇺🇸</span> <span data-i18n="lang.en">English</span>
                         </a>
                     </div>
                 </div>
@@ -438,7 +402,7 @@
                     </div>
                     <div class="wallet-info">
                         <span class="wallet-label" data-i18n="dashboard.balance">Số dư Coin</span>
-                        <div class="wallet-value"><span id="coin-balance" class="coin-balance-text">0</span></div>
+                        <div class="wallet-value"><span class="coin-balance-text">0</span></div>
                     </div>
                     <button class="topup-pill-btn" onclick="window.openTopupModal()">
                         <span>+</span> <span data-i18n="dashboard.topup">Nạp thêm</span>
@@ -460,7 +424,7 @@
             </div>
             <p style="font-size: 0.85rem; color: #ffde00; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;"
                 data-i18n="dashboard.note_storage">
-                ⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i>
+                <span data-i18n="dashboard.note_storage">⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i></span>
             </p>
             <p style="font-size: 0.85rem; color: #00f2fe; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
                 📧 <i data-i18n="dashboard.note_email">Hệ thống sẽ tự động gửi thông báo về Email khi video của bạn xử lý xong.</i>
@@ -665,8 +629,8 @@
         
         <div class="glass-card" style="padding: 4rem 2rem; text-align: center;">
             <div style="font-size: 4rem; margin-bottom: 1rem;">🚀</div>
-            <h2 style="color: #ffde00; margin-bottom: 1rem;">Tính năng đang phát triển</h2>
-            <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; line-height: 1.6;">
+            <h2 style="color: #ffde00; margin-bottom: 1rem;" data-i18n="build_channel.coming_soon_title">Tính năng đang phát triển</h2>
+            <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; line-height: 1.6;" data-i18n="build_channel.coming_soon_desc">
                 Chúng tôi đang xây dựng lộ trình chi tiết giúp bạn đạt 1000 followers trên TikTok chỉ trong 21 ngày. Vui lòng quay lại sau!
             </p>
         </div>
@@ -675,29 +639,30 @@
     <!-- Admin Panel (Hidden for normal users) -->
     <div id="admin-panel" class="admin-panel" style="display: none;">
         <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-            <h1 style="margin: 0;">Admin Dashboard</h1>
+            <h1 style="margin: 0;" data-i18n="admin.title">Admin Dashboard</h1>
             <button class="btn-secondary" onclick="window.navTo('user-dashboard')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">
                 <span data-i18n="modals.back">Quay lại Dashboard</span>
             </button>
         </div>
         <div class="admin-tabs" style="margin-bottom: 2rem;">
-            <button class="admin-tab-btn active" onclick="switchAdminTab('orders')">Đơn hàng</button>
-            <button class="admin-tab-btn" onclick="switchAdminTab('topups')">Nạp Coin</button>
+            <button class="admin-tab-btn active" onclick="switchAdminTab('orders')" data-i18n="admin.tab_orders">Đơn hàng</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('topups')" data-i18n="admin.tab_topups">Nạp Coin</button>
             <button id="tab-users" class="admin-tab-btn" onclick="switchAdminTab('users')"
-                style="display: none;">Thành viên</button>
+                style="display: none;" data-i18n="admin.tab_users">Thành viên</button>
         </div>
 
         <div class="admin-controls" style="margin: 0 0 1.5rem 0; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
             <div style="display: flex; gap: 1rem; align-items: center;">
                 <div style="flex: 1; position: relative;">
                     <input type="text" id="admin-search-input" class="form-control" 
+                           data-i18n="admin.search_placeholder"
                            placeholder="Tìm kiếm khách hàng, email hoặc mã đơn..." 
                            style="padding-left: 2.5rem; height: 45px;">
                     <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; opacity: 0.5;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 </div>
                 <button class="btn-secondary" onclick="window.testTelegram()" style="height: 45px; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
                     <svg style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><path d="M22 2L15 22L11 13L2 9L22 2Z"></path></svg>
-                    Test Tele
+                    <span data-i18n="admin.test_telegram">Test Tele</span>
                 </button>
             </div>
         </div>
@@ -708,24 +673,24 @@
                 <div class="sub-tabs"
                     style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
                     <button class="sub-tab-btn order-sub-tab active" data-status="pending"
-                        onclick="window.switchOrderSubTab('pending')">Đang chờ</button>
+                        onclick="window.switchOrderSubTab('pending')" data-i18n="admin.orders_subtab_pending">Đang chờ</button>
                     <button class="sub-tab-btn order-sub-tab" data-status="processing"
-                        onclick="window.switchOrderSubTab('processing')">Đang xử lý</button>
+                        onclick="window.switchOrderSubTab('processing')" data-i18n="admin.orders_subtab_processing">Đang xử lý</button>
                     <button class="sub-tab-btn order-sub-tab" data-status="completed"
-                        onclick="window.switchOrderSubTab('completed')">Hoàn thành</button>
+                        onclick="window.switchOrderSubTab('completed')" data-i18n="admin.orders_subtab_completed">Hoàn thành</button>
                     <button class="sub-tab-btn order-sub-tab" data-status="failed"
-                        onclick="window.switchOrderSubTab('failed')">Thất bại</button>
+                        onclick="window.switchOrderSubTab('failed')" data-i18n="admin.orders_subtab_failed">Thất bại</button>
                 </div>
 
                 <div style="overflow-x: auto;">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Mã đơn</th>
-                                <th>Khách hàng</th>
-                                <th>Dịch vụ</th>
-                                <th>Chi phí</th>
-                                <th>Hành động</th>
+                                <th data-i18n="admin.col_order_id">Mã đơn</th>
+                                <th data-i18n="admin.col_customer">Khách hàng</th>
+                                <th data-i18n="admin.col_service">Dịch vụ</th>
+                                <th data-i18n="admin.col_cost">Chi phí</th>
+                                <th data-i18n="admin.col_action">Hành động</th>
                             </tr>
                         </thead>
                         <tbody id="admin-orders-list"></tbody>
@@ -740,20 +705,20 @@
                 <div class="sub-tabs"
                     style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
                     <button class="sub-tab-btn active" data-status="pending"
-                        onclick="window.switchTopupSubTab('pending')">Đang chờ</button>
-                    <button class="sub-tab-btn" data-status="approved" onclick="window.switchTopupSubTab('approved')">Đã duyệt</button>
-                    <button class="sub-tab-btn" data-status="rejected" onclick="window.switchTopupSubTab('rejected')">Bị từ chối</button>
+                        onclick="window.switchTopupSubTab('pending')" data-i18n="admin.topups_subtab_pending">Đang chờ</button>
+                    <button class="sub-tab-btn" data-status="approved" onclick="window.switchTopupSubTab('approved')" data-i18n="admin.topups_subtab_approved">Đã duyệt</button>
+                    <button class="sub-tab-btn" data-status="rejected" onclick="window.switchTopupSubTab('rejected')" data-i18n="admin.topups_subtab_rejected">Bị từ chối</button>
                 </div>
 
                 <div style="overflow-x: auto;">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Khách hàng</th>
-                                <th>Gói / Tiền</th>
-                                <th>Nội dung</th>
-                                <th>Bằng chứng</th>
-                                <th>Hành động</th>
+                                <th data-i18n="admin.col_customer">Khách hàng</th>
+                                <th data-i18n="admin.col_package_money">Gói / Tiền</th>
+                                <th data-i18n="admin.col_content">Nội dung</th>
+                                <th data-i18n="admin.col_proof">Bằng chứng</th>
+                                <th data-i18n="admin.col_action">Hành động</th>
                             </tr>
                         </thead>
                         <tbody id="admin-topups-list"></tbody>
@@ -766,16 +731,16 @@
         <div id="admin-tab-users" class="admin-tab-content">
             <div class="admin-section" style="margin-bottom: 3rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                    <h2 style="margin: 0;">Danh sách Thành viên</h2>
+                    <h2 style="margin: 0;" data-i18n="admin.users_list_title">Danh sách Thành viên</h2>
                 </div>
                 <div style="overflow-x: auto;">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Thành viên</th>
-                                <th>Số dư Coin</th>
-                                <th>Quyền</th>
-                                <th>Hành động</th>
+                                <th data-i18n="admin.col_member">Thành viên</th>
+                                <th data-i18n="admin.col_balance">Số dư Coin</th>
+                                <th data-i18n="admin.col_role">Quyền</th>
+                                <th data-i18n="admin.col_action">Hành động</th>
                             </tr>
                         </thead>
                         <tbody id="admin-users-list"></tbody>
@@ -784,14 +749,15 @@
             </div>
 
             <div class="admin-section">
-                <h2>Cấp quyền Admin nhanh</h2>
+                <h2 data-i18n="admin.grant_admin_title">Cấp quyền Admin nhanh</h2>
                 <div class="glass-card" style="padding: 1.5rem; max-width: 500px;">
                     <div class="form-group">
-                        <label>Email người dùng</label>
+                        <label data-i18n="admin.grant_admin_email_label">Email người dùng</label>
                         <input type="email" id="user-admin-email" class="form-control"
+                            data-i18n="admin.grant_admin_email_placeholder"
                             placeholder="Nhập email để cấp quyền Admin">
                     </div>
-                    <button class="btn-primary" onclick="window.makeAdmin()" style="width: 100%;">Cấp quyền Admin</button>
+                    <button class="btn-primary" onclick="window.makeAdmin()" style="width: 100%;" data-i18n="admin.grant_admin_btn">Cấp quyền Admin</button>
                 </div>
             </div>
         </div>
@@ -889,10 +855,10 @@
             <div class="modal-body" style="padding: 1rem; text-align: center;">
                 <!-- Tab Selector -->
                 <div class="payment-tabs-container" style="display: flex; gap: 10px; margin-bottom: 1.5rem; justify-content: center;">
-                    <button class="payment-tab-btn active" id="tab-vietqr-btn" onclick="window.switchPaymentTab('vietqr')">
+                    <button class="payment-tab-btn active" id="tab-vietqr-btn" onclick="window.switchPaymentTab('vietqr')" data-i18n="payment.tab_vietqr">
                         🇻🇳 Chuyển khoản VietQR
                     </button>
-                    <button class="payment-tab-btn" id="tab-intl-btn" onclick="window.switchPaymentTab('intl')">
+                    <button class="payment-tab-btn" id="tab-intl-btn" onclick="window.switchPaymentTab('intl')" data-i18n="payment.tab_intl">
                         🌎 Thẻ Quốc Tế / PayPal
                     </button>
                 </div>
@@ -918,7 +884,7 @@
                             <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
                                 <img id="qr-code-img" src="" alt="VietQR"
                                     style="display: none; width: 100%; max-width: 220px; border-radius: 12px; border: 4px solid white; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                                <button id="btn-save-qr" class="btn-secondary" style="display: none; padding: 8px 15px; font-size: 0.8rem; border-radius: 8px;" onclick="window.saveQRImage()">
+                                <button id="btn-save-qr" class="btn-secondary" style="display: none; padding: 8px 15px; font-size: 0.8rem; border-radius: 8px;" onclick="window.saveQRImage()" data-i18n="payment.save_qr_btn">
                                     📥 Tải mã QR về máy
                                 </button>
                             </div>
@@ -947,10 +913,10 @@
                     <div class="topup-intl-container"
                         style="background: var(--bg-card-hover); padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--glass-border); text-align: center;">
                         <div style="margin-bottom: 1.5rem;">
-                            <h4 style="color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; margin-bottom: 6px;">
+                            <h4 style="color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; margin-bottom: 6px;" data-i18n="payment.intl_title">
                                 International Secure Payment
                             </h4>
-                            <p style="font-size: 0.75rem; color: var(--text-muted);">
+                            <p style="font-size: 0.75rem; color: var(--text-muted);" data-i18n="payment.intl_subtitle">
                                 Powered by PayPal · Visa, Mastercard, Amex, PayPal balance
                             </p>
                         </div>
@@ -964,7 +930,7 @@
 
                         <div id="paypal-status" style="margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); min-height: 22px;"></div>
 
-                        <div id="paypal-sandbox-banner" style="display:none; margin-top: 1rem; padding: 8px 12px; background: rgba(255, 222, 0, 0.1); border: 1px dashed rgba(255, 222, 0, 0.5); border-radius: 6px; font-size: 0.7rem; color: #ffde00; line-height: 1.4;">
+                        <div id="paypal-sandbox-banner" style="display:none; margin-top: 1rem; padding: 8px 12px; background: rgba(255, 222, 0, 0.1); border: 1px dashed rgba(255, 222, 0, 0.5); border-radius: 6px; font-size: 0.7rem; color: #ffde00; line-height: 1.4;" data-i18n="payment.sandbox_banner">
                             ⚠️ SANDBOX MODE — Use a PayPal sandbox buyer account, no real money is charged.
                         </div>
                     </div>
@@ -1011,8 +977,8 @@
                             <!-- Video Source Tabs -->
                             <div class="video-tabs" style="margin-bottom: 1rem;">
                                 <div class="video-tab active" onclick="window.switchVideoSource('upload')"
-                                    id="tab-upload">Tải lên</div>
-                                <div class="video-tab" onclick="window.switchVideoSource('library')" id="tab-library">
+                                    id="tab-upload" data-i18n="modals.video_tab_upload">Tải lên</div>
+                                <div class="video-tab" onclick="window.switchVideoSource('library')" id="tab-library" data-i18n="modals.video_tab_library">
                                     Thư viện mẫu</div>
                             </div>
 
@@ -1103,7 +1069,7 @@
                     </button>
                     <div id="upload-progress"
                         style="display: none; text-align:center; margin-top: 1rem; color: var(--accent);">
-                        Đang tải file lên... <span id="progress-val">0</span>%
+                        <span data-i18n="modals.uploading">Đang tải file lên...</span> <span id="progress-val">0</span>%
                     </div>
                 </div>
             </form>
@@ -1131,7 +1097,7 @@
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <span class="modal-close" onclick="closeModal('admin-detail-modal')">&times;</span>
-                <h2 style="margin:0;">Chi tiết đơn hàng</h2>
+                <h2 style="margin:0;" data-i18n="admin.order_detail_title">Chi tiết đơn hàng</h2>
             </div>
 
             <div class="modal-body">
@@ -1139,50 +1105,52 @@
 
                 <form id="admin-update-form">
                     <div class="form-group">
-                        <label>Trạng thái thực hiện</label>
+                        <label data-i18n="admin.status_label">Trạng thái thực hiện</label>
                         <select class="form-control" id="admin-status">
-                            <option value="pending">Đang chờ</option>
-                            <option value="processing">Đang xử lý</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="failed">Thất bại</option>
+                            <option value="pending" data-i18n="admin.orders_subtab_pending">Đang chờ</option>
+                            <option value="processing" data-i18n="admin.orders_subtab_processing">Đang xử lý</option>
+                            <option value="completed" data-i18n="admin.orders_subtab_completed">Hoàn thành</option>
+                            <option value="failed" data-i18n="admin.orders_subtab_failed">Thất bại</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>🎬 Link kết quả (Video/Ảnh)</label>
+                        <label data-i18n="admin.result_link_label">🎬 Link kết quả (Video/Ảnh)</label>
                         <div style="display: flex; gap: 6px; margin-bottom: 0.8rem;">
                             <input type="url" class="form-control" id="admin-result-link" placeholder="https://..."
                                 style="flex: 1; margin-bottom: 0;">
                             <button type="button" class="btn-secondary" onclick="window.copyAdminResultLink()"
+                                data-i18n-title="admin.copy_result_title"
                                 title="Copy link kết quả"
                                 style="padding: 0 14px; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
                                 <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                                 </svg>
-                                <span>Copy</span>
+                                <span data-i18n="common.copy">Copy</span>
                             </button>
                         </div>
 
                         <div class="glass-card"
                             style="padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
-                            <label style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 0.5rem;">Tải
+                            <label style="font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 0.5rem;" data-i18n="admin.upload_direct_label">Tải
                                 lên video trực tiếp:</label>
                             <input type="file" id="admin-file-result" accept="video/*"
                                 style="font-size: 0.75rem; width: 100%;">
                             <button type="button" class="btn-primary" onclick="window.handleAdminResultUpload()"
                                 id="btn-admin-upload"
-                                style="width: 100%; margin-top: 0.8rem; padding: 8px; font-weight: 600; font-size: 0.85rem;">🚀
+                                style="width: 100%; margin-top: 0.8rem; padding: 8px; font-weight: 600; font-size: 0.85rem;" data-i18n="admin.btn_upload">🚀
                                 Tải lên Worker</button>
                             <div id="admin-upload-status"
                                 style="font-size: 0.7rem; margin-top: 0.5rem; text-align: center; display: none;"></div>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Ghi chú cho khách hàng</label>
+                        <label data-i18n="admin.customer_note_label">Ghi chú cho khách hàng</label>
                         <textarea class="form-control" id="admin-note"
+                            data-i18n="admin.customer_note_placeholder"
                             placeholder="Nhập lời nhắn hoặc hướng dẫn..."></textarea>
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">Cập
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;" data-i18n="admin.update_order_btn">Cập
                         nhật đơn hàng</button>
                 </form>
             </div>
@@ -1246,7 +1214,6 @@
 
         initAppLogic().catch(err => console.error('initAppLogic failed:', err));
     </script>
-    </script>
     <!-- Image Viewer Modal -->
     <div id="image-viewer-modal" class="modal-overlay" onclick="closeModal('image-viewer-modal')">
         <style>
@@ -1283,9 +1250,9 @@
                     style="position: absolute; bottom: 0; left: 0; right: 0; padding: 2rem 1.5rem; background: linear-gradient(transparent, rgba(0,0,0,0.9));">
                     <h3 id="template-preview-name" style="color: white; margin-bottom: 0.5rem;">Template Name</h3>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn-primary" id="template-confirm-btn" style="flex: 1;">Chọn mẫu này</button>
+                        <button class="btn-primary" id="template-confirm-btn" style="flex: 1;" data-i18n="modals.template_confirm_btn">Chọn mẫu này</button>
                         <button class="btn-secondary" style="flex: 1;"
-                            onclick="window.closeTemplatePreview()">Hủy</button>
+                            onclick="window.closeTemplatePreview()" data-i18n="modals.cancel">Hủy</button>
                     </div>
                 </div>
             </div>
@@ -1316,13 +1283,13 @@
         </div>
     </footer>
     <!-- Floating Telegram Button -->
-    <a href="https://t.me/motionaistudio" target="_blank" class="telegram-fab" title="Chat với chúng tôi ✨">
+    <a href="https://t.me/motionaistudio" target="_blank" class="telegram-fab" data-i18n-title="common.support_chat" title="Chat với chúng tôi ✨">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22 2L11 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" />
         </svg>
-        <span class="fab-tooltip">Chat với chúng tôi ✨</span>
+        <span class="fab-tooltip" data-i18n="common.support_chat">Chat với chúng tôi ✨</span>
     </a>
 
     <!-- SVG Gradients -->
@@ -1361,12 +1328,12 @@
                     <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
                     <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
                 </svg>
-                Đăng nhập với Google
+                <span data-i18n="modals.auth_google_btn">Đăng nhập với Google</span>
             </button>
-            <div id="inapp-auth-note" data-i18n="modals.inapp_auth_note_no_email" style="display: none; font-size: 0.8rem; color: #ff9100; margin-top: 0.5rem; background: rgba(255,145,0,0.1); padding: 10px; border-radius: 8px; border: 1px dashed rgba(255,145,0,0.3); text-align: center;">
-                ⚠️ Trình duyệt này có thể chặn đăng nhập Google. Vui lòng mở trang web bằng trình duyệt <b>Chrome</b> hoặc <b>Safari</b> để trải nghiệm tốt nhất!
+            <div id="inapp-auth-note" data-i18n="modals.inapp_auth_note" style="display: none; font-size: 0.8rem; color: #ff9100; margin-top: 0.5rem; background: rgba(255,145,0,0.1); padding: 10px; border-radius: 8px; border: 1px dashed rgba(255,145,0,0.3); text-align: center;">
+                ⚠️ Trình duyệt này thường chặn đăng nhập Google...
             </div>
-            <p class="auth-modal-footer">Chỉ mất vài giây • Hoàn toàn miễn phí</p>
+            <p class="auth-modal-footer" data-i18n="modals.auth_footer">Chỉ mất vài giây • Hoàn toàn miễn phí</p>
         </div>
     </div>
 

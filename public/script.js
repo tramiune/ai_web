@@ -25,10 +25,10 @@ function safeToDate(field) {
 // functions/api/paypal.js is the source of truth for the actual charge.
 // Keep them in sync (id + coins + USD value).
 const COIN_PACKAGES = [
-    { id: 'starter_v2', name: 'Starter',    coins: 20,   price: '40.000đ',   usdPrice: '$2.99',  amount: 40000,   note: 'Gói giới hạn' },
-    { id: 'creator',    name: 'Creator',    coins: 100,  price: '100.000đ',  usdPrice: '$5.99',  amount: 100000, featured: true, note: 'Tặng 50 Coin' },
-    { id: 'studio',     name: 'Studio',     coins: 550,  price: '500.000đ',  usdPrice: '$24.99', amount: 500000,  note: 'Tặng 300 Coin' },
-    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, note: 'Tặng 600 Coin' }
+    { id: 'starter_v2', name: 'Starter',    coins: 20,   price: '40.000đ',   usdPrice: '$2.99',  amount: 40000,   hasBonus: false },
+    { id: 'creator',    name: 'Creator',    coins: 100,  price: '100.000đ',  usdPrice: '$5.99',  amount: 100000, featured: true, hasBonus: true },
+    { id: 'studio',     name: 'Studio',     coins: 550,  price: '500.000đ',  usdPrice: '$24.99', amount: 500000,  hasBonus: true },
+    { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, hasBonus: true }
 ];
 
 const AI_MODELS = [
@@ -47,22 +47,44 @@ window.AI_MODELS = AI_MODELS;
 
 
 const TREND_VIDEOS = [
-    { id: 't1', title: 'Nhảy vui nhộn', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%89y%20vui%20nho%CC%A3%CC%82n.mp4' },
-    { id: 't5', title: 'Sexy Dance', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
-    { id: 't2', title: 'Hot Trend', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/hot%20trend.mp4' },
-    { id: 't6', title: 'Trend L S Mix', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
-    { id: 't8', title: 'What Do You Want', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
-    { id: 't9', title: 'Trend Nhạc Hay', thumb: '', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%A3c%20hay.mp4' }
+    { id: 't1', titleKey: 'trends.t1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%89y%20vui%20nho%CC%A3%CC%82n.mp4' },
+    { id: 't5', titleKey: 'trends.t5', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
+    { id: 't2', titleKey: 'trends.t2', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/hot%20trend.mp4' },
+    { id: 't6', titleKey: 'trends.t6', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
+    { id: 't8', titleKey: 'trends.t8', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
+    { id: 't9', titleKey: 'trends.t9', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%A3c%20hay.mp4' }
 ];
 
+function trendTitle(video) {
+    return video.titleKey ? t(video.titleKey) : (video.title || video.id);
+}
+
+function gatewayLabel(gateway) {
+    if (gateway === 'casso') return t('referral.gateway_casso');
+    if (gateway === 'paypal') return t('referral.gateway_paypal');
+    if (gateway === 'lemonsqueezy') return t('referral.gateway_lemon');
+    if (gateway === 'admin') return t('referral.gateway_admin');
+    return gateway || '—';
+}
+
 const MODELS = {
-    fast: { name: "Model Nhanh", cost: 10, time: "30p", modelId: "34" },
-    turbo: { name: "Model Turbo 2K", cost: 20, time: "15-20p", modelId: "117" }
+    fast: { nameKey: "modals.model_fast", cost: 10, timeKey: "modals.model_fast_desc", modelId: "34" },
+    turbo: { nameKey: "modals.model_turbo", cost: 20, timeKey: "modals.model_turbo_desc", modelId: "117" }
 };
 
+function localizedModel(key) {
+    const m = MODELS[key];
+    if (!m) return null;
+    return {
+        ...m,
+        name: t(m.nameKey),
+        time: t(m.timeKey)
+    };
+}
+
 const SERVICE_PACKAGES = [
-    { id: 'plus', name: 'Plus', cost: 12, features: ['Chất lượng HD', 'Ưu tiên xử lý', 'Hỗ trợ sửa đổi'], featured: true },
-    { id: 'viral', name: 'Viral', cost: 25, features: ['Chất lượng 4K', 'Xử lý siêu tốc', 'Sửa đổi tối đa 3 lần'] }
+    { id: 'plus', name: 'Plus', cost: 12, featureKeys: ['services.plus_f1', 'services.plus_f2', 'services.plus_f3'], featured: true },
+    { id: 'viral', name: 'Viral', cost: 25, featureKeys: ['services.viral_f1', 'services.viral_f2', 'services.viral_f3'] }
 ];
 
 let currentUser = null;
@@ -210,13 +232,16 @@ window.SERVICE_TYPE_MAP = SERVICE_TYPE_MAP;
 
 export function applyTranslations() {
     document.documentElement.lang = currentLang === 'en' ? 'en' : 'vi';
+    document.title = t('meta.title');
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.content = t('meta.description');
 
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         const translation = t(key);
         if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit')) {
             el.value = translation;
-        } else if (el.tagName === 'INPUT' && el.placeholder) {
+        } else if ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && (el.hasAttribute('placeholder') || el.getAttribute('data-i18n')?.includes('placeholder'))) {
             el.placeholder = translation;
         } else {
             el.innerHTML = translation;
@@ -237,20 +262,19 @@ export function applyTranslations() {
     if (window.renderAIModels) {
         window.renderAIModels();
     }
+    renderShowcase();
+    renderServicePackages();
 }
 
 window.toggleLangMenu = (e) => {
     if (e) e.stopPropagation();
+    document.getElementById('dropdown-menu')?.classList.remove('show');
     document.getElementById('lang-menu').classList.toggle('show');
-};
-
-window.toggleNavMenu = (e) => {
-    if (e) e.stopPropagation();
-    document.getElementById('nav-menu').classList.toggle('show');
 };
 
 window.toggleUserMenu = (e) => {
     if (e) e.stopPropagation();
+    document.getElementById('lang-menu')?.classList.remove('show');
     document.getElementById('dropdown-menu').classList.toggle('show');
 };
 
@@ -261,19 +285,25 @@ window.switchLanguage = (lang) => {
     localStorage.setItem(LANG_STORAGE_KEY, lang);
     applyTranslations();
 
-    // Close lang menu after switch
+    // Close menus after switch
     const langMenu = document.getElementById('lang-menu');
     if (langMenu) langMenu.classList.remove('show');
+    document.getElementById('dropdown-menu')?.classList.remove('show');
 
     if (currentUser) {
         const greetingEl = document.getElementById('user-greeting');
         if (greetingEl) greetingEl.innerText = t('dashboard.greeting', { name: currentUser.displayName });
-        // [TỐI ƯU] Đổi ngôn ngữ chỉ re-render từ cache, KHÔNG re-subscribe Firebase.
-        // Trước đây gọi loadMyOrders/loadMyTopups -> chồng listener mới mỗi lần đổi ngôn ngữ.
         renderMyOrders();
         renderMyTopups();
     }
     renderPricing();
+    renderShowcase();
+    renderServicePackages();
+    if (window.__isAdmin && typeof loadAdminPanel === 'function') {
+        if (adminActiveTab === 'orders') renderAdminOrders();
+        else if (adminActiveTab === 'topups') renderAdminTopups();
+        else if (adminActiveTab === 'users') renderAdminUsers();
+    }
 };
 
 // --- Referral / Affiliate Capture ---
@@ -334,7 +364,7 @@ export async function initAppLogic() {
             'Error object: ' + JSON.stringify(error)
         ].join(' - ');
         console.error("Global Error:", message);
-        showToast("⚠️ Phát hiện lỗi hệ thống: " + msg);
+        showToast(t('common.error_system', { msg }));
         return false;
     };
 
@@ -354,7 +384,7 @@ export async function initAppLogic() {
             }
         } catch (e) {
             console.error("Auth Change Error:", e);
-            showToast("Lỗi xác thực: " + e.message);
+            showToast(t('common.error_auth', { msg: e.message }));
         }
     });
 
@@ -508,7 +538,7 @@ window.renderShowcase = () => {
                 </div>
             </div>
             <div class="showcase-info">
-                <div class="showcase-title">${v.title}</div>
+                <div class="showcase-title">${trendTitle(v)}</div>
                 <button class="use-trend-btn" onclick="event.stopPropagation(); window.useTrendShortcut('${v.id}', '${v.url}')">
                     ${window.t('showcase.use_this')}
                 </button>
@@ -584,21 +614,13 @@ async function handleUserLoggedIn(user) {
     // Hiển thị Profile Menu thay vì ghi đè HTML
     document.getElementById('login-btn').style.display = 'none';
     document.getElementById('user-profile-menu').style.display = 'block';
+    const navbarCoin = document.getElementById('navbar-coin-widget');
+    if (navbarCoin) navbarCoin.style.display = 'flex';
     document.getElementById('user-avatar').src = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
     document.getElementById('dropdown-user-name').innerText = user.displayName || user.email.split('@')[0];
     document.getElementById('dropdown-user-email').innerText = user.email;
 
-    // Hiển thị Dashboard link và Hamburger menu
-    const dbItem = document.getElementById('db-dropdown-item');
-    if (dbItem) dbItem.style.display = 'flex';
-    const navHamburger = document.getElementById('nav-hamburger-menu');
-    if (navHamburger) navHamburger.style.display = 'block';
-    const topupItem = document.getElementById('topup-dropdown-item');
-    if (topupItem) topupItem.style.display = 'flex';
-    const referralNavItem = document.getElementById('referral-dropdown-item-nav');
-    if (referralNavItem) referralNavItem.style.display = 'flex';
-
-    // Toggle Dashboard sub-elements
+    // Hiển thị Profile Menu
     const dashIn = document.getElementById('dashboard-logged-in');
     const dashOut = document.getElementById('dashboard-auth-placeholder');
     if (dashIn) dashIn.style.display = 'block';
@@ -765,13 +787,10 @@ async function handleUserLoggedIn(user) {
             window.__isSuperAdmin = isSuperAdmin;
 
             if (isAdmin) {
-                // Show Admin Panel nav links
                 const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
                 if (adminProfileItem) adminProfileItem.style.display = 'flex';
                 const adminDivider = document.getElementById('admin-dropdown-divider');
                 if (adminDivider) adminDivider.style.display = 'block';
-                const adminNavItem = document.getElementById('admin-dropdown-item-nav');
-                if (adminNavItem) adminNavItem.style.display = 'flex';
 
                 if (isSuperAdmin) {
                     const tabUsersEl = document.getElementById('tab-users');
@@ -788,13 +807,10 @@ async function handleUserLoggedIn(user) {
                     loadAdminPanel();
                 }
             } else {
-                // Hide Admin Panel nav links
                 const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
                 if (adminProfileItem) adminProfileItem.style.display = 'none';
                 const adminDivider = document.getElementById('admin-dropdown-divider');
                 if (adminDivider) adminDivider.style.display = 'none';
-                const adminNavItem = document.getElementById('admin-dropdown-item-nav');
-                if (adminNavItem) adminNavItem.style.display = 'none';
 
                 // Nếu user vừa bị gỡ quyền admin -> cleanup admin listener đang sống
                 fbUnsub('adminOrders');
@@ -821,11 +837,8 @@ function handleUserLoggedOut() {
 
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
-
-    const dbItem = document.getElementById('db-dropdown-item');
-    if (dbItem) dbItem.style.display = 'none';
-    const navHamburger = document.getElementById('nav-hamburger-menu');
-    if (navHamburger) navHamburger.style.display = 'none';
+    const navbarCoin = document.getElementById('navbar-coin-widget');
+    if (navbarCoin) navbarCoin.style.display = 'none';
 
     // Toggle Dashboard sub-elements
     const dashIn = document.getElementById('dashboard-logged-in');
@@ -835,18 +848,12 @@ function handleUserLoggedOut() {
 
     const topupPage = document.getElementById('topup-history-page');
     if (topupPage) topupPage.style.display = 'none';
-    const topupItem = document.getElementById('topup-dropdown-item');
-    if (topupItem) topupItem.style.display = 'none';
-    const referralNavItem = document.getElementById('referral-dropdown-item-nav');
-    if (referralNavItem) referralNavItem.style.display = 'none';
     const referralPage = document.getElementById('referral-page');
     if (referralPage) referralPage.style.display = 'none';
     const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
     if (adminProfileItem) adminProfileItem.style.display = 'none';
     const adminDivider = document.getElementById('admin-dropdown-divider');
     if (adminDivider) adminDivider.style.display = 'none';
-    const adminNavItem = document.getElementById('admin-dropdown-item-nav');
-    if (adminNavItem) adminNavItem.style.display = 'none';
 
     // [TỐI ƯU] Cleanup TẤT CẢ Firebase listener khi logout.
     // Trước đây chỉ unsub referralEarnings -> các listener khác (myOrders, myTopups,
@@ -935,6 +942,9 @@ window.showDashboard = showDashboard;
 
 // Helper for navbar links
 window.navTo = (target) => {
+    document.getElementById('dropdown-menu')?.classList.remove('show');
+    document.getElementById('lang-menu')?.classList.remove('show');
+
     // [TỐI ƯU - MỨC 3] Khi rời khỏi trang admin -> unsub các listener admin để
     // không còn read khi admin không xem panel. Khi quay lại sẽ subscribe lại.
     // (Listener của user thường: myOrders/myTopups giữ nguyên vì user có thể nhận
@@ -976,8 +986,6 @@ window.addEventListener('click', () => {
     if (userMenu) userMenu.classList.remove('show');
     const langMenu = document.getElementById('lang-menu');
     if (langMenu) langMenu.classList.remove('show');
-    const navMenu = document.getElementById('nav-menu');
-    if (navMenu) navMenu.classList.remove('show');
 });
 
 window.logout = logout;
@@ -1020,7 +1028,7 @@ window.handlePreview = (input, containerId) => {
 window.copyToClipboard = (text) => {
     if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
-        showToast("✅ Đã sao chép vào bộ nhớ tạm!");
+        showToast(t('common.toast_copied'));
     }).catch(err => {
         console.error('Lỗi khi copy:', err);
     });
@@ -1032,24 +1040,24 @@ window.copyAdminResultLink = () => {
     if (!input) return;
     const link = input.value.trim();
     if (!link) {
-        showToast("⚠️ Chưa có link kết quả để copy");
+        showToast(t('admin.toast_no_result_link'));
         return;
     }
     // Fallback cho trình duyệt cũ / context không phải HTTPS
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(link).then(() => {
-            showToast("✅ Đã copy link kết quả!");
+            showToast(t('admin.toast_result_copied'));
         }).catch(() => {
             input.select();
             input.setSelectionRange(0, 99999);
-            try { document.execCommand('copy'); showToast("✅ Đã copy link kết quả!"); }
-            catch (e) { showToast("❌ Không thể copy: " + e.message); }
+            try { document.execCommand('copy'); showToast(t('admin.toast_result_copied')); }
+            catch (e) { showToast(t('common.toast_copy_failed', { msg: e.message })); }
         });
     } else {
         input.select();
         input.setSelectionRange(0, 99999);
-        try { document.execCommand('copy'); showToast("✅ Đã copy link kết quả!"); }
-        catch (e) { showToast("❌ Không thể copy: " + e.message); }
+        try { document.execCommand('copy'); showToast(t('admin.toast_result_copied')); }
+        catch (e) { showToast(t('common.toast_copy_failed', { msg: e.message })); }
     }
 };
 
@@ -1066,7 +1074,7 @@ function renderPricing() {
     const html = filteredPackages.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
             ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured')}</div>` : ''}
-            ${pkg.note ? `<div class="bonus-tag">${pkg.note}</div>` : ''}
+            ${(() => { const noteText = t(`pricing.notes.${pkg.id}`); return noteText && !noteText.startsWith('pricing.notes.') ? `<div class="bonus-tag">${noteText}</div>` : ''; })()}
             
                 <div class="coin-visual-wrapper" style="margin-bottom: 4px;">
                     <svg class="coin-icon-svg" style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none">
@@ -1076,7 +1084,7 @@ function renderPricing() {
                     </svg>
                     <span>${pkg.coins}</span>
                 </div>
-                ${pkg.note && pkg.note.includes('Tặng') ? `<div style="font-size: 0.75rem; color: #a0a0a0; margin-bottom: 10px; font-weight: 500;">(Đã bao gồm số lượng tặng)</div>` : `<div style="height: 22px; margin-bottom: 10px;"></div>`}
+                ${pkg.hasBonus ? `<div style="font-size: 0.75rem; color: #a0a0a0; margin-bottom: 10px; font-weight: 500;">${t('pricing.bonus_included_note')}</div>` : `<div style="height: 22px; margin-bottom: 10px;"></div>`}
 
             <div class="price-value">${pkg.price}</div>
             
@@ -1102,7 +1110,7 @@ function renderServicePackages() {
 
     grid.innerHTML = SERVICE_PACKAGES.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
-            ${pkg.featured ? `<div class="featured-badge">🔥 Hot</div>` : ''}
+            ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured_hot')}</div>` : ''}
             <h3>${pkg.name}</h3>
             <div class="coin-visual-wrapper">
                 <svg class="coin-icon-svg" style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
@@ -1110,13 +1118,13 @@ function renderServicePackages() {
                     <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/>
                     <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
                 </svg>
-                <span>${pkg.cost} Coin</span>
+                <span>${pkg.cost} ${t('common.coins_unit')}</span>
             </div>
             <ul class="pkg-features">
-                ${pkg.features.map(f => `<li><span class="check-icon">✓</span> ${f}</li>`).join('')}
+                ${(pkg.featureKeys || []).map(k => `<li><span class="check-icon">✓</span> ${t(k)}</li>`).join('')}
             </ul>
             <button class="btn-primary" onclick="window.openOrderModal()" style="width: 100%; margin-top: auto;">
-                Bắt đầu ngay
+                ${t('pricing.start_now')}
             </button>
         </div>
     `).join('');
@@ -1199,7 +1207,7 @@ window.selectTemplate = (id, url) => {
     document.getElementById('selected-template-url').value = url;
     window.currentVideoSource = 'library';
     const trend = TREND_VIDEOS.find(t => t.id === id);
-    showToast("✅ Đã chọn trend: " + (trend ? trend.title : id));
+    showToast(t('modals.toast_trend_selected', { title: trend ? trendTitle(trend) : id }));
 };
 
 window.currentVideoSource = 'upload';
@@ -1268,7 +1276,7 @@ window.selectTopup = async (id) => {
     setPaypalStatus('');
 
     // Lưu số dư hiện tại để theo dõi biến động khi nạp
-    initialCoinsBeforeTopup = parseInt(document.getElementById('coin-balance').innerText) || 0;
+    initialCoinsBeforeTopup = parseInt((document.getElementById('coin-balance') || document.querySelector('.coin-balance-text'))?.innerText) || 0;
 
     // Close pricing modal if open
     closeModal('pricing-modal');
@@ -1438,15 +1446,15 @@ function updateFirstOrderUI() {
             // First order: 1 Coin
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
-            if (submitText) submitText.innerText = "Trải nghiệm ngay chỉ 1.000đ";
+            if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
             if (summaryEl) {
                 summaryEl.innerText = t(`modals.model_${modelKey}_desc`);
                 summaryEl.style.color = '';
             }
         } else {
             // Regular pricing
-            if (MODELS[modelKey]) {
-                costEl.innerText = MODELS[modelKey].cost;
+            if (localizedModel(modelKey)) {
+                costEl.innerText = localizedModel(modelKey).cost;
             }
             if (submitBtn) submitBtn.classList.remove('btn-first-offer');
             if (submitText) submitText.innerText = t('hero.cta_create');
@@ -1493,7 +1501,7 @@ window.handlePreview = (input, containerId) => {
 
     if (file.type.startsWith('image/')) {
         if (file.size > 10 * 1024 * 1024) {
-            showToast("⚠️ Ảnh quá nặng! Vui lòng chọn ảnh dưới 10MB.");
+            showToast(t('modals.char_size_limit'));
             input.value = '';
             return;
         }
@@ -1601,18 +1609,18 @@ async function uploadFile(file, folder) {
                     if (data.url) {
                         resolve(data.url);
                     } else {
-                        reject(new Error("Không nhận được địa chỉ file từ máy chủ."));
+                        reject(new Error(t('upload.error_no_url')));
                     }
                 } catch (e) {
-                    reject(new Error("Lỗi xử lý phản hồi từ máy chủ."));
+                    reject(new Error(t('upload.error_bad_response')));
                 }
             } else {
-                reject(new Error(`Máy chủ từ chối (${xhr.status}): ${xhr.responseText}`));
+                reject(new Error(t('upload.error_server_rejected', { status: xhr.status })));
             }
         };
 
         xhr.onerror = () => {
-            reject(new Error("❌ KHÔNG THỂ KẾT NỐI MÁY CHỦ! Vui lòng kiểm tra mạng hoặc VPN."));
+            reject(new Error(t('upload.error_network')));
         };
 
         xhr.send(file);
@@ -1641,7 +1649,7 @@ async function setupEventListeners() {
                 // Nếu chưa đăng nhập thì hiện Auth Modal
                 const authModal = document.getElementById('auth-modal');
                 if (authModal) authModal.style.display = 'flex';
-                showToast("🔑 Vui lòng đăng ký/đăng nhập để tiếp tục!");
+                showToast(t('common.toast_login_required'));
                 return;
             }
 
@@ -1676,7 +1684,7 @@ async function setupEventListeners() {
                     const userDoc = await transaction.get(userRef);
                     const modelKey = document.querySelector('input[name="model-type"]:checked').value;
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
-                    let model = { ...MODELS[modelKey] };
+                    let model = { ...localizedModel(modelKey) };
 
                     // Apply First Order Offer: 1 Coin
                     if (orderCount === 0) {
@@ -1719,7 +1727,7 @@ async function setupEventListeners() {
                             let videoUrl = "";
                             if (window.currentVideoSource === 'library') {
                                 videoUrl = document.getElementById('selected-template-url').value;
-                                if (!videoUrl) throw new Error("Vui lòng chọn 1 mẫu từ thư viện.");
+                                if (!videoUrl) throw new Error(t('modals.template_required'));
                                 console.log("🔗 Sử dụng video mẫu từ thư viện:", videoUrl);
                             } else {
                                 console.log("📤 Đang tải video tham chiếu...");
@@ -1883,9 +1891,9 @@ function loadMyOrders() {
                     const orderId = change.doc.id.substring(change.doc.id.length - 6).toUpperCase();
                     const statusVN = STATUS_MAP()[data.status] || data.status;
                     if (data.status === 'completed') {
-                        showToast(`🎉 Đơn hàng #${orderId} đã hoàn thành!`);
+                        showToast(t('notifications.order_completed', { id: orderId }));
                     } else {
-                        showToast(`ℹ️ Đơn hàng #${orderId} chuyển sang: ${statusVN}`);
+                        showToast(t('notifications.order_status_changed', { id: orderId, status: statusVN }));
                     }
                 }
             });
@@ -1979,7 +1987,7 @@ function renderMyOrders() {
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 ${isCompleted && finalResultLink ? `
                                     <a class="order-download-btn" href="${downloadUrl}" download="motionai_video_${orderId}.mp4" target="_blank" onclick="event.stopPropagation();">
-                                        📥 Tải về
+                                        ${t('dashboard.download_btn')}
                                     </a>
                                 ` : ''}
                                 <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${d.id}')">${t('dashboard.action_view_details')}</button>
@@ -2027,9 +2035,9 @@ function loadMyTopups() {
                 if (change.type === "modified") {
                     const data = change.doc.data();
                     if (data.status === 'approved') {
-                        showToast(`✨ Đơn nạp ${data.packageName} đã được DUYỆT!`);
+                        showToast(t('notifications.topup_approved', { pkg: data.packageName }));
                     } else if (data.status === 'rejected') {
-                        showToast(`❌ Đơn nạp ${data.packageName} đã bị TỪ CHỐI.`);
+                        showToast(t('notifications.topup_rejected', { pkg: data.packageName }));
                     }
                 }
             });
@@ -2086,7 +2094,7 @@ window.saveQRImage = () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    showToast("📸 Đã lưu mã QR! Hãy vào App ngân hàng chọn 'Quét mã QR' -> 'Chọn ảnh từ thư viện' nhé.");
+    showToast(t('payment.toast_qr_saved'));
 };
 
 window.saveQRImage = window.saveQRImage;
@@ -2137,17 +2145,17 @@ window.switchAdminTab = (tabName) => {
 
 window.makeAdmin = async () => {
     const email = document.getElementById('user-admin-email').value.trim();
-    if (!email) return showToast("Vui lòng nhập email.");
+    if (!email) return showToast(t('admin.toast_email_required'));
 
     const { db, collection, query, where, getDocs, updateDoc, doc } = window.firebase;
     const q = query(collection(db, "users"), where("email", "==", email));
     const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) return showToast("Không tìm thấy người dùng này.");
+    if (querySnapshot.empty) return showToast(t('admin.toast_user_not_found'));
 
     const userDoc = querySnapshot.docs[0];
     await updateDoc(doc(db, "users", userDoc.id), { role: 'admin' });
-    showToast(`Đã cấp quyền Admin cho ${email}`);
+    showToast(t('admin.toast_admin_granted', { email }));
     document.getElementById('user-admin-email').value = '';
 };
 
@@ -2192,8 +2200,8 @@ function renderAdminUsers() {
     // Empty state khi đang search + bị truncate -> mời user search rộng
     if (filteredDocs.length === 0 && searchVal && FB_CACHE.adminUsersTruncated && !hasFullCache) {
         list.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem;">
-            <div style="opacity:0.7; margin-bottom: 1rem;">Không tìm thấy "<b>${escapeHTML(searchVal)}</b>" trong ${ADMIN_QUERY_LIMIT * 2} user mới nhất.</div>
-            <button class="btn-primary" onclick="window.fetchAllAdminCollection('users')" style="padding: 8px 16px;">🔍 Tìm trong toàn bộ</button>
+            <div style="opacity:0.7; margin-bottom: 1rem;">${t('admin.search_not_found_users', { query: searchVal, limit: ADMIN_QUERY_LIMIT * 2 })}</div>
+            <button class="btn-primary" onclick="window.fetchAllAdminCollection('users')" style="padding: 8px 16px;">${t('admin.search_full_btn')}</button>
         </td></tr>`;
         document.getElementById('admin-users-pagination')?.remove();
         return;
@@ -2214,7 +2222,7 @@ function renderAdminUsers() {
         return `
             <tr>
                 <td>
-                    <div style="font-weight:600;">${escapeHTML(d.displayName || 'Khách')}</div>
+                    <div style="font-weight:600;">${escapeHTML(d.displayName || t('common.guest'))}</div>
                     <div style="font-size:0.75rem; opacity:0.6;">${escapeHTML(d.email || '')}</div>
                 </td>
                 <td>
@@ -2223,18 +2231,18 @@ function renderAdminUsers() {
                                style="width: 80px; padding: 4px 8px; border-radius:4px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white;"
                                id="user-coins-${d.id}">
                         <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem;" 
-                                onclick="window.updateUserCoins('${d.id}')">Lưu</button>
+                                onclick="window.updateUserCoins('${d.id}')">${t('common.save')}</button>
                     </div>
                 </td>
                 <td><span class="status-badge" style="background: ${d.role === 'admin' ? 'var(--primary)' : 'rgba(255,255,255,0.1)'}">${d.role || 'user'}</span></td>
                 <td>
                     <div style="display:flex; gap:6px;">
                         <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; white-space:nowrap;" onclick="window.makeAdminDirect('${d.id}', '${d.role}')">
-                            ${d.role === 'admin' ? 'Gỡ Admin' : 'Làm Admin'}
+                            ${d.role === 'admin' ? t('admin.revoke_admin') : t('admin.make_admin')}
                         </button>
                         <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; color: #ff1744; border-color: rgba(255, 23, 68, 0.3);"
                                 onclick="window.deleteUserAdmin('${d.id}')">
-                            Xoá
+                            ${t('common.delete')}
                         </button>
                     </div>
                 </td>
@@ -2256,16 +2264,16 @@ function renderAdminUsers() {
 
     let infoNote = '';
     if (hasFullCache) {
-        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">(Đang search trong toàn bộ ${FB_CACHE.adminUsersFull.length} user)</span>`;
+        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">${t('admin.search_full_active', { count: FB_CACHE.adminUsersFull.length })}</span>`;
     } else if (FB_CACHE.adminUsersTruncated) {
-        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(Đang hiển thị ${ADMIN_QUERY_LIMIT * 2} mới nhất${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('users')" style="color:#ffde00;">tìm trong toàn bộ?</a>` : ''})</span>`;
+        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">${t('admin.search_truncated_hint', { limit: ADMIN_QUERY_LIMIT * 2 })}${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('users')" style="color:#ffde00;">${t('admin.search_full_btn')}</a>` : ''}</span>`;
     }
 
     if (totalPages > 1) {
         paginationContainer.innerHTML = `
-            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage - 1})" ${window.currentAdminUserPage === 1 ? 'disabled' : ''}>Trước</button>
-            <span>Trang ${window.currentAdminUserPage} / ${totalPages}${infoNote}</span>
-            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage + 1})" ${window.currentAdminUserPage === totalPages ? 'disabled' : ''}>Sau</button>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage - 1})" ${window.currentAdminUserPage === 1 ? 'disabled' : ''}>${t('common.pagination_prev')}</button>
+            <span>${t('common.pagination_page', { current: window.currentAdminUserPage, total: totalPages })}${infoNote}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminUserPage(${window.currentAdminUserPage + 1})" ${window.currentAdminUserPage === totalPages ? 'disabled' : ''}>${t('common.pagination_next')}</button>
         `;
     } else {
         paginationContainer.innerHTML = infoNote;
@@ -2289,13 +2297,13 @@ window.updateUserCoins = async (userId) => {
     const input = document.getElementById(`user-coins-${userId}`);
     const newAmount = parseInt(input.value);
     
-    if (isNaN(newAmount)) return showToast("Vui lòng nhập số hợp lệ.");
+    if (isNaN(newAmount)) return showToast(t('admin.toast_invalid_amount'));
 
     try {
         await updateDoc(doc(db, "users", userId), { coins: newAmount });
-        showToast("Đã cập nhật số dư Coin.");
+        showToast(t('admin.toast_balance_updated'));
     } catch (e) {
-        showToast("Lỗi: " + e.message);
+        showToast(t('common.error_with_msg', { msg: e.message }));
     }
 };
 
@@ -2304,25 +2312,25 @@ window.makeAdminDirect = async (userId, currentRole) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     try {
         await updateDoc(doc(db, "users", userId), { role: newRole });
-        showToast(`Đã chuyển thành ${newRole}`);
+        showToast(t('admin.toast_role_changed', { role: newRole }));
     } catch (e) {
-        showToast("Lỗi: " + e.message);
+        showToast(t('common.error_with_msg', { msg: e.message }));
     }
 };
 
 window.deleteUserAdmin = async (userId) => {
-    if (!confirm("Bạn có chắc chắn muốn xoá người dùng này? Thao tác này không thể hoàn tác.")) return;
+    if (!confirm(t('admin.confirm_delete_user'))) return;
     const { db, doc, deleteDoc } = window.firebase;
     try {
         await deleteDoc(doc(db, "users", userId));
-        showToast("Đã xoá người dùng.");
+        showToast(t('admin.toast_user_deleted'));
     } catch (e) {
-        showToast("Lỗi: " + e.message);
+        showToast(t('common.error_with_msg', { msg: e.message }));
     }
 };
 
 window.approveTopup = async (topupId, userId, coins) => {
-    if (!confirm(`Xác nhận duyệt nạp ${coins} Coin?`)) return;
+    if (!confirm(t('admin.confirm_approve_topup', { coins }))) return;
 
     const { db, doc, getDoc, runTransaction, serverTimestamp } = window.firebase;
 
@@ -2346,7 +2354,7 @@ window.approveTopup = async (topupId, userId, coins) => {
             transaction.update(userRef, { coins: newCoins, updatedAt: serverTimestamp() });
             transaction.update(topupRef, { status: 'approved' });
         });
-        showToast("Đã duyệt thành công!");
+        showToast(t('admin.toast_topup_approved'));
 
         // Affiliate / Referral - non-blocking, isolated
         try {
@@ -2360,18 +2368,18 @@ window.approveTopup = async (topupId, userId, coins) => {
         }
     } catch (e) {
         console.error(e);
-        showToast("Lỗi khi duyệt nạp tiền.");
+        showToast(t('admin.toast_topup_approve_error'));
     }
 };
 
 window.rejectTopup = async (topupId) => {
-    if (!confirm("Từ chối yêu cầu này?")) return;
+    if (!confirm(t('admin.confirm_reject_topup'))) return;
     const { db, doc, updateDoc } = window.firebase;
     try {
         await updateDoc(doc(db, "topups", topupId), { status: 'rejected' });
-        showToast("Đã từ chối yêu cầu.");
+        showToast(t('admin.toast_topup_rejected'));
     } catch (e) {
-        showToast("Lỗi khi cập nhật.");
+        showToast(t('admin.toast_update_error'));
     }
 };
 
@@ -2386,57 +2394,57 @@ window.openAdminDetail = async (orderId) => {
     document.getElementById('admin-order-details').innerHTML = `
         <div class="admin-info-grid">
             <div class="info-item">
-                <span class="info-label">🆔 Mã đơn hàng</span>
+                <span class="info-label">${t('admin.detail_order_id')}</span>
                 <span class="info-value" style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">#${shortOrderId}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">👤 Khách hàng</span>
+                <span class="info-label">${t('admin.detail_customer')}</span>
                 <span class="info-value">${d.userName} (${d.userEmail})</span>
             </div>
             <div class="info-item">
-                <span class="info-label">📦 Gói dịch vụ</span>
+                <span class="info-label">${t('admin.detail_package')}</span>
                 <span class="info-value">${d.packageName}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">🔧 Kiểu dịch vụ</span>
+                <span class="info-label">${t('admin.detail_service_type')}</span>
                 <span class="info-value" style="color: var(--accent); font-weight: bold;">${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">📏 Tỷ lệ khung hình</span>
+                <span class="info-label">${t('admin.detail_aspect')}</span>
                 <span class="info-value">${d.aspectRatio || '16:9'}</span>
             </div>
             <div class="info-item">
-                <span class="info-label">🖼️ Ảnh nhân vật</span>
+                <span class="info-label">${t('admin.detail_char_image')}</span>
                 <div class="admin-preview-box" onclick="window.viewFullImage('${d.characterImageLink}')">
                     <img src="${d.characterImageLink}">
-                    <div class="preview-overlay">Phóng to</div>
+                    <div class="preview-overlay">${t('modals.preview_expand')}</div>
                 </div>
                 <button class="download-pill-btn image-btn" style="margin-top: 10px; width: fit-content;" onclick="window.downloadUrl(event, '${d.characterImageLink}')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                    Tải Ảnh Gốc
+                    ${t('admin.detail_download_char')}
                 </button>
             </div>
             <div class="info-item">
-                <span class="info-label">📹 Video tham chiếu</span>
+                <span class="info-label">${t('admin.detail_ref_video')}</span>
                 <div class="admin-preview-box" onclick="window.open('${d.referenceVideoLink}', '_blank')">
                     <video src="${d.referenceVideoLink}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
-                    <div class="preview-overlay">Xem video</div>
+                    <div class="preview-overlay">${t('admin.detail_view_video')}</div>
                 </div>
                 <button class="download-pill-btn video-btn" style="margin-top: 10px; width: fit-content;" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Tải Video Mẫu
+                    ${t('admin.detail_download_ref')}
                 </button>
             </div>
             ${d.resultLink ? `
             <div class="info-item">
-                <span class="info-label">✨ Video kết quả</span>
+                <span class="info-label">${t('admin.detail_result_video')}</span>
                 <div class="admin-preview-box" onclick="window.open('${d.resultLink}', '_blank')">
                     <video src="${d.resultLink}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
-                    <div class="preview-overlay">Xem video</div>
+                    <div class="preview-overlay">${t('admin.detail_view_video')}</div>
                 </div>
                 <button class="download-pill-btn video-btn" style="margin-top: 10px; width: fit-content;" onclick="window.downloadUrl(event, '${d.resultLink}')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Tải Video Kết Quả
+                    ${t('admin.detail_download_result')}
                 </button>
             </div>
             ` : ''}
@@ -2465,7 +2473,7 @@ document.getElementById('admin-update-form').addEventListener('submit', async (e
             updatedAt: serverTimestamp()
         });
 
-        showToast("Cập nhật đơn hàng thành công!");
+        showToast(t('admin.toast_order_updated'));
         closeModal('admin-detail-modal');
 
         // 2. If status is completed, send automated email
@@ -2494,7 +2502,7 @@ document.getElementById('admin-update-form').addEventListener('submit', async (e
         }
     } catch (error) {
         console.error(error);
-        showToast("Lỗi cập nhật.");
+        showToast(t('admin.toast_order_update_error'));
     }
 });
 
@@ -2527,27 +2535,27 @@ window.switchOrderSubTab = (status) => {
 
 window.deleteOrder = async (event, orderId) => {
     event.stopPropagation();
-    if (!confirm("Bạn có chắc chắn muốn xóa đơn hàng này không? Hành động này không thể hoàn tác.")) return;
+    if (!confirm(t('admin.confirm_delete_order'))) return;
     const { db, doc, deleteDoc } = window.firebase;
     try {
         await deleteDoc(doc(db, "orders", orderId));
-        showToast("Đã xóa đơn hàng.");
+        showToast(t('admin.toast_order_deleted'));
     } catch (e) {
         console.error(e);
-        showToast("Lỗi khi xóa đơn hàng.");
+        showToast(t('admin.toast_order_delete_error'));
     }
 };
 
 window.deleteTopup = async (event, topupId) => {
     event.stopPropagation();
-    if (!confirm("Bạn có chắc chắn muốn xóa yêu cầu nạp coin này không? Hành động này không thể hoàn tác.")) return;
+    if (!confirm(t('admin.confirm_delete_topup'))) return;
     const { db, doc, deleteDoc } = window.firebase;
     try {
         await deleteDoc(doc(db, "topups", topupId));
-        showToast("Đã xóa yêu cầu nạp.");
+        showToast(t('admin.toast_topup_deleted'));
     } catch (e) {
         console.error(e);
-        showToast("Lỗi khi xóa yêu cầu nạp.");
+        showToast(t('admin.toast_topup_delete_error'));
     }
 };
 
@@ -2606,7 +2614,7 @@ window.fetchAllAdminCollection = async function (type) {
         return;
     }
 
-    showToast('🔍 Đang tải toàn bộ dữ liệu...');
+    showToast(t('admin.toast_loading_all'));
     try {
         const snapshot = await getDocs(q);
         FB_CACHE[cacheKey] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2616,10 +2624,10 @@ window.fetchAllAdminCollection = async function (type) {
         else if (type === 'topups') renderAdminTopups();
         else if (type === 'users') renderAdminUsers();
 
-        showToast(`✅ Đã tải ${snapshot.size} bản ghi`);
+        showToast(t('admin.toast_loaded_records', { count: snapshot.size }));
     } catch (e) {
         console.error('Fetch all error:', e);
-        showToast('Lỗi tải dữ liệu: ' + e.message);
+        showToast(t('admin.toast_load_error', { msg: e.message }));
     }
 };
 
@@ -2700,7 +2708,7 @@ function subscribeAdminTopups() {
         renderAdminTopups();
     }, (error) => {
         console.error("Topups Snapshot Error:", error);
-        showToast("Lỗi tải danh sách nạp tiền: " + error.message);
+        showToast(t('admin.toast_topups_load_error', { msg: error.message }));
     }));
 }
 
@@ -2717,7 +2725,7 @@ function renderAdminTopups() {
         : (FB_CACHE.adminTopups || []);
 
     if (allDocs.length === 0) {
-        list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không có dữ liệu đơn nạp</td></tr>';
+        list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('status.empty_topups_msg')}</td></tr>`;
         document.getElementById('admin-topups-pagination')?.remove();
         return;
     }
@@ -2731,11 +2739,11 @@ function renderAdminTopups() {
         // Nếu đang search + data đã bị truncate + chưa load full -> mời user bấm tìm rộng
         if (searchVal && FB_CACHE.adminTopupsTruncated && !hasFullCache) {
             list.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:2rem;">
-                <div style="opacity:0.7; margin-bottom: 1rem;">Không tìm thấy "<b>${escapeHTML(searchVal)}</b>" trong ${ADMIN_QUERY_LIMIT} đơn nạp mới nhất.</div>
-                <button class="btn-primary" onclick="window.fetchAllAdminCollection('topups')" style="padding: 8px 16px;">🔍 Tìm trong toàn bộ</button>
+                <div style="opacity:0.7; margin-bottom: 1rem;">${t('admin.search_not_found_topups', { query: searchVal, limit: ADMIN_QUERY_LIMIT })}</div>
+                <button class="btn-primary" onclick="window.fetchAllAdminCollection('topups')" style="padding: 8px 16px;">${t('admin.search_full_btn')}</button>
             </td></tr>`;
         } else {
-            list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+            list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('admin.search_no_results')}</td></tr>`;
         }
         document.getElementById('admin-topups-pagination')?.remove();
         return;
@@ -2801,12 +2809,12 @@ function renderAdminTopups() {
                 <td>
                     <div style="display: flex; gap: 4px; align-items: center;">
                         ${currentTopupStatus === 'pending' ? `
-                            <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${d.id}', '${d.userId}', ${d.coins})">Duyệt</button>
-                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${d.id}')">Hủy</button>
+                            <button class="btn-primary" style="padding: 4px 8px; font-size:0.75rem; background: #27ae60;" onclick="window.approveTopup('${d.id}', '${d.userId}', ${d.coins})">${t('admin.approve_btn')}</button>
+                            <button class="btn-secondary" style="padding: 4px 8px; font-size:0.75rem; background: #c0392b;" onclick="window.rejectTopup('${d.id}')">${t('admin.reject_btn')}</button>
                         ` : `
                             <span class="status-badge status-${d.status}">${STATUS_MAP()[d.status] || d.status}</span>
                         `}
-                        <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${d.id}')" title="Xóa">
+                        <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteTopup(event, '${d.id}')" title="${t('common.delete')}">
                             <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                         </button>
                     </div>
@@ -2831,16 +2839,16 @@ function renderAdminTopups() {
     // Note + nút "Tìm trong toàn bộ" khi đang search và data bị truncate
     let infoNote = '';
     if (hasFullCache) {
-        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">(Đang search trong toàn bộ ${FB_CACHE.adminTopupsFull.length} bản ghi)</span>`;
+        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">${t('admin.search_full_active', { count: FB_CACHE.adminTopupsFull.length })}</span>`;
     } else if (FB_CACHE.adminTopupsTruncated) {
-        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(Đang hiển thị ${ADMIN_QUERY_LIMIT} mới nhất${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('topups')" style="color:#ffde00;">tìm trong toàn bộ?</a>` : ''})</span>`;
+        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">${t('admin.search_truncated_hint', { limit: ADMIN_QUERY_LIMIT })}${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('topups')" style="color:#ffde00;">${t('admin.search_full_btn')}</a>` : ''}</span>`;
     }
 
     if (totalPages > 1) {
         paginationContainer.innerHTML = `
-            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage - 1})" ${window.currentAdminTopupPage === 1 ? 'disabled' : ''}>Trước</button>
-            <span>Trang ${window.currentAdminTopupPage} / ${totalPages}${infoNote}</span>
-            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage + 1})" ${window.currentAdminTopupPage === totalPages ? 'disabled' : ''}>Sau</button>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage - 1})" ${window.currentAdminTopupPage === 1 ? 'disabled' : ''}>${t('common.pagination_prev')}</button>
+            <span>${t('common.pagination_page', { current: window.currentAdminTopupPage, total: totalPages })}${infoNote}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminTopupPage(${window.currentAdminTopupPage + 1})" ${window.currentAdminTopupPage === totalPages ? 'disabled' : ''}>${t('common.pagination_next')}</button>
         `;
     } else {
         paginationContainer.innerHTML = infoNote;
@@ -2870,7 +2878,7 @@ function subscribeAdminOrders() {
         renderAdminOrders();
     }, (error) => {
         console.error("Orders Snapshot Error:", error);
-        showToast("Lỗi tải danh sách đơn hàng: " + error.message);
+        showToast(t('admin.toast_orders_load_error', { msg: error.message }));
     }));
 }
 
@@ -2887,7 +2895,7 @@ function renderAdminOrders() {
         : (FB_CACHE.adminOrders || []);
 
     if (allDocs.length === 0) {
-        list.innerHTML = '<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">Chưa có đơn hàng nào trong mục này</td></tr>';
+        list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('status.empty_orders_msg')}</td></tr>`;
         document.getElementById('admin-orders-pagination')?.remove();
         return;
     }
@@ -2901,11 +2909,11 @@ function renderAdminOrders() {
     if (filteredDocs.length === 0) {
         if (searchVal && FB_CACHE.adminOrdersTruncated && !hasFullCache) {
             list.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem;">
-                <div style="opacity:0.7; margin-bottom: 1rem;">Không tìm thấy "<b>${escapeHTML(searchVal)}</b>" trong ${ADMIN_QUERY_LIMIT} đơn hàng mới nhất.</div>
-                <button class="btn-primary" onclick="window.fetchAllAdminCollection('orders')" style="padding: 8px 16px;">🔍 Tìm trong toàn bộ</button>
+                <div style="opacity:0.7; margin-bottom: 1rem;">${t('admin.search_not_found_orders', { query: searchVal, limit: ADMIN_QUERY_LIMIT })}</div>
+                <button class="btn-primary" onclick="window.fetchAllAdminCollection('orders')" style="padding: 8px 16px;">${t('admin.search_full_btn')}</button>
             </td></tr>`;
         } else {
-            list.innerHTML = '<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">Không tìm thấy kết quả nào</td></tr>';
+            list.innerHTML = `<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">${t('admin.search_no_results')}</td></tr>`;
         }
         document.getElementById('admin-orders-pagination')?.remove();
         return;
@@ -2960,19 +2968,19 @@ function renderAdminOrders() {
                     #${orderId}
                     ${dateStr ? `<div style="font-size:0.7rem; color:#9ca3af; font-weight:normal; margin-top:4px;">🕐 ${dateStr}</div>` : ''}
                 </td>
-                <td>${escapeHTML(d.userName) || 'Khách'}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
+                <td>${escapeHTML(d.userName) || t('common.guest')}<br><small>${escapeHTML(d.userEmail) || ''}</small></td>
                 <td>${escapeHTML(d.packageName) || ''} (${SERVICE_TYPE_MAP()[d.serviceType] || d.serviceType})</td>
-                <td>${d.costCoins || 0} Coin</td>
+                <td>${t('common.coin_amount', { count: d.costCoins || 0 })}</td>
                 <td>
                     <div style="display: flex; gap: 6px; align-items: center;">
-                        <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${d.id}')">Cập nhật</button>
-                        <button class="download-pill-btn image-btn" style="padding: 4px; border-radius: 6px;" title="Tải ảnh" onclick="window.downloadUrl(event, '${d.characterImageLink}')">
+                        <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.openAdminDetail('${d.id}')">${t('admin.update_btn')}</button>
+                        <button class="download-pill-btn image-btn" style="padding: 4px; border-radius: 6px;" title="${t('admin.download_image_title')}" onclick="window.downloadUrl(event, '${d.characterImageLink}')">
                             <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="21 15 16 10 5 21"></polyline></svg>
                         </button>
-                        <button class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="Tải video mẫu" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
+                        <button class="download-pill-btn video-btn" style="padding: 4px; border-radius: 6px;" title="${t('admin.download_ref_title')}" onclick="window.downloadUrl(event, '${d.referenceVideoLink}')">
                             <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline></svg>
                         </button>
-                        <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${d.id}')" title="Xóa đơn hàng">
+                        <button class="btn-delete" style="padding: 6px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30;" onclick="window.deleteOrder(event, '${d.id}')" title="${t('admin.delete_order_title')}">
                             <svg style="width:14px; height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                         </button>
                     </div>
@@ -2996,16 +3004,16 @@ function renderAdminOrders() {
 
     let infoNote = '';
     if (hasFullCache) {
-        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">(Đang search trong toàn bộ ${FB_CACHE.adminOrdersFull.length} bản ghi)</span>`;
+        infoNote = `<span style="font-size:0.7rem; color: #4ade80; margin-left:10px;">${t('admin.search_full_active', { count: FB_CACHE.adminOrdersFull.length })}</span>`;
     } else if (FB_CACHE.adminOrdersTruncated) {
-        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(Đang hiển thị ${ADMIN_QUERY_LIMIT} mới nhất${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('orders')" style="color:#ffde00;">tìm trong toàn bộ?</a>` : ''})</span>`;
+        infoNote = `<span style="font-size:0.7rem; opacity:0.6; margin-left:10px;">${t('admin.search_truncated_hint', { limit: ADMIN_QUERY_LIMIT })}${searchVal ? ` — <a href="#" onclick="event.preventDefault(); window.fetchAllAdminCollection('orders')" style="color:#ffde00;">${t('admin.search_full_btn')}</a>` : ''}</span>`;
     }
 
     if (totalPages > 1) {
         paginationContainer.innerHTML = `
-            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage - 1})" ${window.currentAdminOrderPage === 1 ? 'disabled' : ''}>Trước</button>
-            <span>Trang ${window.currentAdminOrderPage} / ${totalPages}${infoNote}</span>
-            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage + 1})" ${window.currentAdminOrderPage === totalPages ? 'disabled' : ''}>Sau</button>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage - 1})" ${window.currentAdminOrderPage === 1 ? 'disabled' : ''}>${t('common.pagination_prev')}</button>
+            <span>${t('common.pagination_page', { current: window.currentAdminOrderPage, total: totalPages })}${infoNote}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminOrderPage(${window.currentAdminOrderPage + 1})" ${window.currentAdminOrderPage === totalPages ? 'disabled' : ''}>${t('common.pagination_next')}</button>
         `;
     } else {
         paginationContainer.innerHTML = infoNote;
@@ -3077,14 +3085,14 @@ window.openUserOrderDetail = async (orderId) => {
                 <span class="info-label">${t('modals.order_char_img')}</span>
                 <div class="admin-preview-box" onclick="event.stopPropagation(); window.viewFullImage('${d.characterImageLink}')">
                     <img src="${d.characterImageLink}">
-                    <div class="preview-overlay" data-i18n="modals.preview_expand">Phóng to</div>
+                    <div class="preview-overlay">${t('modals.preview_expand')}</div>
                 </div>
             </div>
             <div class="info-item">
                 <span class="info-label">${t('modals.order_ref_video')}</span>
                 <div class="admin-preview-box" onclick="event.stopPropagation(); window.open('${d.referenceVideoLink}', '_blank')">
                     <video src="${d.referenceVideoLink}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>
-                    <div class="preview-overlay" data-i18n="modals.preview_view">Xem gốc</div>
+                    <div class="preview-overlay">${t('modals.preview_view')}</div>
                 </div>
             </div>
             ${(() => {
@@ -3098,11 +3106,11 @@ window.openUserOrderDetail = async (orderId) => {
                     <div style="width: 100%; margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); background: #000; position: relative; display: flex; justify-content: center; align-items: center;">
                         <video controls playsinline preload="metadata" style="width: 100%; max-height: 360px; display: block; object-fit: contain;">
                             <source src="${finalResultLink}" type="video/mp4">
-                            Trình duyệt của bạn không hỗ trợ phát video trực tiếp.
+                            ${t('modals.video_not_supported')}
                         </video>
                     </div>
                     <a href="${downloadUrl}" download="motionai_video_${shortId}.mp4" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 12px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
-                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">💡 Mẹo iPhone (Safari/Chrome): Nếu bấm nút Tải không được, bạn hãy <b>nhấn giữ trực tiếp vào khung video ở trên</b> rồi chọn <b>"Lưu video"</b> (hoặc <b>"Tải tệp liên kết"</b>) nhé!</p>
+                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">${t('modals.iphone_download_tip')}</p>
                     <p style="font-size: 0.75rem; color: var(--danger); margin-top: 4px; text-align: center;">${t('modals.order_expiry_warn')}</p>
                 </div>
                 `;
@@ -3224,7 +3232,7 @@ async function sendTelegramMessage(text) {
 window.testTelegram = () => {
     const msg = `🔔 <b>TEST THÔNG BÁO TELEGRAM</b>\n\n✅ Kết nối thành công!\n🕒 Thời gian: ${new Date().toLocaleString('vi-VN')}`;
     sendTelegramMessage(msg);
-    showToast("Đã gửi tin nhắn test đến Telegram. Vui lòng kiểm tra!");
+    showToast(t('admin.toast_telegram_sent'));
 };
 
 // --- EmailJS Auto-Notification ---
@@ -3258,15 +3266,15 @@ async function sendCompletionEmail(orderId, orderData) {
 
         if (response.ok) {
             console.log("✅ Email sent successfully via EmailJS!");
-            showToast("✨ Đã gửi thông báo qua Email cho khách!");
+            showToast(t('admin.toast_email_sent'));
         } else {
             const errText = await response.text();
             console.error("❌ EmailJS error:", errText);
-            showToast("⚠️ Cập nhật đơn OK nhưng gửi Mail lỗi: " + errText);
+            showToast(t('admin.toast_email_failed', { msg: errText }));
         }
     } catch (error) {
         console.error("❌ Network error sending email:", error);
-        showToast("⚠️ Lỗi mạng khi gửi email!");
+        showToast(t('admin.toast_email_network_error'));
     }
 }
 
@@ -3289,7 +3297,7 @@ export function renderAIModels() {
                     <!-- Frame 1: Character Photo -->
                     <div class="composite-frame char-frame">
                         <img src="${model.demoChar}" alt="Character" loading="lazy">
-                        <span class="frame-label">${currentLang === 'vi' ? 'Ảnh nhân vật' : 'Character Photo'}</span>
+                        <span class="frame-label">${t('models.frame_char')}</span>
                     </div>
 
                     <div class="composite-operator">+</div>
@@ -3297,7 +3305,7 @@ export function renderAIModels() {
                     <!-- Frame 2: Motion Reference Video -->
                     <div class="composite-frame ref-frame">
                         <video src="${model.demoRef}" autoplay muted loop playsinline></video>
-                        <span class="frame-label">${currentLang === 'vi' ? 'Video mẫu' : 'Motion Ref'}</span>
+                        <span class="frame-label">${t('models.frame_ref')}</span>
                     </div>
 
                     <div class="composite-operator">=</div>
@@ -3305,14 +3313,14 @@ export function renderAIModels() {
                     <!-- Frame 3: AI Video Result -->
                     <div class="composite-frame result-frame">
                         <video src="${model.demoResult}" autoplay muted loop playsinline></video>
-                        <span class="frame-label color-accent">${currentLang === 'vi' ? 'Kết quả AI' : 'AI Result'}</span>
+                        <span class="frame-label color-accent">${t('models.frame_result')}</span>
                     </div>
                 </div>
 
                 <div class="ai-model-info">
                     <div class="ai-model-meta">
-                        <span class="model-badge">20s Video</span>
-                        <span class="cost-badge">${model.cost} Coins</span>
+                        <span class="model-badge">${t('models.duration_badge')}</span>
+                        <span class="cost-badge">${model.cost} ${t('common.coins_unit')}</span>
                     </div>
                     <h3 class="ai-model-title">${title}</h3>
                     <p class="ai-model-desc">${desc}</p>
@@ -3375,17 +3383,17 @@ window.switchPaymentTab = (tabName) => {
     const intlInfo = document.getElementById('intl-package-info');
     if (intlInfo) {
         intlInfo.innerHTML = `
-            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">Selected Package</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">${t('payment.intl_selected_package')}</div>
             <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${selectedTopupPackage.name}</div>
-            <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">+${selectedTopupPackage.coins} Coins</div>
-            <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">Price: ${selectedTopupPackage.usdPrice || '$5.99'}</div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${t('payment.intl_coins', { coins: selectedTopupPackage.coins })}</div>
+            <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">${t('payment.intl_price', { price: selectedTopupPackage.usdPrice || '$5.99' })}</div>
         `;
     }
 
     // Lazy-mount PayPal buttons for the currently selected package.
     mountPaypalButtons(selectedTopupPackage).catch(err => {
         console.error('[PayPal] mountPaypalButtons failed:', err);
-        setPaypalStatus('Lỗi tải PayPal: ' + (err.message || err), '#ff6b6b');
+        setPaypalStatus(t('payment.paypal_load_error', { msg: err.message || err }), '#ff6b6b');
     });
 };
 
@@ -3432,7 +3440,7 @@ function loadPaypalSdk(clientId, currency) {
 async function mountPaypalButtons(pkg) {
     if (!pkg) return;
     if (!currentUser) {
-        setPaypalStatus('Please log in to pay with PayPal.', '#ff6b6b');
+        setPaypalStatus(t('payment.paypal_login_required'), '#ff6b6b');
         return;
     }
 
@@ -3445,12 +3453,12 @@ async function mountPaypalButtons(pkg) {
         return;
     }
 
-    setPaypalStatus('Loading PayPal...', 'var(--text-muted)');
+    setPaypalStatus(t('payment.paypal_loading'), 'var(--text-muted)');
     container.innerHTML = '';
 
     const cfg = await fetchPaypalConfig();
     if (!cfg.clientId) {
-        setPaypalStatus('PayPal chưa được cấu hình (thiếu Client ID).', '#ff6b6b');
+        setPaypalStatus(t('payment.paypal_not_configured'), '#ff6b6b');
         return;
     }
 
@@ -3460,7 +3468,7 @@ async function mountPaypalButtons(pkg) {
 
     const paypal = await loadPaypalSdk(cfg.clientId, cfg.currency || 'USD');
     if (!paypal || !paypal.Buttons) {
-        setPaypalStatus('Lỗi: PayPal SDK không khả dụng.', '#ff6b6b');
+        setPaypalStatus(t('payment.paypal_sdk_unavailable'), '#ff6b6b');
         return;
     }
 
@@ -3468,7 +3476,7 @@ async function mountPaypalButtons(pkg) {
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' },
 
         createOrder: async () => {
-            setPaypalStatus('Creating order...', 'var(--text-muted)');
+            setPaypalStatus(t('payment.paypal_creating_order'), 'var(--text-muted)');
             const res = await fetch('/api/paypal-create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3486,7 +3494,7 @@ async function mountPaypalButtons(pkg) {
         },
 
         onApprove: async (data) => {
-            setPaypalStatus('Processing payment...', 'var(--text-muted)');
+            setPaypalStatus(t('payment.paypal_processing'), 'var(--text-muted)');
             try {
                 const res = await fetch('/api/paypal-capture-order', {
                     method: 'POST',
@@ -3498,8 +3506,8 @@ async function mountPaypalButtons(pkg) {
                     throw new Error(result.error || `Capture failed (${res.status})`);
                 }
                 if (result.status === 'COMPLETED') {
-                    setPaypalStatus('✅ Thanh toán thành công! Coin sẽ được cộng trong vài giây...', '#27ae60');
-                    showToast('🎉 Thanh toán PayPal thành công! Coin sẽ tự cộng.');
+                    setPaypalStatus(t('payment.paypal_success_status'), '#27ae60');
+                    showToast(t('payment.toast_paypal_success'));
                     // The webhook is the source of truth for coin grant; the
                     // Firebase onSnapshot on the user doc will refresh the
                     // balance display automatically.
@@ -3519,29 +3527,29 @@ async function mountPaypalButtons(pkg) {
                         items: [{ item_id: pkg.id, item_name: pkg.name }]
                     });
                 } else {
-                    setPaypalStatus(`Status: ${result.status}. If coin doesn't arrive in 1 min, contact support.`, '#ffde00');
+                    setPaypalStatus(t('payment.paypal_pending_status', { status: result.status }), '#ffde00');
                 }
             } catch (err) {
                 console.error('[PayPal] onApprove error:', err);
-                setPaypalStatus('Lỗi capture: ' + (err.message || err), '#ff6b6b');
-                showToast('⚠️ Lỗi PayPal: ' + (err.message || err));
+                setPaypalStatus(t('payment.paypal_capture_error', { msg: err.message || err }), '#ff6b6b');
+                showToast(t('payment.paypal_error', { msg: err.message || err }));
             }
         },
 
         onCancel: () => {
-            setPaypalStatus('Bạn đã hủy thanh toán PayPal.', 'var(--text-muted)');
+            setPaypalStatus(t('payment.paypal_cancelled'), 'var(--text-muted)');
         },
 
         onError: (err) => {
             console.error('[PayPal] Buttons error:', err);
-            setPaypalStatus('Lỗi PayPal: ' + (err.message || err), '#ff6b6b');
+            setPaypalStatus(t('payment.paypal_error', { msg: err.message || err }), '#ff6b6b');
         }
     }).render('#paypal-button-container').then(() => {
         _paypalLastPackageId = pkg.id;
         setPaypalStatus('', 'var(--text-muted)');
     }).catch(err => {
         console.error('[PayPal] Buttons render error:', err);
-        setPaypalStatus('Lỗi hiển thị PayPal: ' + (err.message || err), '#ff6b6b');
+        setPaypalStatus(t('payment.paypal_render_error', { msg: err.message || err }), '#ff6b6b');
     });
 }
 
@@ -3691,7 +3699,7 @@ async function openReferralPage() {
         if (statTopups) statTopups.innerText = String(totalTopups);
     }, (err) => {
         console.error('[Referral] earnings snapshot error:', err);
-        if (listEl) listEl.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff6b6b; padding:2rem;">${escapeHTML(err.message || 'Lỗi tải dữ liệu')}</td></tr>`;
+        if (listEl) listEl.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#ff6b6b; padding:2rem;">${escapeHTML(err.message || t('common.load_error'))}</td></tr>`;
     }));
 }
 window.openReferralPage = openReferralPage;

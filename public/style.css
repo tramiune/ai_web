@@ -353,6 +353,73 @@ button {
   border-color: var(--primary);
 }
 
+/* Navbar coin widget */
+.navbar-coin-widget {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 2px 2px 2px 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.navbar-coin-widget:hover {
+  border-color: rgba(0, 242, 254, 0.45);
+  box-shadow: 0 0 18px rgba(0, 242, 254, 0.12);
+}
+
+.navbar-coin-balance {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+  min-width: 0;
+}
+
+.navbar-coin-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.navbar-coin-balance .coin-balance-text {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  background: linear-gradient(to right, #fff, var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.25));
+}
+
+.navbar-coin-add-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #000;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.navbar-coin-add-btn:hover {
+  background: #fff;
+  transform: scale(1.08);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.45);
+}
+
 /* Language Dropdown */
 .lang-dropdown {
   position: relative;
@@ -2504,13 +2571,32 @@ section {
     padding: 0 0.75rem;
   }
 
+  .navbar-coin-widget {
+    padding: 2px 2px 2px 6px;
+  }
+
+  .navbar-coin-balance .coin-balance-text {
+    font-size: 0.75rem;
+  }
+
+  .navbar-coin-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .navbar-coin-add-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 0.9rem;
+  }
+
   .logo-text {
-    display: block; /* Show full text */
-    font-size: 1rem; /* Smaller font on mobile to fit everything */
+    display: block;
+    font-size: 1rem;
   }
 
   .nav-links {
-    display: flex; /* Always show links */
+    display: flex;
     gap: 0.5rem;
   }
 
@@ -2520,7 +2606,7 @@ section {
   }
 
   .nav-text {
-    display: none; /* Hide 'Home/Dashboard' text on mobile, keep icons */
+    display: none;
   }
   
   .nav-icon {
