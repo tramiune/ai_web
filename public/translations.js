@@ -79,7 +79,8 @@ window.TRANSLATIONS = {
             gateway_paypal: "PayPal",
             gateway_lemon: "Lemon Squeezy",
             telegram_btn: "Telegram",
-            guide_link: "Hướng dẫn lấy link"
+            guide_link: "Hướng dẫn lấy link",
+            program_overview: "Tổng quan chương trình"
         },
         models: {
             title: "Chọn Model AI Tạo Video",
@@ -632,7 +633,8 @@ window.TRANSLATIONS = {
             gateway_paypal: "PayPal",
             gateway_lemon: "Lemon Squeezy",
             telegram_btn: "Telegram",
-            guide_link: "How to get your link"
+            guide_link: "How to get your link",
+            program_overview: "Program overview"
         },
         models: {
             title: "Select AI Video Model",
