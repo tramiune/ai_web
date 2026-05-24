@@ -59,6 +59,24 @@ function trendTitle(video) {
     return video.titleKey ? t(video.titleKey) : (video.title || video.id);
 }
 
+function packageDisplayName(pkg) {
+    if (!pkg) return '';
+    const key = `pricing.packages.${pkg.id}`;
+    const val = t(key);
+    return val === key ? (pkg.name || pkg.id) : val;
+}
+
+function serviceDisplayName(pkg) {
+    if (!pkg) return '';
+    const key = `pricing.service_packages.${pkg.id}`;
+    const val = t(key);
+    return val === key ? (pkg.name || pkg.id) : val;
+}
+
+function supportedLangs() {
+    return window.LANG_CONFIG?.supported || ['vi', 'en', 'es', 'pt', 'th', 'id'];
+}
+
 function gatewayLabel(gateway) {
     if (gateway === 'casso') return t('referral.gateway_casso');
     if (gateway === 'paypal') return t('referral.gateway_paypal');
@@ -154,13 +172,14 @@ function detectLangFromBrowser() {
 
 async function resolveInitialLanguage() {
     const saved = localStorage.getItem(LANG_STORAGE_KEY);
-    if (['vi', 'en'].includes(saved)) return saved;
+    if (supportedLangs().includes(saved)) return saved;
 
     try {
         const res = await fetch('/api/geo', { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
-            return data.country === 'VN' ? 'vi' : 'en';
+            const lang = data.lang || window.LANG_CONFIG?.langFromCountry?.(data.country) || 'en';
+            if (supportedLangs().includes(lang)) return lang;
         }
     } catch (e) {
         console.warn('[i18n] Geo detection failed, using browser fallback:', e.message);
@@ -170,7 +189,7 @@ async function resolveInitialLanguage() {
 }
 
 let currentLang = localStorage.getItem(LANG_STORAGE_KEY);
-if (!['vi', 'en'].includes(currentLang)) {
+if (!supportedLangs().includes(currentLang)) {
     currentLang = detectLangFromBrowser();
 }
 window.currentLang = currentLang;
@@ -182,32 +201,28 @@ function logFirebaseEvent(name, params = {}) {
 }
 
 export function t(path, params = {}) {
-    const lang = (currentLang || 'vi').trim();
-    if (!window.TRANSLATIONS) {
-        console.warn(`window.TRANSLATIONS is missing when looking for ${path}`);
-        return path;
-    }
-    if (!window.TRANSLATIONS[lang]) {
-        console.warn(`window.TRANSLATIONS[${lang}] is missing when looking for ${path}`);
-        return path;
-    }
-    const keys = path.split('.');
-    let value = window.TRANSLATIONS[lang];
-    for (const key of keys) {
-        if (value && Object.prototype.hasOwnProperty.call(value, key)) {
-            value = value[key];
-        } else {
-            console.warn(`Key ${key} missing in path ${path} for lang ${lang}`);
-            value = null;
-            break;
+    const langs = [currentLang || 'vi', 'en', 'vi'];
+    for (const lang of langs) {
+        if (!window.TRANSLATIONS?.[lang]) continue;
+        const keys = path.split('.');
+        let value = window.TRANSLATIONS[lang];
+        for (const key of keys) {
+            if (value && Object.prototype.hasOwnProperty.call(value, key)) {
+                value = value[key];
+            } else {
+                value = null;
+                break;
+            }
+        }
+        if (value) {
+            let translated = String(value);
+            Object.keys(params).forEach(key => {
+                translated = translated.replace(`{${key}}`, params[key]);
+            });
+            return translated;
         }
     }
-    if (!value) return path;
-    let translated = String(value);
-    Object.keys(params).forEach(key => {
-        translated = translated.replace(`{${key}}`, params[key]);
-    });
-    return translated;
+    return path;
 }
 window.t = t;
 
@@ -231,7 +246,7 @@ window.STATUS_MAP = STATUS_MAP;
 window.SERVICE_TYPE_MAP = SERVICE_TYPE_MAP;
 
 export function applyTranslations() {
-    document.documentElement.lang = currentLang === 'en' ? 'en' : 'vi';
+    document.documentElement.lang = currentLang || 'vi';
     document.title = t('meta.title');
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) metaDesc.content = t('meta.description');
@@ -251,10 +266,10 @@ export function applyTranslations() {
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
         const key = el.getAttribute('data-i18n-title');
         el.title = t(key);
+        if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', t(key));
     });
 
-    // Update current lang flag
-    const flagMap = { vi: '🇻🇳', en: '🇺🇸' };
+    const flagMap = window.LANG_CONFIG?.flags || { vi: '🇻🇳', en: '🇺🇸', es: '🇪🇸', pt: '🇧🇷', th: '🇹🇭', id: '🇮🇩' };
     const flagEl = document.getElementById('current-lang-flag');
     if (flagEl) flagEl.innerText = flagMap[currentLang] || '🇻🇳';
 
@@ -279,7 +294,7 @@ window.toggleUserMenu = (e) => {
 };
 
 window.switchLanguage = (lang) => {
-    if (!['vi', 'en'].includes(lang)) return;
+    if (!supportedLangs().includes(lang)) return;
     currentLang = lang;
     window.currentLang = lang;
     localStorage.setItem(LANG_STORAGE_KEY, lang);
@@ -1111,7 +1126,7 @@ function renderServicePackages() {
     grid.innerHTML = SERVICE_PACKAGES.map(pkg => `
         <div class="price-card ${pkg.featured ? 'featured' : ''}">
             ${pkg.featured ? `<div class="featured-badge">🔥 ${t('pricing.featured_hot')}</div>` : ''}
-            <h3>${pkg.name}</h3>
+            <h3>${serviceDisplayName(pkg)}</h3>
             <div class="coin-visual-wrapper">
                 <svg class="coin-icon-svg" style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
                     <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/>
@@ -1362,8 +1377,8 @@ window.selectTopup = async (id) => {
                 </div>
                 <div class="package-details">
                     <div class="pkg-label">${t('dashboard.col_package')}</div>
-                    <div class="pkg-name">${selectedTopupPackage.name}</div>
-                    <div class="pkg-coins">+${selectedTopupPackage.coins} Coins</div>
+                    <div class="pkg-name">${packageDisplayName(selectedTopupPackage)}</div>
+                    <div class="pkg-coins">${t('payment.intl_coins', { coins: selectedTopupPackage.coins })}</div>
                 </div>
             </div>
             <div class="topup-info-price">
@@ -3384,7 +3399,7 @@ window.switchPaymentTab = (tabName) => {
     if (intlInfo) {
         intlInfo.innerHTML = `
             <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight:600; margin-bottom: 5px;">${t('payment.intl_selected_package')}</div>
-            <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${selectedTopupPackage.name}</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 0.5rem 0; letter-spacing: 0.5px;">${packageDisplayName(selectedTopupPackage)}</div>
             <div style="font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 10px;">${t('payment.intl_coins', { coins: selectedTopupPackage.coins })}</div>
             <div style="font-size: 1.4rem; font-weight: 800; color: #ffde00; margin-top: 0.8rem; background: rgba(255,222,0,0.1); padding: 8px; border-radius: 6px; display: inline-block;">${t('payment.intl_price', { price: selectedTopupPackage.usdPrice || '$5.99' })}</div>
         `;

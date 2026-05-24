@@ -7,7 +7,11 @@ window.TRANSLATIONS = {
         },
         lang: {
             vi: "Tiếng Việt",
-            en: "English"
+            en: "English",
+            es: "Español",
+            pt: "Português",
+            th: "ไทย",
+            id: "Bahasa Indonesia"
         },
         navbar: {
             dashboard: "Video của tôi",
@@ -177,6 +181,16 @@ window.TRANSLATIONS = {
                 creator: "Tặng 50 Coin",
                 studio: "Tặng 300 Coin",
                 "pro-studio": "Tặng 600 Coin"
+            },
+            packages: {
+                starter_v2: "Starter",
+                creator: "Creator",
+                studio: "Studio",
+                "pro-studio": "Enterprise"
+            },
+            service_packages: {
+                plus: "Plus",
+                viral: "Viral"
             }
         },
         trends: {
@@ -531,7 +545,11 @@ window.TRANSLATIONS = {
         },
         lang: {
             vi: "Tiếng Việt",
-            en: "English"
+            en: "English",
+            es: "Español",
+            pt: "Português",
+            th: "ไทย",
+            id: "Bahasa Indonesia"
         },
         navbar: {
             dashboard: "My Videos",
@@ -701,6 +719,16 @@ window.TRANSLATIONS = {
                 creator: "Bonus 50 Coins",
                 studio: "Bonus 300 Coins",
                 "pro-studio": "Bonus 600 Coins"
+            },
+            packages: {
+                starter_v2: "Starter",
+                creator: "Creator",
+                studio: "Studio",
+                "pro-studio": "Enterprise"
+            },
+            service_packages: {
+                plus: "Plus",
+                viral: "Viral"
             }
         },
         trends: {

@@ -436,9 +436,10 @@ button {
   font-size: 1.1rem;
 }
 
-.lang-flag {
-  font-size: 1.1rem;
+.lang-dropdown .dropdown-content {
+  min-width: 220px;
 }
+
 
 .nav-hamburger-dropdown {
   position: relative;

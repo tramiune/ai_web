@@ -1,11 +1,12 @@
 (function applyLegalI18n() {
     const LANG_KEY = 'app_lang';
-    const lang = (localStorage.getItem(LANG_KEY) || 'vi').trim();
-    const dict = window.TRANSLATIONS && window.TRANSLATIONS[lang];
-    if (!dict) return;
+    const saved = (localStorage.getItem(LANG_KEY) || '').trim();
+    const supported = window.LANG_CONFIG?.supported || ['vi', 'en', 'es', 'pt', 'th', 'id'];
+    const lang = supported.includes(saved) ? saved : 'vi';
 
-    function t(path) {
-        let value = dict;
+    function lookup(path, locale) {
+        let value = window.TRANSLATIONS?.[locale];
+        if (!value) return null;
         for (const key of path.split('.')) {
             if (value && Object.prototype.hasOwnProperty.call(value, key)) {
                 value = value[key];
@@ -16,7 +17,11 @@
         return value;
     }
 
-    document.documentElement.lang = lang === 'en' ? 'en' : 'vi';
+    function t(path) {
+        return lookup(path, lang) || lookup(path, 'en') || lookup(path, 'vi');
+    }
+
+    document.documentElement.lang = lang;
 
     const titleKey = document.body.getAttribute('data-page-title');
     if (titleKey) {

@@ -140,6 +140,18 @@
                         <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('en')">
                             <span class="lang-flag">🇺🇸</span> <span data-i18n="lang.en">English</span>
                         </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('es')">
+                            <span class="lang-flag">🇪🇸</span> <span data-i18n="lang.es">Español</span>
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('pt')">
+                            <span class="lang-flag">🇧🇷</span> <span data-i18n="lang.pt">Português</span>
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('th')">
+                            <span class="lang-flag">🇹🇭</span> <span data-i18n="lang.th">ไทย</span>
+                        </a>
+                        <a href="javascript:void(0)" class="dropdown-item" onclick="window.switchLanguage('id')">
+                            <span class="lang-flag">🇮🇩</span> <span data-i18n="lang.id">Bahasa Indonesia</span>
+                        </a>
                     </div>
                 </div>
 
@@ -1190,7 +1202,9 @@
     </div>
 
     <!-- PayPal JS SDK is loaded dynamically from script.js once we know clientId + env (see initPaypalSdk). -->
+    <script src="lang-config.js"></script>
     <script src="translations.js"></script>
+    <script src="translations-locales.js"></script>
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";

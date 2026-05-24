@@ -34,12 +34,21 @@ export default {
       return onPaypalWebhookRequest({ request, env, context });
     }
 
-    // Geo hint for auto language: VN → vi, everything else → en.
+    // Geo hint for auto language: tier mapping via lang-config.js on frontend.
     if (url.pathname === '/api/geo' && method === 'GET') {
       const country = request.headers.get('CF-IPCountry')
         || request.headers.get('cf-ipcountry')
         || 'XX';
-      return new Response(JSON.stringify({ country }), {
+      const tierLangMap = {
+        VN: 'vi',
+        ES: 'es', MX: 'es', CO: 'es', AR: 'es', CL: 'es', PE: 'es', EC: 'es',
+        VE: 'es', UY: 'es', PY: 'es', BO: 'es', CR: 'es', PA: 'es', DO: 'es',
+        GT: 'es', HN: 'es', NI: 'es', SV: 'es', PR: 'es', CU: 'es',
+        BR: 'pt', PT: 'pt',
+        TH: 'th', ID: 'id'
+      };
+      const lang = tierLangMap[country] || 'en';
+      return new Response(JSON.stringify({ country, lang }), {
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
