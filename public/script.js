@@ -845,7 +845,33 @@ async function handleUserLoggedIn(user) {
 
     loadMyOrders();
     loadMyTopups();
-    showDashboard();
+    navigateFromURLParam();
+}
+
+function navigateFromURLParam() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const page = params.get('page');
+        if (page === 'referral-page') {
+            showReferralPage();
+        } else if (page === 'topup-history-page') {
+            showTopupHistory();
+        } else if (page === 'admin-panel' && window.__isAdmin) {
+            showAdminPanel();
+        } else if (page === 'build-channel-page') {
+            showBuildChannel();
+        } else {
+            showDashboard();
+        }
+        if (page) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('page');
+            const clean = url.pathname + (url.search || '') + url.hash;
+            window.history.replaceState({}, '', clean || '/');
+        }
+    } catch (e) {
+        showDashboard();
+    }
 }
 
 function handleUserLoggedOut() {

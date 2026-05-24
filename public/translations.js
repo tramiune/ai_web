@@ -78,7 +78,8 @@ window.TRANSLATIONS = {
             gateway_casso: "Casso (VietQR)",
             gateway_paypal: "PayPal",
             gateway_lemon: "Lemon Squeezy",
-            telegram_btn: "Telegram"
+            telegram_btn: "Telegram",
+            guide_link: "Hướng dẫn lấy link"
         },
         models: {
             title: "Chọn Model AI Tạo Video",
@@ -630,7 +631,8 @@ window.TRANSLATIONS = {
             gateway_casso: "Casso (VietQR)",
             gateway_paypal: "PayPal",
             gateway_lemon: "Lemon Squeezy",
-            telegram_btn: "Telegram"
+            telegram_btn: "Telegram",
+            guide_link: "How to get your link"
         },
         models: {
             title: "Select AI Video Model",
