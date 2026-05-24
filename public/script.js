@@ -843,7 +843,7 @@ async function handleUserLoggedIn(user) {
 
     loadMyOrders();
     loadMyTopups();
-    // Không tự chuyển về Dashboard - giữ user ở trang hiện tại (Home)
+    showDashboard();
 }
 
 function handleUserLoggedOut() {
