@@ -296,7 +296,9 @@ async function payReferralCommission(token, projectId, params) {
   const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
   if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
   const referrerData = await referrerRes.json();
-  const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
+  const referrerName = referrerData.fields?.displayName?.stringValue
+    || referrerData.fields?.email?.stringValue?.split('@')[0]
+    || 'N/A';
   const referrerEmail = referrerData.fields?.email?.stringValue || '';
 
   const earningsFields = {

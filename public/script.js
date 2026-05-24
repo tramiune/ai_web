@@ -2346,7 +2346,9 @@ function subscribeAdminReferrals() {
     const { db, collection, onSnapshot, query, orderBy, limit } = window.firebase;
 
     if (fbHas('adminReferrals')) {
-        renderAdminReferrals();
+        enrichReferralReferrers()
+            .then(() => renderAdminReferrals())
+            .catch(() => renderAdminReferrals());
         return;
     }
 
@@ -2356,9 +2358,14 @@ function subscribeAdminReferrals() {
         limit(ADMIN_QUERY_LIMIT * 2)
     );
 
-    fbSub('adminReferrals', onSnapshot(q, (snapshot) => {
+    fbSub('adminReferrals', onSnapshot(q, async (snapshot) => {
         FB_CACHE.adminReferrals = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         FB_CACHE.adminReferralsTruncated = snapshot.size === ADMIN_QUERY_LIMIT * 2;
+        try {
+            await enrichReferralReferrers();
+        } catch (e) {
+            console.warn('[Referral] enrichReferrers error:', e.message);
+        }
         renderAdminReferrals();
     }, (err) => {
         console.error('Admin referrals snapshot error:', err);
@@ -2376,8 +2383,9 @@ function renderAdminReferrals() {
 
     const filtered = allRows.filter(d => {
         const money = getReferralMoneyFields(d);
+        const ref = getReferrerDisplay(d);
         const text = [
-            d.referrerName, d.referrerEmail, d.referredUserName, d.referredUserEmail,
+            ref.name, ref.email, d.referrerId, d.referredUserName, d.referredUserEmail,
             d.gateway, formatReferralMoney(money.commissionAmount, money.currency)
         ].join(' ').toLowerCase();
         return text.includes(searchVal);
@@ -2387,17 +2395,24 @@ function renderAdminReferrals() {
     const byReferrer = {};
     filtered.forEach(d => {
         const money = getReferralMoneyFields(d);
+        const ref = getReferrerDisplay(d);
         const key = d.referrerId || 'unknown';
         if (!byReferrer[key]) {
             byReferrer[key] = {
                 referrerId: key,
-                referrerName: d.referrerName || key.slice(0, 8),
-                referrerEmail: d.referrerEmail || '',
+                referrerName: ref.name,
+                referrerEmail: ref.email,
                 vnd: 0,
                 usd: 0,
                 coins: 0,
                 count: 0
             };
+        }
+        if (ref.name && ref.name !== '—' && byReferrer[key].referrerName === '—') {
+            byReferrer[key].referrerName = ref.name;
+        }
+        if (ref.email && !byReferrer[key].referrerEmail) {
+            byReferrer[key].referrerEmail = ref.email;
         }
         byReferrer[key].count += 1;
         byReferrer[key].coins += d.commissionCoins || 0;
@@ -2461,14 +2476,15 @@ function renderAdminReferrals() {
 
     list.innerHTML = pageData.map(d => {
         const money = getReferralMoneyFields(d);
+        const ref = getReferrerDisplay(d);
         const dateStr = safeToDate(d.createdAt)
             ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN')
             : '—';
         return `
             <tr>
                 <td>
-                    <div style="font-weight:600;">${escapeHTML(d.referrerName || '—')}</div>
-                    <small style="opacity:0.6;">${escapeHTML(d.referrerEmail || '')}</small>
+                    <div style="font-weight:600;">${escapeHTML(ref.name)}</div>
+                    <small style="opacity:0.6;">${escapeHTML(ref.email)}</small>
                 </td>
                 <td>
                     <div>${escapeHTML(d.referredUserName || t('common.guest'))}</div>
@@ -3815,6 +3831,71 @@ function getReferralMoneyFields(record) {
     return { baseAmount, commissionAmount, currency };
 }
 
+function getReferrerDisplay(record) {
+    if (!record) return { name: '—', email: '' };
+    const id = record.referrerId;
+    const cached = id && FB_CACHE.referrerProfiles ? FB_CACHE.referrerProfiles[id] : null;
+    const name = (record.referrerName && record.referrerName !== 'N/A')
+        ? record.referrerName
+        : (cached?.referrerName || '');
+    const email = record.referrerEmail || cached?.referrerEmail || '';
+    const displayName = name || (email ? email.split('@')[0] : '') || (id ? `${id.slice(0, 10)}…` : '—');
+    return { name: displayName, email };
+}
+
+async function enrichReferralReferrers() {
+    const rows = FB_CACHE.adminReferrals || [];
+    if (!rows.length || !window.__isAdmin) return false;
+
+    if (!FB_CACHE.referrerProfiles) FB_CACHE.referrerProfiles = {};
+
+    const needFetch = [...new Set(
+        rows
+            .filter(r => r.referrerId && (
+                !r.referrerName || r.referrerName === 'N/A' || !r.referrerEmail
+            ) && !FB_CACHE.referrerProfiles[r.referrerId])
+            .map(r => r.referrerId)
+    )];
+
+    if (needFetch.length === 0) return false;
+
+    const { db, doc, getDoc } = window.firebase;
+    await Promise.all(needFetch.map(async (uid) => {
+        try {
+            const snap = await getDoc(doc(db, 'users', uid));
+            if (snap.exists()) {
+                const data = snap.data();
+                FB_CACHE.referrerProfiles[uid] = {
+                    referrerName: data.displayName || (data.email ? data.email.split('@')[0] : uid.slice(0, 10)),
+                    referrerEmail: data.email || ''
+                };
+            } else {
+                FB_CACHE.referrerProfiles[uid] = {
+                    referrerName: `${uid.slice(0, 10)}…`,
+                    referrerEmail: ''
+                };
+            }
+        } catch (e) {
+            console.warn('[Referral] enrich referrer failed:', uid, e.message);
+            FB_CACHE.referrerProfiles[uid] = {
+                referrerName: `${uid.slice(0, 10)}…`,
+                referrerEmail: ''
+            };
+        }
+    }));
+
+    FB_CACHE.adminReferrals = rows.map(r => {
+        const profile = r.referrerId ? FB_CACHE.referrerProfiles[r.referrerId] : null;
+        if (!profile) return r;
+        return {
+            ...r,
+            referrerName: (r.referrerName && r.referrerName !== 'N/A') ? r.referrerName : profile.referrerName,
+            referrerEmail: r.referrerEmail || profile.referrerEmail
+        };
+    });
+    return true;
+}
+
 function formatReferralMoney(amount, currency) {
     if (amount == null || amount === '' || isNaN(Number(amount))) return '—';
     const n = Number(amount);
@@ -4074,7 +4155,7 @@ async function payReferralCommissionClient(topupId, referredUserId, baseCoins, g
 
         const earningPayload = {
             referrerId: referrerId,
-            referrerName: referrerData.displayName || '',
+            referrerName: referrerData.displayName || (referrerData.email ? referrerData.email.split('@')[0] : '') || 'N/A',
             referrerEmail: referrerData.email || '',
             referredUserId: referredUserId,
             referredUserEmail: (snapshotData && snapshotData.userEmail) || referredData.email || '',
