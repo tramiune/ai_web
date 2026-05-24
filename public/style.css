@@ -443,7 +443,8 @@ button {
 
 .nav-hamburger-dropdown {
   position: relative;
-  margin-left: 0.2rem;
+  margin-left: 0.15rem;
+  flex-shrink: 0;
 }
 
 .hamburger-btn {
@@ -455,6 +456,22 @@ button {
   cursor: pointer;
   padding: 2px;
   transition: all 0.3s ease;
+  border: none;
+  background: transparent;
+}
+
+.nav-hamburger-btn {
+  width: 40px;
+  height: 40px;
+  padding: 11px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+}
+
+.nav-hamburger-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--primary);
 }
 
 .hamburger-btn span {
@@ -466,7 +483,8 @@ button {
   transition: all 0.3s ease;
 }
 
-.hamburger-btn:hover span {
+.hamburger-btn:hover span,
+.nav-hamburger-btn:hover span {
   background: var(--primary);
   box-shadow: 0 0 8px var(--primary-glow);
 }
@@ -498,20 +516,16 @@ button {
   font-size: 1.1rem;
 }
 
+#auth-section {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-left: auto;
+}
+
 /* User Profile Dropdown */
 .user-profile-dropdown {
   position: relative;
-}
-
-.user-avatar-wrapper {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.user-avatar-wrapper:hover {
-  transform: scale(1.05);
 }
 
 /* Pricing Section */
@@ -1147,14 +1161,6 @@ button {
   position: relative;
   z-index: 1;
 }
-
-.user-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
 
 .dropdown-content {
   position: absolute;
@@ -2683,6 +2689,16 @@ section {
     width: 22px;
     height: 22px;
     font-size: 0.9rem;
+  }
+
+  .nav-hamburger-btn {
+    width: 36px;
+    height: 36px;
+    padding: 10px 8px;
+  }
+
+  #auth-section {
+    gap: 0.45rem;
   }
 
   .logo-text {

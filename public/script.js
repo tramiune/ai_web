@@ -633,7 +633,6 @@ async function handleUserLoggedIn(user) {
     document.getElementById('user-profile-menu').style.display = 'block';
     const navbarCoin = document.getElementById('navbar-coin-widget');
     if (navbarCoin) navbarCoin.style.display = 'flex';
-    document.getElementById('user-avatar').src = user.photoURL || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y";
     document.getElementById('dropdown-user-name').innerText = user.displayName || user.email.split('@')[0];
     document.getElementById('dropdown-user-email').innerText = user.email;
 
