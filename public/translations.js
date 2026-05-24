@@ -80,7 +80,8 @@ window.TRANSLATIONS = {
             gateway_lemon: "Lemon Squeezy",
             telegram_btn: "Telegram",
             guide_link: "Hướng dẫn lấy link",
-            program_overview: "Tổng quan chương trình"
+            program_overview: "Tổng quan chương trình",
+            invite_tips: "Gợi ý mời hiệu quả"
         },
         models: {
             title: "Chọn Model AI Tạo Video",
@@ -634,7 +635,8 @@ window.TRANSLATIONS = {
             gateway_lemon: "Lemon Squeezy",
             telegram_btn: "Telegram",
             guide_link: "How to get your link",
-            program_overview: "Program overview"
+            program_overview: "Program overview",
+            invite_tips: "Invite tips"
         },
         models: {
             title: "Select AI Video Model",
