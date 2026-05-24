@@ -267,6 +267,8 @@ export async function onWebhookRequest(context) {
                 referredUserEmail: payerEmail,
                 referredUserName: resource.payer?.name?.given_name || '',
                 baseCoins: coins,
+                baseAmount: amountValue,
+                currency: currency === 'USD' ? 'USD' : currency,
                 gateway: 'paypal'
             });
         } catch (refErr) {
@@ -490,11 +492,39 @@ async function grantCoins(token, projectId, userId, coins) {
 // --- Affiliate / Referral Commission (mirrors casso-webhook.js) --------------
 const REFERRAL_COMMISSION_RATE = 0.10;
 
+function computeCommissionAmount(baseAmount, currency) {
+    if (!baseAmount || baseAmount <= 0) return 0;
+    if ((currency || 'VND').toUpperCase() === 'USD') {
+        return Math.round(baseAmount * REFERRAL_COMMISSION_RATE * 100) / 100;
+    }
+    return Math.floor(baseAmount * REFERRAL_COMMISSION_RATE);
+}
+
+function firestoreAmountField(value, currency) {
+    if ((currency || 'VND').toUpperCase() === 'USD') {
+        return { doubleValue: value };
+    }
+    return { integerValue: Math.round(value) };
+}
+
+function formatMoneyForTelegram(amount, currency) {
+    if (amount == null || amount <= 0) return '';
+    if ((currency || 'VND').toUpperCase() === 'USD') return `$${Number(amount).toFixed(2)} USD`;
+    return `${Math.round(amount).toLocaleString('vi-VN')}đ`;
+}
+
 async function payReferralCommission(token, projectId, params) {
-    const { topupId, referredUserId, referredUserEmail, referredUserName, baseCoins, gateway } = params;
+    const {
+        topupId, referredUserId, referredUserEmail, referredUserName,
+        baseCoins, baseAmount, currency, gateway
+    } = params;
     if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
+
     const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
     if (commissionCoins <= 0) return;
+
+    const cur = (currency || 'VND').toUpperCase();
+    const commissionAmount = computeCommissionAmount(baseAmount, cur);
 
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     const authHeader = { 'Authorization': `Bearer ${token}` };
@@ -508,37 +538,47 @@ async function payReferralCommission(token, projectId, params) {
     const referredBy = referredData.fields?.referredBy?.stringValue;
     if (!referredBy || referredBy === referredUserId) return;
 
-    const earningsBody = {
-        fields: {
-            referrerId:        { stringValue: referredBy },
-            referredUserId:    { stringValue: referredUserId },
-            referredUserEmail: { stringValue: referredUserEmail || referredData.fields?.email?.stringValue || '' },
-            referredUserName:  { stringValue: referredUserName  || referredData.fields?.displayName?.stringValue || '' },
-            topupId:           { stringValue: topupId },
-            baseCoins:         { integerValue: baseCoins },
-            commissionCoins:   { integerValue: commissionCoins },
-            commissionRate:    { doubleValue: REFERRAL_COMMISSION_RATE },
-            gateway:           { stringValue: gateway || 'paypal' },
-            payoutStatus:      { stringValue: 'credited' },
-            createdAt:         { timestampValue: new Date().toISOString() }
-        }
+    const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
+    if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
+    const referrerData = await referrerRes.json();
+    const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
+    const referrerEmail = referrerData.fields?.email?.stringValue || '';
+
+    const earningsFields = {
+        referrerId:        { stringValue: referredBy },
+        referrerName:      { stringValue: referrerName },
+        referrerEmail:     { stringValue: referrerEmail },
+        referredUserId:    { stringValue: referredUserId },
+        referredUserEmail: { stringValue: referredUserEmail || referredData.fields?.email?.stringValue || '' },
+        referredUserName:  { stringValue: referredUserName  || referredData.fields?.displayName?.stringValue || '' },
+        topupId:           { stringValue: topupId },
+        baseCoins:         { integerValue: baseCoins },
+        commissionCoins:   { integerValue: commissionCoins },
+        commissionRate:    { doubleValue: REFERRAL_COMMISSION_RATE },
+        gateway:           { stringValue: gateway || 'paypal' },
+        currency:          { stringValue: cur },
+        payoutStatus:      { stringValue: 'credited' },
+        createdAt:         { timestampValue: new Date().toISOString() }
     };
+    if (baseAmount && baseAmount > 0) {
+        earningsFields.baseAmount = firestoreAmountField(baseAmount, cur);
+    }
+    if (commissionAmount > 0) {
+        earningsFields.commissionAmount = firestoreAmountField(commissionAmount, cur);
+    }
 
     const createUrl = `${baseUrl}/referralEarnings?documentId=${encodeURIComponent(topupId)}`;
     const createRes = await fetch(createUrl, {
         method: 'POST',
         headers: { ...authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify(earningsBody)
+        body: JSON.stringify({ fields: earningsFields })
     });
-    if (createRes.status === 409) return; // already paid
+    if (createRes.status === 409) return;
     if (!createRes.ok) {
         const txt = await createRes.text();
         throw new Error(`Create referralEarnings failed (${createRes.status}): ${txt}`);
     }
 
-    const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
-    if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
-    const referrerData = await referrerRes.json();
     const currentCoins = parseInt(referrerData.fields?.coins?.integerValue || 0);
 
     const patchRes = await fetch(`${baseUrl}/users/${referredBy}?updateMask.fieldPaths=coins&updateMask.fieldPaths=updatedAt`, {
@@ -557,14 +597,16 @@ async function payReferralCommission(token, projectId, params) {
     }
 
     try {
-        const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
-        const referrerEmail = referrerData.fields?.email?.stringValue || '';
+        const moneyLine = commissionAmount > 0
+            ? `💵 Hoa hồng tiền: ${formatMoneyForTelegram(commissionAmount, cur)}\n`
+            : '';
         await notifyTelegram(
             `🎁 <b>HOA HỒNG GIỚI THIỆU (${gateway})</b>\n\n` +
             `👤 Người giới thiệu: ${escapeHtml(referrerName)}\n` +
             `📧 Email: ${escapeHtml(referrerEmail)}\n` +
-            `🪙 Hoa hồng: +${commissionCoins} Coin\n` +
-            `🛒 Người được mời: ${escapeHtml(referredUserName || 'N/A')} (nạp ${baseCoins} Coin)\n` +
+            moneyLine +
+            `🪙 Hoa hồng Coin: +${commissionCoins} Coin\n` +
+            `🛒 Người được mời: ${escapeHtml(referredUserName || 'N/A')} (${formatMoneyForTelegram(baseAmount, cur) || baseCoins + ' Coin'})\n` +
             `🔑 Topup: ${topupId}`
         );
     } catch (e) { /* swallow */ }

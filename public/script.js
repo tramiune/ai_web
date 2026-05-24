@@ -319,6 +319,7 @@ window.switchLanguage = (lang) => {
         if (adminActiveTab === 'orders') renderAdminOrders();
         else if (adminActiveTab === 'topups') renderAdminTopups();
         else if (adminActiveTab === 'users') renderAdminUsers();
+        else if (adminActiveTab === 'referrals') renderAdminReferrals();
     }
 };
 
@@ -832,6 +833,7 @@ async function handleUserLoggedIn(user) {
                 fbUnsub('adminOrders');
                 fbUnsub('adminTopups');
                 fbUnsub('adminUsers');
+                fbUnsub('adminReferrals');
 
                 const adminPanelEl = document.getElementById('admin-panel');
                 if (adminPanelEl) adminPanelEl.style.display = 'none';
@@ -2314,6 +2316,181 @@ window.changeAdminUserPage = (newPage) => {
     renderAdminUsers();
 };
 
+// ----- REFERRALS (Admin tab) -----
+function subscribeAdminReferrals() {
+    const { db, collection, onSnapshot, query, orderBy, limit } = window.firebase;
+
+    if (fbHas('adminReferrals')) {
+        renderAdminReferrals();
+        return;
+    }
+
+    const q = query(
+        collection(db, "referralEarnings"),
+        orderBy("createdAt", "desc"),
+        limit(ADMIN_QUERY_LIMIT * 2)
+    );
+
+    fbSub('adminReferrals', onSnapshot(q, (snapshot) => {
+        FB_CACHE.adminReferrals = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        FB_CACHE.adminReferralsTruncated = snapshot.size === ADMIN_QUERY_LIMIT * 2;
+        renderAdminReferrals();
+    }, (err) => {
+        console.error('Admin referrals snapshot error:', err);
+        showToast(t('admin.toast_load_error', { msg: err.message }));
+    }));
+}
+
+function renderAdminReferrals() {
+    const list = document.getElementById('admin-referrals-list');
+    const summaryEl = document.getElementById('admin-referral-summary');
+    if (!list) return;
+
+    const searchVal = document.getElementById('admin-search-input')?.value.toLowerCase() || '';
+    const allRows = FB_CACHE.adminReferrals || [];
+
+    const filtered = allRows.filter(d => {
+        const money = getReferralMoneyFields(d);
+        const text = [
+            d.referrerName, d.referrerEmail, d.referredUserName, d.referredUserEmail,
+            d.gateway, formatReferralMoney(money.commissionAmount, money.currency)
+        ].join(' ').toLowerCase();
+        return text.includes(searchVal);
+    });
+
+    // Summary grouped by referrer
+    const byReferrer = {};
+    filtered.forEach(d => {
+        const money = getReferralMoneyFields(d);
+        const key = d.referrerId || 'unknown';
+        if (!byReferrer[key]) {
+            byReferrer[key] = {
+                referrerId: key,
+                referrerName: d.referrerName || key.slice(0, 8),
+                referrerEmail: d.referrerEmail || '',
+                vnd: 0,
+                usd: 0,
+                coins: 0,
+                count: 0
+            };
+        }
+        byReferrer[key].count += 1;
+        byReferrer[key].coins += d.commissionCoins || 0;
+        if (money.currency === 'USD' && money.commissionAmount) {
+            byReferrer[key].usd += money.commissionAmount;
+        } else if (money.commissionAmount) {
+            byReferrer[key].vnd += money.commissionAmount;
+        }
+    });
+
+    if (summaryEl) {
+        const summaryRows = Object.values(byReferrer).sort((a, b) => b.vnd - a.vnd);
+        if (summaryRows.length === 0) {
+            summaryEl.innerHTML = `<div style="opacity:0.5; padding:1rem;">${t('referral.empty')}</div>`;
+        } else {
+            summaryEl.innerHTML = `
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>${t('admin.ref_col_referrer')}</th>
+                                <th>${t('admin.ref_col_total_vnd')}</th>
+                                <th>${t('admin.ref_col_total_usd')}</th>
+                                <th>${t('admin.ref_col_total_coins')}</th>
+                                <th>${t('admin.ref_col_count')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${summaryRows.map(r => `
+                                <tr>
+                                    <td>
+                                        <div style="font-weight:600;">${escapeHTML(r.referrerName)}</div>
+                                        <small style="opacity:0.6;">${escapeHTML(r.referrerEmail)}</small>
+                                    </td>
+                                    <td style="color:#ffde00; font-weight:700;">${formatReferralMoney(r.vnd, 'VND')}</td>
+                                    <td>${r.usd > 0 ? formatReferralMoney(r.usd, 'USD') : '—'}</td>
+                                    <td>+${r.coins} Coin</td>
+                                    <td>${r.count}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = `<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">${t('admin.search_no_results')}</td></tr>`;
+        document.getElementById('admin-referrals-pagination')?.remove();
+        return;
+    }
+
+    const ITEMS_PER_PAGE = 10;
+    if (!window.currentAdminReferralPage) window.currentAdminReferralPage = 1;
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    if (window.currentAdminReferralPage > totalPages) window.currentAdminReferralPage = totalPages;
+
+    const startIndex = (window.currentAdminReferralPage - 1) * ITEMS_PER_PAGE;
+    const pageData = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    list.innerHTML = pageData.map(d => {
+        const money = getReferralMoneyFields(d);
+        const dateStr = safeToDate(d.createdAt)
+            ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN')
+            : '—';
+        return `
+            <tr>
+                <td>
+                    <div style="font-weight:600;">${escapeHTML(d.referrerName || '—')}</div>
+                    <small style="opacity:0.6;">${escapeHTML(d.referrerEmail || '')}</small>
+                </td>
+                <td>
+                    <div>${escapeHTML(d.referredUserName || t('common.guest'))}</div>
+                    <small style="opacity:0.6;">${escapeHTML(d.referredUserEmail || '')}</small>
+                </td>
+                <td>
+                    <div>${formatReferralMoney(money.baseAmount, money.currency)}</div>
+                    <small style="opacity:0.55;">${d.baseCoins || 0} Coin</small>
+                </td>
+                <td style="color:#ffde00; font-weight:700;">
+                    <div>${formatReferralMoney(money.commissionAmount, money.currency)}</div>
+                    <small style="opacity:0.75;">+${d.commissionCoins || 0} Coin</small>
+                </td>
+                <td>${referralGatewayLabel(d.gateway)}</td>
+                <td>${dateStr}</td>
+            </tr>
+        `;
+    }).join('');
+
+    let paginationContainer = document.getElementById('admin-referrals-pagination');
+    if (!paginationContainer) {
+        paginationContainer = document.createElement('div');
+        paginationContainer.id = 'admin-referrals-pagination';
+        paginationContainer.style.display = 'flex';
+        paginationContainer.style.justifyContent = 'center';
+        paginationContainer.style.alignItems = 'center';
+        paginationContainer.style.gap = '15px';
+        paginationContainer.style.marginTop = '20px';
+        list.parentElement.parentElement.appendChild(paginationContainer);
+    }
+
+    if (totalPages > 1) {
+        paginationContainer.innerHTML = `
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminReferralPage(${window.currentAdminReferralPage - 1})" ${window.currentAdminReferralPage === 1 ? 'disabled' : ''}>${t('common.pagination_prev')}</button>
+            <span>${t('common.pagination_page', { current: window.currentAdminReferralPage, total: totalPages })}</span>
+            <button class="btn-secondary" style="padding: 6px 12px;" onclick="window.changeAdminReferralPage(${window.currentAdminReferralPage + 1})" ${window.currentAdminReferralPage === totalPages ? 'disabled' : ''}>${t('common.pagination_next')}</button>
+        `;
+    } else {
+        paginationContainer.innerHTML = '';
+    }
+}
+
+window.changeAdminReferralPage = (newPage) => {
+    window.currentAdminReferralPage = newPage;
+    renderAdminReferrals();
+};
+
 window.updateUserCoins = async (userId) => {
     const { db, doc, updateDoc } = window.firebase;
     const input = document.getElementById(`user-coins-${userId}`);
@@ -2382,7 +2559,9 @@ window.approveTopup = async (topupId, userId, coins) => {
         try {
             await payReferralCommissionClient(topupId, userId, coins, 'admin', {
                 userEmail: topupSnapshot ? topupSnapshot.userEmail : '',
-                userName: topupSnapshot ? topupSnapshot.userName : ''
+                userName: topupSnapshot ? topupSnapshot.userName : '',
+                baseAmount: topupSnapshot ? topupSnapshot.amount : null,
+                currency: 'VND'
             });
         } catch (refErr) {
             console.error('[Referral] Admin commission error (non-blocking):', refErr);
@@ -2598,7 +2777,7 @@ window.deleteTopup = async (event, topupId) => {
 //   5) Switch tab (orders/topups/users) -> unsub các tab khác (Mức 3: subscribe per active tab).
 //   6) Tất cả query admin có orderBy('createdAt','desc') + limit(100) (Mức 2).
 
-let adminActiveTab = 'orders';            // 'orders' | 'topups' | 'users'
+let adminActiveTab = 'orders';            // 'orders' | 'topups' | 'users' | 'referrals'
 let adminSubscribedOrderStatus = null;    // status đang sub cho orders
 let adminSubscribedTopupStatus = null;    // status đang sub cho topups
 let adminSearchDebounceTimer = null;
@@ -2665,9 +2844,11 @@ function setupAdminSearchInputOnce() {
             window.currentAdminOrderPage = 1;
             window.currentAdminTopupPage = 1;
             window.currentAdminUserPage = 1;
+            window.currentAdminReferralPage = 1;
             if (adminActiveTab === 'orders') renderAdminOrders();
             else if (adminActiveTab === 'topups') renderAdminTopups();
             else if (adminActiveTab === 'users') renderAdminUsers();
+            else if (adminActiveTab === 'referrals') renderAdminReferrals();
         }, 300);
     });
     window.adminSearchInited = true;
@@ -2688,21 +2869,30 @@ function refreshActiveAdminSubscription() {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
+        fbUnsub('adminReferrals');
         return;
     }
 
     if (adminActiveTab === 'orders') {
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
+        fbUnsub('adminReferrals');
         subscribeAdminOrders();
     } else if (adminActiveTab === 'topups') {
         fbUnsub('adminOrders');
         fbUnsub('adminUsers');
+        fbUnsub('adminReferrals');
         subscribeAdminTopups();
     } else if (adminActiveTab === 'users') {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
+        fbUnsub('adminReferrals');
         subscribeAdminUsers();
+    } else if (adminActiveTab === 'referrals') {
+        fbUnsub('adminOrders');
+        fbUnsub('adminTopups');
+        fbUnsub('adminUsers');
+        subscribeAdminReferrals();
     }
 }
 
@@ -3575,6 +3765,47 @@ window.__paypal = { fetchPaypalConfig, mountPaypalButtons };
 const REFERRAL_COMMISSION_RATE = 0.10;
 const REFERRAL_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
 const REFERRAL_CODE_LENGTH = 8;
+const VND_PER_COIN_FALLBACK = 2000; // gói Starter: 40.000đ / 20 coin
+
+function computeReferralCommissionAmount(baseAmount, currency) {
+    if (!baseAmount || baseAmount <= 0) return 0;
+    if ((currency || 'VND').toUpperCase() === 'USD') {
+        return Math.round(baseAmount * REFERRAL_COMMISSION_RATE * 100) / 100;
+    }
+    return Math.floor(baseAmount * REFERRAL_COMMISSION_RATE);
+}
+
+function getReferralMoneyFields(record) {
+    const currency = (record.currency || 'VND').toUpperCase();
+    let baseAmount = record.baseAmount;
+    let commissionAmount = record.commissionAmount;
+
+    // Bản ghi cũ chưa có tiền -> ước lượng từ coin (VND)
+    if (commissionAmount == null && record.commissionCoins && currency !== 'USD') {
+        commissionAmount = record.commissionCoins * VND_PER_COIN_FALLBACK;
+        if (baseAmount == null && record.baseCoins) {
+            baseAmount = record.baseCoins * VND_PER_COIN_FALLBACK;
+        }
+    }
+    return { baseAmount, commissionAmount, currency };
+}
+
+function formatReferralMoney(amount, currency) {
+    if (amount == null || amount === '' || isNaN(Number(amount))) return '—';
+    const n = Number(amount);
+    if ((currency || 'VND').toUpperCase() === 'USD') {
+        return `$${n.toFixed(2)}`;
+    }
+    return `${Math.round(n).toLocaleString('vi-VN')}đ`;
+}
+
+function referralGatewayLabel(gateway) {
+    if (gateway === 'casso') return t('referral.gateway_casso') || 'Casso (VietQR)';
+    if (gateway === 'paypal') return t('referral.gateway_paypal') || 'PayPal';
+    if (gateway === 'lemonsqueezy') return t('referral.gateway_lemon') || 'Lemon Squeezy';
+    if (gateway === 'admin') return t('referral.gateway_admin') || 'Admin duyệt';
+    return gateway || '—';
+}
 
 function generateReferralCode() {
     let out = '';
@@ -3632,6 +3863,8 @@ async function openReferralPage() {
     const listEl = document.getElementById('referral-earnings-list');
     const statInvited = document.getElementById('referral-stat-invited');
     const statEarned = document.getElementById('referral-stat-earned');
+    const statEarnedCoins = document.getElementById('referral-stat-earned-coins');
+    const statEarnedUsd = document.getElementById('referral-stat-earned-usd');
     const statTopups = document.getElementById('referral-stat-topups');
 
     if (linkInput) linkInput.value = t('common.loading') || 'Loading...';
@@ -3669,36 +3902,50 @@ async function openReferralPage() {
         if (snapshot.empty) {
             listEl.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('referral.empty')}</td></tr>`;
             if (statInvited) statInvited.innerText = '0';
-            if (statEarned) statEarned.innerText = '0';
+            if (statEarned) statEarned.innerText = '0đ';
+            if (statEarnedCoins) statEarnedCoins.innerText = '0 Coin';
+            if (statEarnedUsd) statEarnedUsd.style.display = 'none';
             if (statTopups) statTopups.innerText = '0';
             return;
         }
 
         const rows = [];
         const uniqueFriends = new Set();
-        let totalCommission = 0;
+        let totalCommissionVnd = 0;
+        let totalCommissionCoins = 0;
+        let totalCommissionUsd = 0;
         let totalTopups = 0;
 
         snapshot.docs.forEach(docSnap => {
             const d = docSnap.data();
+            const money = getReferralMoneyFields(d);
             uniqueFriends.add(d.referredUserId);
-            totalCommission += d.commissionCoins || 0;
+            totalCommissionCoins += d.commissionCoins || 0;
             totalTopups += 1;
+            if (money.currency === 'USD' && money.commissionAmount) {
+                totalCommissionUsd += money.commissionAmount;
+            } else if (money.commissionAmount) {
+                totalCommissionVnd += money.commissionAmount;
+            }
 
-            const friendName = escapeHTML(d.referredUserName || 'Khách');
+            const friendName = escapeHTML(d.referredUserName || t('common.guest'));
             const friendEmail = escapeHTML(d.referredUserEmail || '');
             const dateStr = safeToDate(d.createdAt) ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN') : '—';
-            const gatewayLabel = d.gateway === 'casso' ? 'Casso (VietQR)'
-                : d.gateway === 'paypal' ? 'PayPal'
-                : d.gateway === 'lemonsqueezy' ? 'Lemon Squeezy'
-                : d.gateway === 'admin' ? (t('referral.gateway_admin') || 'Admin duyệt')
-                : (d.gateway || '—');
+            const gatewayLabel = referralGatewayLabel(d.gateway);
+            const baseMoney = formatReferralMoney(money.baseAmount, money.currency);
+            const commissionMoney = formatReferralMoney(money.commissionAmount, money.currency);
 
             rows.push(`
                 <tr>
                     <td>${friendName}<br><small style="opacity:0.6;">${friendEmail}</small></td>
-                    <td>${d.baseCoins || 0} Coin</td>
-                    <td style="color:#ffde00; font-weight:700;">+${d.commissionCoins || 0} Coin</td>
+                    <td>
+                        <div style="font-weight:600;">${baseMoney}</div>
+                        <small style="opacity:0.55;">${d.baseCoins || 0} Coin</small>
+                    </td>
+                    <td style="color:#ffde00; font-weight:700;">
+                        <div>${commissionMoney}</div>
+                        <small style="opacity:0.75; font-weight:500;">+${d.commissionCoins || 0} Coin</small>
+                    </td>
                     <td>${gatewayLabel}</td>
                     <td>${dateStr}</td>
                 </tr>
@@ -3707,7 +3954,16 @@ async function openReferralPage() {
 
         listEl.innerHTML = rows.join('');
         if (statInvited) statInvited.innerText = String(uniqueFriends.size);
-        if (statEarned) statEarned.innerText = String(totalCommission);
+        if (statEarned) statEarned.innerText = totalCommissionVnd > 0 ? formatReferralMoney(totalCommissionVnd, 'VND') : '0đ';
+        if (statEarnedCoins) statEarnedCoins.innerText = `+${totalCommissionCoins} Coin`;
+        if (statEarnedUsd) {
+            if (totalCommissionUsd > 0) {
+                statEarnedUsd.style.display = 'block';
+                statEarnedUsd.innerText = t('referral.stat_usd_extra', { amount: formatReferralMoney(totalCommissionUsd, 'USD') });
+            } else {
+                statEarnedUsd.style.display = 'none';
+            }
+        }
         if (statTopups) statTopups.innerText = String(totalTopups);
     }, (err) => {
         console.error('[Referral] earnings snapshot error:', err);
@@ -3747,14 +4003,17 @@ window.shareReferralTelegram = () => {
  * Wrapped in try/catch by caller; this function may throw on hard errors.
  */
 async function payReferralCommissionClient(topupId, referredUserId, baseCoins, gateway, snapshotData) {
-    const { db, doc, getDoc, setDoc, runTransaction, serverTimestamp } = window.firebase;
+    const { db, doc, getDoc, runTransaction, serverTimestamp } = window.firebase;
 
     if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
 
     const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
     if (commissionCoins <= 0) return;
 
-    // 1. Check if commission already paid for this topup
+    const baseAmount = snapshotData && snapshotData.baseAmount ? Number(snapshotData.baseAmount) : null;
+    const currency = (snapshotData && snapshotData.currency) || 'VND';
+    const commissionAmount = computeReferralCommissionAmount(baseAmount, currency);
+
     const earningRef = doc(db, "referralEarnings", topupId);
     const earningSnap = await getDoc(earningRef);
     if (earningSnap.exists()) {
@@ -3762,19 +4021,20 @@ async function payReferralCommissionClient(topupId, referredUserId, baseCoins, g
         return;
     }
 
-    // 2. Load referred user to find referrer
     const referredUserRef = doc(db, "users", referredUserId);
     const referredUserSnap = await getDoc(referredUserRef);
     if (!referredUserSnap.exists()) return;
     const referredData = referredUserSnap.data();
     const referrerId = referredData.referredBy;
-    if (!referrerId) return; // User wasn't referred
-    if (referrerId === referredUserId) return; // Self-ref safety
+    if (!referrerId) return;
+    if (referrerId === referredUserId) return;
 
-    // 3. Atomically credit commission + write earnings record
     const referrerRef = doc(db, "users", referrerId);
+    const referrerSnapPre = await getDoc(referrerRef);
+    if (!referrerSnapPre.exists()) return;
+    const referrerData = referrerSnapPre.data();
+
     await runTransaction(db, async (transaction) => {
-        // Re-check inside transaction to avoid race
         const earningInTxn = await transaction.get(earningRef);
         if (earningInTxn.exists()) return;
 
@@ -3786,8 +4046,11 @@ async function payReferralCommissionClient(topupId, referredUserId, baseCoins, g
             coins: currentCoins + commissionCoins,
             updatedAt: serverTimestamp()
         });
-        transaction.set(earningRef, {
+
+        const earningPayload = {
             referrerId: referrerId,
+            referrerName: referrerData.displayName || '',
+            referrerEmail: referrerData.email || '',
             referredUserId: referredUserId,
             referredUserEmail: (snapshotData && snapshotData.userEmail) || referredData.email || '',
             referredUserName: (snapshotData && snapshotData.userName) || referredData.displayName || '',
@@ -3796,12 +4059,18 @@ async function payReferralCommissionClient(topupId, referredUserId, baseCoins, g
             commissionCoins: commissionCoins,
             commissionRate: REFERRAL_COMMISSION_RATE,
             gateway: gateway || 'unknown',
+            currency: currency,
             payoutStatus: 'credited',
             createdAt: serverTimestamp()
-        });
+        };
+        if (baseAmount && baseAmount > 0) {
+            earningPayload.baseAmount = baseAmount;
+            earningPayload.commissionAmount = commissionAmount;
+        }
+        transaction.set(earningRef, earningPayload);
     });
 
-    console.log(`[Referral] Paid ${commissionCoins} coin commission to ${referrerId} for topup ${topupId}`);
+    console.log(`[Referral] Paid ${commissionCoins} coin + ${commissionAmount} ${currency} commission to ${referrerId} for topup ${topupId}`);
 }
 window.payReferralCommissionClient = payReferralCommissionClient;
 

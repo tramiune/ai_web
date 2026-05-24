@@ -91,6 +91,8 @@ export async function onRequestPost(context) {
                referredUserEmail: topup.userEmail,
                referredUserName: topup.userName,
                baseCoins: coins,
+               baseAmount: topup.amount || amount,
+               currency: 'VND',
                gateway: 'casso'
              });
            } catch (refErr) {
@@ -240,24 +242,47 @@ async function notifyTelegram(text) {
 // --- Affiliate / Referral Commission ---
 const REFERRAL_COMMISSION_RATE = 0.10;
 
+function computeCommissionAmount(baseAmount, currency) {
+  if (!baseAmount || baseAmount <= 0) return 0;
+  if ((currency || 'VND').toUpperCase() === 'USD') {
+    return Math.round(baseAmount * REFERRAL_COMMISSION_RATE * 100) / 100;
+  }
+  return Math.floor(baseAmount * REFERRAL_COMMISSION_RATE);
+}
+
+function firestoreAmountField(value, currency) {
+  if ((currency || 'VND').toUpperCase() === 'USD') {
+    return { doubleValue: value };
+  }
+  return { integerValue: Math.round(value) };
+}
+
+function formatMoneyForTelegram(amount, currency) {
+  if (amount == null || amount <= 0) return '';
+  if ((currency || 'VND').toUpperCase() === 'USD') return `$${Number(amount).toFixed(2)} USD`;
+  return `${Math.round(amount).toLocaleString('vi-VN')}đ`;
+}
+
 /**
  * Pay 10% referral commission in coins to the referrer of `referredUserId`.
  * Idempotent: uses topupId as the referralEarnings doc ID and aborts if it already exists.
- * Safe to call after grantCoins has succeeded; never re-throws to caller's main flow
- * (caller wraps in try/catch but this function itself signals errors via throw so
- *  callers can decide whether to notify).
  */
 async function payReferralCommission(token, projectId, params) {
-  const { topupId, referredUserId, referredUserEmail, referredUserName, baseCoins, gateway } = params;
+  const {
+    topupId, referredUserId, referredUserEmail, referredUserName,
+    baseCoins, baseAmount, currency, gateway
+  } = params;
   if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
 
   const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
   if (commissionCoins <= 0) return;
 
+  const cur = (currency || 'VND').toUpperCase();
+  const commissionAmount = computeCommissionAmount(baseAmount, cur);
+
   const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
   const authHeader = { "Authorization": `Bearer ${token}` };
 
-  // 1. Read referred user doc to discover referredBy
   const referredUserRes = await fetch(`${baseUrl}/users/${referredUserId}`, { headers: authHeader });
   if (!referredUserRes.ok) {
     if (referredUserRes.status === 404) return;
@@ -265,26 +290,39 @@ async function payReferralCommission(token, projectId, params) {
   }
   const referredUserData = await referredUserRes.json();
   const referredBy = referredUserData.fields?.referredBy?.stringValue;
-  if (!referredBy) return; // not referred
-  if (referredBy === referredUserId) return; // self-ref safety
+  if (!referredBy) return;
+  if (referredBy === referredUserId) return;
 
-  // 2. Idempotency: create-only earnings doc using documentId query param.
-  // Firestore returns 409 ALREADY_EXISTS if a doc with that ID is present.
-  const earningsBody = {
-    fields: {
-      referrerId: { stringValue: referredBy },
-      referredUserId: { stringValue: referredUserId },
-      referredUserEmail: { stringValue: referredUserEmail || referredUserData.fields?.email?.stringValue || '' },
-      referredUserName: { stringValue: referredUserName || referredUserData.fields?.displayName?.stringValue || '' },
-      topupId: { stringValue: topupId },
-      baseCoins: { integerValue: baseCoins },
-      commissionCoins: { integerValue: commissionCoins },
-      commissionRate: { doubleValue: REFERRAL_COMMISSION_RATE },
-      gateway: { stringValue: gateway || 'unknown' },
-      payoutStatus: { stringValue: 'credited' },
-      createdAt: { timestampValue: new Date().toISOString() }
-    }
+  const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
+  if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
+  const referrerData = await referrerRes.json();
+  const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
+  const referrerEmail = referrerData.fields?.email?.stringValue || '';
+
+  const earningsFields = {
+    referrerId: { stringValue: referredBy },
+    referrerName: { stringValue: referrerName },
+    referrerEmail: { stringValue: referrerEmail },
+    referredUserId: { stringValue: referredUserId },
+    referredUserEmail: { stringValue: referredUserEmail || referredUserData.fields?.email?.stringValue || '' },
+    referredUserName: { stringValue: referredUserName || referredUserData.fields?.displayName?.stringValue || '' },
+    topupId: { stringValue: topupId },
+    baseCoins: { integerValue: baseCoins },
+    commissionCoins: { integerValue: commissionCoins },
+    commissionRate: { doubleValue: REFERRAL_COMMISSION_RATE },
+    gateway: { stringValue: gateway || 'unknown' },
+    currency: { stringValue: cur },
+    payoutStatus: { stringValue: 'credited' },
+    createdAt: { timestampValue: new Date().toISOString() }
   };
+  if (baseAmount && baseAmount > 0) {
+    earningsFields.baseAmount = firestoreAmountField(baseAmount, cur);
+  }
+  if (commissionAmount > 0) {
+    earningsFields.commissionAmount = firestoreAmountField(commissionAmount, cur);
+  }
+
+  const earningsBody = { fields: earningsFields };
 
   const createUrl = `${baseUrl}/referralEarnings?documentId=${encodeURIComponent(topupId)}`;
   const createRes = await fetch(createUrl, {
@@ -302,13 +340,6 @@ async function payReferralCommission(token, projectId, params) {
     throw new Error(`Create referralEarnings failed (${createRes.status}): ${txt}`);
   }
 
-  // 3. Credit commission coins to referrer.
-  // NOTE: not strictly atomic with step 2; if this step fails the earnings doc
-  // is the source of truth and we'll see the discrepancy. We surface error so
-  // caller logs/notifies admin to manually correct.
-  const referrerRes = await fetch(`${baseUrl}/users/${referredBy}`, { headers: authHeader });
-  if (!referrerRes.ok) throw new Error(`Read referrer failed: ${referrerRes.status}`);
-  const referrerData = await referrerRes.json();
   const currentCoins = parseInt(referrerData.fields?.coins?.integerValue || 0);
 
   const patchRes = await fetch(`${baseUrl}/users/${referredBy}?updateMask.fieldPaths=coins&updateMask.fieldPaths=updatedAt`, {
@@ -326,18 +357,19 @@ async function payReferralCommission(token, projectId, params) {
     throw new Error(`Credit referrer coins failed (${patchRes.status}): ${txt}`);
   }
 
-  console.log(`[Referral] Paid ${commissionCoins} coin commission to ${referredBy} for topup ${topupId} (gateway=${gateway})`);
+  console.log(`[Referral] Paid ${commissionCoins} coin + ${commissionAmount} ${cur} commission to ${referredBy} for topup ${topupId} (gateway=${gateway})`);
 
-  // Telegram notification (fire-and-forget; failures don't matter here)
   try {
-    const referrerName = referrerData.fields?.displayName?.stringValue || 'N/A';
-    const referrerEmail = referrerData.fields?.email?.stringValue || '';
+    const moneyLine = commissionAmount > 0
+      ? `💵 Hoa hồng tiền: ${formatMoneyForTelegram(commissionAmount, cur)}\n`
+      : '';
     await notifyTelegram(
       `🎁 *HOA HỒNG GIỚI THIỆU \\(${gateway}\\)*\n\n` +
       `👤 Người giới thiệu: ${referrerName}\n` +
       `📧 Email: ${referrerEmail}\n` +
-      `🪙 Hoa hồng: +${commissionCoins} Coin\n` +
-      `🛒 Người được mời nạp: ${referredUserName || 'N/A'} \\(${commissionCoins * 10} Coin gói nạp\\)\n` +
+      moneyLine +
+      `🪙 Hoa hồng Coin: +${commissionCoins} Coin\n` +
+      `🛒 Người được mời nạp: ${referredUserName || 'N/A'} (${formatMoneyForTelegram(baseAmount, cur) || baseCoins + ' Coin'})\n` +
       `🔑 Topup ID: ${topupId}`
     );
   } catch (e) { /* swallow */ }
