@@ -214,7 +214,8 @@ def submit_to_aidancing(order_id):
                 user_data_dir=os.path.abspath("bot_chrome_profile"),
                 channel="chrome", headless=False, slow_mo=500,
                 ignore_default_args=["--enable-automation"],
-                args=["--disable-blink-features=AutomationControlled"]
+                args=["--disable-blink-features=AutomationControlled",
+                      "--window-position=-2400,-2400"]
             )
             page = browser.new_page()
             try:
@@ -328,9 +329,10 @@ def check_finished_orders():
             with sync_playwright() as p:
                 browser = p.chromium.launch_persistent_context(
                     user_data_dir=os.path.abspath("bot_chrome_profile"),
-                    headless=False, # Đổi thành True nếu chạy trên VPS/Ubuntu Server
+                    headless=False,
                     ignore_default_args=["--enable-automation"],
-                    args=["--disable-blink-features=AutomationControlled"]
+                    args=["--disable-blink-features=AutomationControlled",
+                          "--window-position=-2400,-2400"]
                 )
                 page = browser.new_page()
                 page.goto(DASHBOARD_URL, timeout=60000)
