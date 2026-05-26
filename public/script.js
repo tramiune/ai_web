@@ -638,6 +638,15 @@ window.downloadMedia = async (event, url, filename, mimeType) => {
     }
 };
 
+window.downloadMediaFromEl = (event, el) => {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!el?.dataset?.url) return;
+    return window.downloadMedia(null, el.dataset.url, el.dataset.name, el.dataset.mime);
+};
+
 // --- Auth Functions ---
 const SHOWCASE_VIDEOS_PAGE1 = 8;  // + upload card = 9 ô (3x3)
 const SHOWCASE_VIDEOS_PER_PAGE = 9;
@@ -2258,7 +2267,7 @@ function renderMyOrders() {
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 ${isCompleted && finalResultLink ? `
-                                    <button type="button" class="order-download-btn" onclick="event.stopPropagation(); window.downloadMedia(event, ${JSON.stringify(finalResultLink)}, ${JSON.stringify(`motionai_video_${orderId}.mp4`)}, 'video/mp4')">
+                                    <button type="button" class="order-download-btn" data-url="${escapeHTML(finalResultLink)}" data-name="${escapeHTML(`motionai_video_${orderId}.mp4`)}" data-mime="video/mp4" onclick="window.downloadMediaFromEl(event, this)">
                                         ${t('dashboard.download_btn')}
                                     </button>
                                 ` : ''}
@@ -3702,7 +3711,7 @@ window.openUserOrderDetail = async (orderId) => {
                             ${t('modals.video_not_supported')}
                         </video>
                     </div>
-                    <button type="button" class="btn-primary" style="display:block; width:100%; text-align:center; padding: 12px; margin-top: 12px; font-weight: 600; border:none; cursor:pointer;" onclick="window.downloadMedia(event, ${JSON.stringify(finalResultLink)}, ${JSON.stringify(`motionai_video_${shortId}.mp4`)}, 'video/mp4')">${t('modals.order_download')}</button>
+                    <button type="button" class="btn-primary" style="display:block; width:100%; text-align:center; padding: 12px; margin-top: 12px; font-weight: 600; border:none; cursor:pointer;" data-url="${escapeHTML(finalResultLink)}" data-name="${escapeHTML(`motionai_video_${shortId}.mp4`)}" data-mime="video/mp4" onclick="window.downloadMediaFromEl(event, this)">${t('modals.order_download')}</button>
                     <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">${t('modals.mobile_download_tip')}</p>
                     <p style="font-size: 0.75rem; color: var(--danger); margin-top: 4px; text-align: center;">${t('modals.order_expiry_warn')}</p>
                 </div>
