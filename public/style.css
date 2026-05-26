@@ -3303,9 +3303,12 @@ section {
 /* Showcase Gallery */
 .showcase-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-top: 1.5rem;
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .showcase-card {

@@ -566,7 +566,20 @@ window.downloadUrl = (event, url) => {
 };
 
 // --- Auth Functions ---
-const SHOWCASE_PER_PAGE = 10;
+const SHOWCASE_VIDEOS_PAGE1 = 8;  // + upload card = 9 ô (3x3)
+const SHOWCASE_VIDEOS_PER_PAGE = 9;
+
+function getShowcaseRange(page) {
+    if (page === 1) return { start: 0, count: SHOWCASE_VIDEOS_PAGE1 };
+    const start = SHOWCASE_VIDEOS_PAGE1 + (page - 2) * SHOWCASE_VIDEOS_PER_PAGE;
+    return { start, count: SHOWCASE_VIDEOS_PER_PAGE };
+}
+
+function getShowcaseTotalPages(totalVideos) {
+    if (totalVideos <= SHOWCASE_VIDEOS_PAGE1) return 1;
+    return 1 + Math.ceil((totalVideos - SHOWCASE_VIDEOS_PAGE1) / SHOWCASE_VIDEOS_PER_PAGE);
+}
+
 let _showcasePage = 1;
 let _showcaseShuffled = [];
 
@@ -582,12 +595,12 @@ window.renderShowcase = async (page) => {
     }
 
     if (page) _showcasePage = page;
-    const totalPages = Math.ceil(_showcaseShuffled.length / SHOWCASE_PER_PAGE);
+    const totalPages = getShowcaseTotalPages(_showcaseShuffled.length);
     if (_showcasePage < 1) _showcasePage = 1;
     if (_showcasePage > totalPages) _showcasePage = totalPages;
 
-    const start = (_showcasePage - 1) * SHOWCASE_PER_PAGE;
-    const items = _showcaseShuffled.slice(start, start + SHOWCASE_PER_PAGE);
+    const { start, count } = getShowcaseRange(_showcasePage);
+    const items = _showcaseShuffled.slice(start, start + count);
 
     const uploadCard = _showcasePage === 1 ? `
         <div class="showcase-card showcase-upload" onclick="window.pickVideoThenOpenModal()">
