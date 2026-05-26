@@ -686,7 +686,6 @@ window.renderShowcase = async (page) => {
 
     const uploadCard = _showcasePage === 1 ? `
         <div class="showcase-card showcase-upload" onclick="window.pickVideoThenOpenModal()">
-            <span class="showcase-upload-badge">${t('showcase.upload_badge')}</span>
             <div class="showcase-upload-inner">
                 <div class="showcase-upload-icon-wrap">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -695,8 +694,10 @@ window.renderShowcase = async (page) => {
                         <line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
                 </div>
-                <span class="showcase-upload-title" data-i18n="showcase.upload_your_video">${t('showcase.upload_your_video')}</span>
-                <small class="showcase-upload-hint">${t('showcase.upload_hint')}</small>
+                <div class="showcase-upload-text">
+                    <span class="showcase-upload-title" data-i18n="showcase.upload_your_video">${t('showcase.upload_your_video')}</span>
+                    <small class="showcase-upload-hint">${t('showcase.upload_hint')}</small>
+                </div>
             </div>
         </div>` : '';
 
