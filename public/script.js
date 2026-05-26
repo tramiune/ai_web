@@ -549,21 +549,93 @@ window.handleVideoHover = (video, isHover) => {
     }
 };
 
-window.downloadUrl = (event, url) => {
-    if (event) {
-        event.stopPropagation();
-    }
+window.downloadUrl = (event, url, suggestedName) => {
+    if (event) event.stopPropagation();
     if (!url) return;
-    
-    // Create a temporary link to trigger download/open
+
+    const clean = String(url).split('?')[0].split('#')[0].toLowerCase();
+    const ext = clean.includes('.') ? clean.split('.').pop() : '';
+    const mediaExts = {
+        mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+        png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif'
+    };
+    if (mediaExts[ext]) {
+        const name = suggestedName || `motionai_${Date.now()}.${ext}`;
+        return window.downloadMedia(event, url, name, mediaExts[ext]);
+    }
+
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
-    // The download attribute helps with same-origin, but target=_blank is the reliable fallback
-    a.download = url.split('/').pop(); 
+    a.download = suggestedName || url.split('/').pop().split('?')[0];
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+};
+
+function normalizeDownloadUrl(url) {
+    if (!url) return url;
+    if (url.includes('workers.dev') && !url.includes('download=1')) {
+        return url + (url.includes('?') ? '&' : '?') + 'download=1';
+    }
+    return url;
+}
+
+window.downloadMedia = async (event, url, filename, mimeType) => {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!url) return;
+
+    const name = filename || 'motionai_video.mp4';
+    const mime = mimeType || 'video/mp4';
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints > 1 && window.matchMedia('(max-width: 1024px)').matches);
+
+    showToast(t('common.download_preparing'));
+
+    try {
+        const sourceUrl = normalizeDownloadUrl(url);
+        const res = await fetch(`/api/media-download?url=${encodeURIComponent(sourceUrl)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const file = new File([blob], name, { type: blob.type || mime });
+
+        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            showToast(t('common.download_share_hint'));
+            await navigator.share({ files: [file], title: name });
+            showToast(t('common.download_done'));
+            return;
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = name;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        showToast(isMobile ? t('common.download_done_mobile') : t('common.download_done'));
+    } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        console.error('[downloadMedia]', err);
+        try {
+            const fallback = normalizeDownloadUrl(url);
+            const a = document.createElement('a');
+            a.href = fallback;
+            a.target = '_blank';
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast(t('common.download_fallback'));
+        } catch (e2) {
+            showToast(t('common.error_with_msg', { msg: err.message || err }));
+        }
+    }
 };
 
 // --- Auth Functions ---
@@ -2148,10 +2220,6 @@ function renderMyOrders() {
             const isNew = createdDateObj && (Date.now() - createdDateObj.getTime() < 5 * 60 * 1000);
             const isCompleted = d.status === 'completed' || d.status === 'done';
             const finalResultLink = d.resultLink;
-            const isWorkerLink = finalResultLink && finalResultLink.includes('workers.dev');
-            const downloadUrl = (isCompleted && finalResultLink) 
-                ? (isWorkerLink ? finalResultLink + (finalResultLink.includes('?') ? '&' : '?') + 'download=1' : finalResultLink) 
-                : '';
 
             const isPendingLong = d.status === 'pending' && createdDateObj && (Date.now() - createdDateObj.getTime() > 10 * 60 * 1000);
             const delayNote = isPendingLong ? `<div class="order-delay-note">${t('dashboard.delay_note')}</div>` : '';
@@ -2190,9 +2258,9 @@ function renderMyOrders() {
                             </div>
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 ${isCompleted && finalResultLink ? `
-                                    <a class="order-download-btn" href="${downloadUrl}" download="motionai_video_${orderId}.mp4" target="_blank" onclick="event.stopPropagation();">
+                                    <button type="button" class="order-download-btn" onclick="event.stopPropagation(); window.downloadMedia(event, ${JSON.stringify(finalResultLink)}, ${JSON.stringify(`motionai_video_${orderId}.mp4`)}, 'video/mp4')">
                                         ${t('dashboard.download_btn')}
-                                    </a>
+                                    </button>
                                 ` : ''}
                                 <button class="order-view-btn" onclick="event.stopPropagation(); window.openUserOrderDetail('${d.id}')">${t('dashboard.action_view_details')}</button>
                             </div>
@@ -3625,8 +3693,6 @@ window.openUserOrderDetail = async (orderId) => {
             ${(() => {
             const finalResultLink = d.resultLink;
             if (!finalResultLink) return '';
-            const isWorkerLink = finalResultLink.includes('workers.dev');
-            const downloadUrl = isWorkerLink ? finalResultLink + (finalResultLink.includes('?') ? '&' : '?') + 'download=1' : finalResultLink;
             return `
                 <div class="info-item" style="grid-column: span 2;">
                     <span class="info-label">${t('modals.order_result_video')}</span>
@@ -3636,8 +3702,8 @@ window.openUserOrderDetail = async (orderId) => {
                             ${t('modals.video_not_supported')}
                         </video>
                     </div>
-                    <a href="${downloadUrl}" download="motionai_video_${shortId}.mp4" target="_blank" class="btn-primary" style="display:block; text-align:center; padding: 12px; margin-top: 12px; text-decoration:none; width: 100%; font-weight: 600;">${t('modals.order_download')}</a>
-                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">${t('modals.iphone_download_tip')}</p>
+                    <button type="button" class="btn-primary" style="display:block; width:100%; text-align:center; padding: 12px; margin-top: 12px; font-weight: 600; border:none; cursor:pointer;" onclick="window.downloadMedia(event, ${JSON.stringify(finalResultLink)}, ${JSON.stringify(`motionai_video_${shortId}.mp4`)}, 'video/mp4')">${t('modals.order_download')}</button>
+                    <p style="font-size: 0.75rem; color: #ffde00; margin-top: 8px; text-align: center;">${t('modals.mobile_download_tip')}</p>
                     <p style="font-size: 0.75rem; color: var(--danger); margin-top: 4px; text-align: center;">${t('modals.order_expiry_warn')}</p>
                 </div>
                 `;

@@ -6,6 +6,21 @@ import {
   onWebhookRequest as onPaypalWebhookRequest
 } from './functions/api/paypal.js';
 
+function isAllowedMediaUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    if (host.endsWith('.workers.dev')) return true;
+    if (host.endsWith('.r2.dev')) return true;
+    if (host === 'firebasestorage.googleapis.com') return true;
+    if (host.endsWith('.firebasestorage.app')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
@@ -69,6 +84,26 @@ export default {
           'Cache-Control': 'public, max-age=300'
         }
       });
+    }
+
+    // Proxy media download (same-origin) so mobile can fetch blob & save to gallery.
+    if (url.pathname === '/api/media-download' && method === 'GET') {
+      const target = url.searchParams.get('url');
+      if (!target || !isAllowedMediaUrl(target)) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      const upstream = await fetch(target, { redirect: 'follow' });
+      if (!upstream.ok) {
+        return new Response('Upstream error', { status: upstream.status });
+      }
+      const headers = new Headers();
+      const contentType = upstream.headers.get('Content-Type') || 'application/octet-stream';
+      headers.set('Content-Type', contentType);
+      headers.set('Cache-Control', 'private, max-age=600');
+      headers.set('Access-Control-Allow-Origin', '*');
+      const cd = upstream.headers.get('Content-Disposition');
+      headers.set('Content-Disposition', cd || 'attachment; filename="download"');
+      return new Response(upstream.body, { status: 200, headers });
     }
 
     // Not an API route - let Cloudflare Assets serve static files.
