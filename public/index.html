@@ -346,48 +346,16 @@
             </div>
             -->
 
-            <div class="db-header">
-                <div class="user-info-section">
-                    <h1 id="user-greeting" class="user-greeting-text">Chào mừng, User! ✨</h1>
-                    <p id="user-email" class="user-email-text" style="opacity: 0.6; font-size: 0.9rem;"></p>
-                </div>
-
-                <div class="wallet-card">
-                    <div class="wallet-icon">
-                        <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)"
-                                fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2" />
-                            <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)" />
-                            <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round" />
-                        </svg>
-                    </div>
-                    <div class="wallet-info">
-                        <span class="wallet-label" data-i18n="dashboard.balance">Số dư Coin</span>
-                        <div class="wallet-value"><span class="coin-balance-text">0</span></div>
-                    </div>
-                    <button class="topup-pill-btn" onclick="window.openTopupModal()">
-                        <span>+</span> <span data-i18n="dashboard.topup">Nạp thêm</span>
-                    </button>
+            <div class="db-header" style="margin-bottom: 1rem;">
+                <div class="section-header" style="text-align: left; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <h2 data-i18n="dashboard.my_videos">Video của tôi</h2>
+                    <button class="btn-primary" onclick="window.openOrderModal()" data-i18n="dashboard.create_new" style="white-space: nowrap;">+ Tạo video mới</button>
                 </div>
             </div>
 
-
-
-            <div class="db-actions" style="margin-bottom: 1.5rem;">
-                <button class="btn-primary" onclick="window.openOrderModal()" data-i18n="dashboard.create_new">+ Tạo
-                    video mới</button>
-            </div>
-
-            <div class="section-header"
-                style="text-align: left; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-                <h2 data-i18n="dashboard.my_videos">Video của tôi</h2>
-                <div style="font-size: 0.8rem; color: var(--text-muted);" id="orders-count-text"></div>
-            </div>
-            <div class="db-notes" style="margin-bottom: 1rem; font-size: 0.8rem; line-height: 1.6;">
-                <p style="color: #ffde00; margin: 0;">
-                    <span data-i18n="dashboard.note_storage">⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i></span>
-                </p>
-            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1rem;">
+                <span data-i18n="dashboard.note_storage">⚠️ Video kết quả chỉ lưu 7 ngày. Vui lòng tải về sớm!</span>
+            </p>
 
             <div id="my-orders-grid" class="orders-grid">
                 <!-- Cards will be rendered here -->
