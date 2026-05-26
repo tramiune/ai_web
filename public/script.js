@@ -590,14 +590,14 @@ window.renderShowcase = async (page) => {
     const items = _showcaseShuffled.slice(start, start + SHOWCASE_PER_PAGE);
 
     const uploadCard = _showcasePage === 1 ? `
-        <div class="showcase-card showcase-upload" onclick="openOrderModal()">
+        <div class="showcase-card showcase-upload" onclick="window.pickVideoThenOpenModal()">
             <div class="showcase-upload-inner">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="17 8 12 3 7 8"/>
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
-                <span data-i18n="showcase.upload_your_video">${t('showcase.upload_your_video') !== 'showcase.upload_your_video' ? t('showcase.upload_your_video') : 'Upload video của bạn'}</span>
+                <span data-i18n="showcase.upload_your_video">${t('showcase.upload_your_video') !== 'showcase.upload_your_video' ? t('showcase.upload_your_video') : 'Dùng video của bạn'}</span>
             </div>
         </div>` : '';
 
@@ -643,6 +643,27 @@ window.renderShowcase = async (page) => {
 };
 
 // Lazy loading handled by IntersectionObserver in renderShowcase
+
+window.pickVideoThenOpenModal = () => {
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = 'video/*';
+    picker.onchange = () => {
+        if (!picker.files.length) return;
+        window.openOrderModal();
+        window.switchVideoSource('upload');
+        setTimeout(() => {
+            const fileInput = document.getElementById('file-video');
+            if (fileInput) {
+                const dt = new DataTransfer();
+                dt.items.add(picker.files[0]);
+                fileInput.files = dt.files;
+                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }, 150);
+    };
+    picker.click();
+};
 
 window.useTrendShortcut = (id, url) => {
     _tplPinnedId = id;
