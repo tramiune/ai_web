@@ -1504,7 +1504,7 @@ button {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.7) 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.85) 100%);
   pointer-events: none;
 }
 
@@ -1517,34 +1517,93 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding: 3rem 2rem;
+  padding: 4rem 2rem 3rem;
   z-index: 2;
   text-align: center;
 }
 
+.banner-badge {
+  display: inline-block;
+  padding: 0.4rem 1.2rem;
+  background: rgba(138, 43, 226, 0.25);
+  border: 1px solid rgba(138, 43, 226, 0.5);
+  border-radius: 50px;
+  font-size: 0.85rem;
+  color: #e0d0ff;
+  backdrop-filter: blur(10px);
+  margin-bottom: 1.2rem;
+  letter-spacing: 0.02em;
+}
+
 .banner-cta-overlay h1 {
-  font-size: 2.8rem;
+  font-size: 3.2rem;
   font-weight: 900;
   color: #fff;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.8);
-  margin-bottom: 1.5rem;
-  line-height: 1.2;
+  text-shadow: 0 4px 30px rgba(0,0,0,0.6);
+  margin-bottom: 0.8rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.banner-subtitle {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.8);
+  max-width: 500px;
+  margin-bottom: 1.8rem;
+  line-height: 1.5;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 
 .btn-banner-create {
-  font-size: 1.2rem;
-  padding: 1rem 3rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 1.1rem 3rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(138, 43, 226, 0.5);
-  transition: all 0.3s ease;
+  border: none;
+  border-radius: 50px;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--primary) 0%, #6c2bd9 100%);
+  box-shadow: 0 8px 30px rgba(138, 43, 226, 0.5), 0 0 60px rgba(138, 43, 226, 0.15);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-banner-create svg {
+  width: 22px;
+  height: 22px;
+  stroke: white;
 }
 
 .btn-banner-create:hover {
-  transform: translateY(-3px) scale(1.05);
-  box-shadow: 0 12px 40px rgba(138, 43, 226, 0.7);
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 14px 45px rgba(138, 43, 226, 0.6), 0 0 80px rgba(138, 43, 226, 0.25);
+}
+
+/* Divider giữa banner và template list */
+.showcase-divider {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: var(--container-max);
+  margin: 2.5rem auto 1rem;
+  padding: 0 2rem;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+}
+
+.divider-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
@@ -1560,17 +1619,38 @@ button {
   }
 
   .banner-cta-overlay {
-    padding: 2rem 1rem;
+    padding: 2.5rem 1.2rem 2rem;
+  }
+
+  .banner-badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.9rem;
+    margin-bottom: 0.8rem;
   }
 
   .banner-cta-overlay h1 {
-    font-size: 1.6rem;
-    margin-bottom: 1rem;
+    font-size: 1.7rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .banner-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 1.2rem;
   }
 
   .btn-banner-create {
-    font-size: 1rem;
+    font-size: 0.95rem;
     padding: 0.85rem 2rem;
+  }
+
+  .showcase-divider {
+    margin: 1.5rem auto 0.5rem;
+    padding: 0 1rem;
+    gap: 1rem;
+  }
+
+  .divider-label {
+    font-size: 0.8rem;
   }
 }
 
