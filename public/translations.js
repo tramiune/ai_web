@@ -113,6 +113,8 @@ window.TRANSLATIONS = {
             subtitle: "Chọn ngay một trend đang viral để bắt đầu sáng tạo video của riêng bạn.",
             intro_desc: "Chọn video mẫu bên dưới, tải ảnh nhân vật lên — AI sẽ tạo video mới với nhân vật của bạn nhảy theo.",
             upload_your_video: "Dùng video của bạn",
+            upload_badge: "✨ Tùy chọn riêng",
+            upload_hint: "Tải video mẫu của bạn lên",
             cta: "Tải lên video của bạn",
             use_this: "⚡ Tạo video"
         },
@@ -670,6 +672,8 @@ window.TRANSLATIONS = {
             subtitle: "Select a viral trend to start creating your own AI video immediately.",
             intro_desc: "Pick a template below, upload your photo — AI will create a new video with your character dancing along.",
             upload_your_video: "Use your own video",
+            upload_badge: "✨ Your choice",
+            upload_hint: "Upload your own reference video",
             cta: "Upload your own video",
             use_this: "⚡ Create video"
         },
