@@ -566,18 +566,30 @@ window.downloadUrl = (event, url) => {
 };
 
 // --- Auth Functions ---
-window.renderShowcase = async () => {
+const SHOWCASE_PER_PAGE = 12;
+let _showcasePage = 1;
+let _showcaseShuffled = [];
+
+window.renderShowcase = async (page) => {
     const gallery = document.getElementById('showcase-gallery');
     if (!gallery) return;
 
-    gallery.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</div>';
-    await fetchTemplates();
-    if (!TREND_VIDEOS.length) {
-        gallery.innerHTML = '';
-        return;
+    if (!_showcaseShuffled.length) {
+        gallery.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</div>';
+        await fetchTemplates();
+        if (!TREND_VIDEOS.length) { gallery.innerHTML = ''; return; }
+        _showcaseShuffled = [...TREND_VIDEOS].sort(() => Math.random() - 0.5);
     }
-    const shuffled = [...TREND_VIDEOS].sort(() => Math.random() - 0.5);
-    gallery.innerHTML = shuffled.map(v => `
+
+    if (page) _showcasePage = page;
+    const totalPages = Math.ceil(_showcaseShuffled.length / SHOWCASE_PER_PAGE);
+    if (_showcasePage < 1) _showcasePage = 1;
+    if (_showcasePage > totalPages) _showcasePage = totalPages;
+
+    const start = (_showcasePage - 1) * SHOWCASE_PER_PAGE;
+    const items = _showcaseShuffled.slice(start, start + SHOWCASE_PER_PAGE);
+
+    gallery.innerHTML = items.map(v => `
         <div class="showcase-card showcase-webp"
              onclick="window.playOrderVideo(event, '${v.url}')">
             <img class="showcase-preview" data-src="${v.thumb}" alt="${trendTitle(v)}">
@@ -590,22 +602,32 @@ window.renderShowcase = async () => {
         </div>
     `).join('');
 
-    // Lazy load animated webp when they scroll into view
-    const lazyImages = gallery.querySelectorAll('img[data-src]');
-    const mediaObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const el = entry.target;
-                el.src = el.dataset.src;
-                delete el.dataset.src;
-                mediaObserver.unobserve(el);
-            }
-        });
-    }, { rootMargin: '200px' });
+    // Pagination controls
+    let pagerEl = document.getElementById('showcase-pager');
+    if (!pagerEl) {
+        pagerEl = document.createElement('div');
+        pagerEl.id = 'showcase-pager';
+        pagerEl.className = 'pager';
+        gallery.parentNode.appendChild(pagerEl);
+    }
+    let pagerHtml = '';
+    if (_showcasePage > 1) pagerHtml += `<button class="pager-btn" onclick="window.renderShowcase(${_showcasePage - 1})">‹</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        pagerHtml += `<button class="pager-btn${i === _showcasePage ? ' active' : ''}" onclick="window.renderShowcase(${i})">${i}</button>`;
+    }
+    if (_showcasePage < totalPages) pagerHtml += `<button class="pager-btn" onclick="window.renderShowcase(${_showcasePage + 1})">›</button>`;
+    pagerEl.innerHTML = pagerHtml;
 
-    lazyImages.forEach(el => mediaObserver.observe(el));
+    // Lazy load images
+    gallery.querySelectorAll('img[data-src]').forEach(el => {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { el.src = el.dataset.src; delete el.dataset.src; obs.unobserve(el); } });
+        }, { rootMargin: '200px' });
+        obs.observe(el);
+    });
 
     initPremiumEffects();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 // Lazy loading handled by IntersectionObserver in renderShowcase
@@ -1214,16 +1236,31 @@ window.switchVideoSource = (type) => {
     }
 };
 
-window.renderTemplates = async () => {
+const TPL_PER_PAGE = 10;
+let _tplPage = 1;
+
+window.renderTemplates = async (page) => {
     const grid = document.getElementById('template-library-grid');
     if (!grid) return;
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">Loading templates...</div>';
-    await fetchTemplates();
+
+    if (!_templatesFetched) {
+        grid.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Loading...</div>';
+        await fetchTemplates();
+    }
     if (!TREND_VIDEOS.length) {
-        grid.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">No templates available</div>';
+        grid.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">No templates</div>';
         return;
     }
-    grid.innerHTML = TREND_VIDEOS.map(t => `
+
+    if (page) _tplPage = page;
+    const totalPages = Math.ceil(TREND_VIDEOS.length / TPL_PER_PAGE);
+    if (_tplPage < 1) _tplPage = 1;
+    if (_tplPage > totalPages) _tplPage = totalPages;
+
+    const start = (_tplPage - 1) * TPL_PER_PAGE;
+    const items = TREND_VIDEOS.slice(start, start + TPL_PER_PAGE);
+
+    grid.innerHTML = items.map(t => `
         <div class="template-item" id="tpl-${t.id}" 
              onclick="window.previewTemplate('${t.id}')"
              onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
@@ -1232,6 +1269,22 @@ window.renderTemplates = async () => {
             <div class="template-overlay">${trendTitle(t)}</div>
         </div>
     `).join('');
+
+    // Pagination
+    let pagerEl = document.getElementById('tpl-pager');
+    if (!pagerEl) {
+        pagerEl = document.createElement('div');
+        pagerEl.id = 'tpl-pager';
+        pagerEl.className = 'pager pager-compact';
+        grid.parentNode.appendChild(pagerEl);
+    }
+    let pagerHtml = '';
+    if (_tplPage > 1) pagerHtml += `<button class="pager-btn" onclick="window.renderTemplates(${_tplPage - 1})">‹</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        pagerHtml += `<button class="pager-btn${i === _tplPage ? ' active' : ''}" onclick="window.renderTemplates(${i})">${i}</button>`;
+    }
+    if (_tplPage < totalPages) pagerHtml += `<button class="pager-btn" onclick="window.renderTemplates(${_tplPage + 1})">›</button>`;
+    pagerEl.innerHTML = pagerHtml;
 };
 
 window.previewTemplate = (id) => {
