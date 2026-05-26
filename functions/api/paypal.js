@@ -183,8 +183,8 @@ export async function onWebhookRequest(context) {
         }
 
         const eventType = event.event_type || '';
-        // Coins are credited only on completed captures (funds settled).
-        if (eventType !== 'PAYMENT.CAPTURE.COMPLETED') {
+        const ACCEPTED_EVENTS = ['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.PENDING'];
+        if (!ACCEPTED_EVENTS.includes(eventType)) {
             return jsonResponse({ success: true, message: `Ignored event: ${eventType}` });
         }
 
@@ -249,8 +249,11 @@ export async function onWebhookRequest(context) {
         await grantCoins(fbToken, svc.project_id, userId, coins);
 
         // 3) Notify Telegram.
+        const isPending = eventType === 'PAYMENT.CAPTURE.PENDING';
+        const statusLabel = isPending ? '⏳ ĐANG GIỮ TIỀN (Hold)' : '✅ HOÀN TẤT';
         const message =
-            `🌎 <b>NẠP TIỀN QUỐC TẾ THÀNH CÔNG! (PayPal)</b>\n\n` +
+            `🌎 <b>NẠP TIỀN QUỐC TẾ ${isPending ? '(PayPal - HOLD)' : 'THÀNH CÔNG! (PayPal)'}</b>\n\n` +
+            `📌 Trạng thái: ${statusLabel}\n` +
             `👤 Khách: ${escapeHtml(resource.payer?.name?.given_name || 'N/A')}\n` +
             `📧 Email: ${escapeHtml(payerEmail || 'N/A')}\n` +
             `💵 Số tiền: $${amountValue.toFixed(2)} ${currency}\n` +

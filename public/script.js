@@ -750,37 +750,25 @@ async function handleUserLoggedIn(user) {
                 // Notify Telegram
                 const addedCoins = currentCoins - initialCoinsBeforeTopup;
 
-                // Firebase Analytics: Purchase Event
-                trackAnalyticsEvent('purchase', {
-                    transaction_id: `topup_${Date.now()}`,
-                    value: selectedTopupPackage ? selectedTopupPackage.amount : addedCoins * 1000,
-                    currency: 'VND',
-                    items: [{
-                        item_id: selectedTopupPackage ? selectedTopupPackage.id : 'coin_topup',
-                        item_name: selectedTopupPackage ? selectedTopupPackage.name : 'Coin Topup'
-                    }]
-                });
-
-                // TikTok Pixel: CompletePayment
-                if (typeof ttq !== 'undefined') {
-                    const vndValue = selectedTopupPackage ? selectedTopupPackage.amount : addedCoins * 1000;
-                    const contentId = selectedTopupPackage ? selectedTopupPackage.id : 'topup';
-                    ttq.track('CompletePayment', {
-                        value: vndValue,
-                        currency: 'VND',
-                        content_id: contentId
-                    });
-                }
-
-                // Firebase Analytics: Purchase
+                // Firebase Analytics (GA4): Purchase — chỉ bắn 1 lần
                 const purchaseValue = selectedTopupPackage ? selectedTopupPackage.amount : addedCoins * 1000;
-                const purchaseId = selectedTopupPackage ? selectedTopupPackage.id : 'topup';
+                const purchaseId = selectedTopupPackage ? selectedTopupPackage.id : 'coin_topup';
+                const purchaseName = selectedTopupPackage ? selectedTopupPackage.name : 'Coin Topup';
                 logFirebaseEvent('purchase', {
                     value: purchaseValue,
                     currency: 'VND',
                     transaction_id: `topup_${Date.now()}`,
-                    items: [{ item_id: purchaseId, item_name: `Topup ${addedCoins} Coins` }]
+                    items: [{ item_id: purchaseId, item_name: purchaseName }]
                 });
+
+                // TikTok Pixel: CompletePayment
+                if (typeof ttq !== 'undefined') {
+                    ttq.track('CompletePayment', {
+                        value: purchaseValue,
+                        currency: 'VND',
+                        content_id: purchaseId
+                    });
+                }
 
                 sendTelegramMessage(`💰 <b>NẠP COIN THÀNH CÔNG!</b>\n👤 Khách: ${escapeHTML(data.displayName)}\n📧 Email: ${escapeHTML(data.email)}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
