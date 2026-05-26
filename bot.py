@@ -74,9 +74,15 @@ def bot_heartbeat_loop():
     while True:
         try:
             if BOT_NAME:
-                db.collection('bots').document(BOT_NAME).set({
-                    'lastSeenAt': firestore.SERVER_TIMESTAMP,
-                }, merge=True)
+                ref = db.collection('bots').document(BOT_NAME)
+                try:
+                    ref.update({'lastSeenAt': firestore.SERVER_TIMESTAMP})
+                except Exception as e:
+                    # Doc bị admin xóa — đăng ký lại đầy đủ (cùng tên = cùng 1 bot)
+                    if 'NOT_FOUND' in str(e) or 'No document to update' in str(e):
+                        ensure_bot_registered()
+                    else:
+                        raise
         except Exception as e:
             print(f"⚠️ Heartbeat lỗi: {e}")
         time.sleep(30)

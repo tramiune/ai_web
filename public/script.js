@@ -2528,7 +2528,7 @@ function renderAdminBots() {
     });
 
     if (rows.length === 0) {
-        list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('admin.bots_empty')}</td></tr>`;
+        list.innerHTML = `<tr><td colspan="6" style="text-align:center; opacity:0.5; padding:2rem;">${t('admin.bots_empty')}</td></tr>`;
         return;
     }
 
@@ -2563,6 +2563,12 @@ function renderAdminBots() {
                 </td>
                 <td>${lastStr}</td>
                 <td><small style="opacity:0.7;">${escapeHTML(b.hostname || '—')}</small></td>
+                <td>
+                    <button class="btn-delete" style="padding: 6px 10px; background: rgba(255,59,48,0.1); border: 1px solid rgba(255,59,48,0.2); border-radius: 6px; cursor: pointer; color: #ff3b30; font-size: 0.75rem;"
+                        onclick='window.deleteBot(event, ${JSON.stringify(b.id)})' title="${t('admin.bots_btn_delete')}">
+                        ${t('admin.bots_btn_delete')}
+                    </button>
+                </td>
             </tr>
         `;
     }).join('');
@@ -2580,6 +2586,20 @@ window.setBotEnabled = async (botId, enabled) => {
         showToast(enabled ? t('admin.bots_toast_on', { name: botId }) : t('admin.bots_toast_off', { name: botId }));
     } catch (e) {
         showToast(t('common.error_with_msg', { msg: e.message }));
+    }
+};
+
+window.deleteBot = async (event, botId) => {
+    event.stopPropagation();
+    if (!window.__isAdmin) return;
+    if (!confirm(t('admin.confirm_delete_bot', { name: botId }))) return;
+    const { db, doc, deleteDoc } = window.firebase;
+    try {
+        await deleteDoc(doc(db, 'bots', botId));
+        showToast(t('admin.toast_bot_deleted', { name: botId }));
+    } catch (e) {
+        console.error(e);
+        showToast(t('admin.toast_bot_delete_error', { msg: e.message }));
     }
 };
 
