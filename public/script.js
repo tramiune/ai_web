@@ -589,7 +589,19 @@ window.renderShowcase = async (page) => {
     const start = (_showcasePage - 1) * SHOWCASE_PER_PAGE;
     const items = _showcaseShuffled.slice(start, start + SHOWCASE_PER_PAGE);
 
-    gallery.innerHTML = items.map(v => `
+    const uploadCard = _showcasePage === 1 ? `
+        <div class="showcase-card showcase-upload" onclick="openOrderModal()">
+            <div class="showcase-upload-inner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span data-i18n="showcase.upload_your_video">${t('showcase.upload_your_video') !== 'showcase.upload_your_video' ? t('showcase.upload_your_video') : 'Upload video của bạn'}</span>
+            </div>
+        </div>` : '';
+
+    gallery.innerHTML = uploadCard + items.map(v => `
         <div class="showcase-card showcase-webp"
              onclick="window.playOrderVideo(event, '${v.url}')">
             <img class="showcase-preview" data-src="${v.thumb}" alt="${trendTitle(v)}">

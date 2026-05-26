@@ -3367,6 +3367,51 @@ section {
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Upload card */
+.showcase-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(138, 43, 226, 0.4);
+  background: rgba(138, 43, 226, 0.05);
+}
+
+.showcase-upload:hover {
+  border-color: var(--primary);
+  background: rgba(138, 43, 226, 0.12);
+}
+
+.showcase-upload-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+.showcase-upload-inner svg {
+  width: 48px;
+  height: 48px;
+  stroke: var(--primary);
+  opacity: 0.7;
+}
+
+.showcase-upload-inner span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.showcase-upload:hover .showcase-upload-inner svg {
+  opacity: 1;
+}
+
+.showcase-upload:hover .showcase-upload-inner span {
+  color: var(--text-main);
+}
+
 .showcase-card:hover {
   transform: translateY(-10px) scale(1.02);
   border-color: var(--primary);
