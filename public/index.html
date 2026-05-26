@@ -337,12 +337,14 @@
 
         <!-- If Logged In -->
         <div id="dashboard-logged-in" style="display: none;">
+            <!-- Tạm ẩn banner bảo trì
             <div id="maintenance-banner" class="maintenance-banner" style="display: none;">
                 <div class="maintenance-content">
                     <span class="maintenance-icon">🛠️</span>
                     <span data-i18n="dashboard.maintenance_msg">Hệ thống đang bảo trì định kỳ từ 00:30 đến 07:00. Các đơn hàng trong thời gian này sẽ được xử lý sau 07:00 sáng.</span>
                 </div>
             </div>
+            -->
 
             <div class="db-header">
                 <div class="user-info-section">
@@ -371,23 +373,21 @@
 
 
 
-            <div class="db-actions" style="margin-bottom: 3rem;">
+            <div class="db-actions" style="margin-bottom: 1.5rem;">
                 <button class="btn-primary" onclick="window.openOrderModal()" data-i18n="dashboard.create_new">+ Tạo
                     video mới</button>
             </div>
 
             <div class="section-header"
-                style="text-align: left; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+                style="text-align: left; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
                 <h2 data-i18n="dashboard.my_videos">Video của tôi</h2>
                 <div style="font-size: 0.8rem; color: var(--text-muted);" id="orders-count-text"></div>
             </div>
-            <p style="font-size: 0.85rem; color: #ffde00; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;"
-                data-i18n="dashboard.note_storage">
-                <span data-i18n="dashboard.note_storage">⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i></span>
-            </p>
-            <p style="font-size: 0.85rem; color: #00f2fe; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
-                📧 <i data-i18n="dashboard.note_email">Hệ thống sẽ tự động gửi thông báo về Email khi video của bạn xử lý xong.</i>
-            </p>
+            <div class="db-notes" style="margin-bottom: 1rem; font-size: 0.8rem; line-height: 1.6;">
+                <p style="color: #ffde00; margin: 0;">
+                    <span data-i18n="dashboard.note_storage">⚠️ <i>Lưu ý: Hệ thống chỉ lưu trữ video kết quả trong vòng 7 ngày. Vui lòng tải về máy sớm!</i></span>
+                </p>
+            </div>
 
             <div id="my-orders-grid" class="orders-grid">
                 <!-- Cards will be rendered here -->
