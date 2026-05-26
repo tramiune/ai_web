@@ -2556,7 +2556,7 @@ function renderAdminBots() {
                     <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
                         <span style="color:${runColor}; font-weight:600; font-size:0.85rem;">${runLabel}</span>
                         <button class="btn-secondary" style="padding:4px 12px; font-size:0.75rem; ${enabled ? 'background:#c0392b;' : 'background:#27ae60;'}"
-                            onclick="window.setBotEnabled(${JSON.stringify(b.id)}, ${!enabled})">
+                            onclick='window.setBotEnabled(${JSON.stringify(b.id)}, ${!enabled})'>
                             ${enabled ? t('admin.bots_btn_off') : t('admin.bots_btn_on')}
                         </button>
                     </div>
