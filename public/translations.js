@@ -19,7 +19,7 @@ window.TRANSLATIONS = {
             login: "Đăng nhập",
             terms: "Điều khoản",
             privacy: "Bảo mật",
-            home: "Chọn Model AI",
+            home: "Chọn video AI",
             build_channel: "Xây kênh 1000 fl / 21 ngày",
             referral: "Giới thiệu bạn bè",
             admin_panel: "Admin Panel"
@@ -576,7 +576,7 @@ window.TRANSLATIONS = {
             login: "Login",
             terms: "Terms",
             privacy: "Privacy",
-            home: "Select AI Model",
+            home: "Select AI Video",
             build_channel: "1k Followers / 21 days",
             referral: "Refer a Friend",
             admin_panel: "Admin Panel"
