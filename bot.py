@@ -81,11 +81,16 @@ def bot_heartbeat_loop():
             print(f"⚠️ Heartbeat lỗi: {e}")
         time.sleep(30)
 
-def on_bot_config_snapshot(doc_snapshot, changes, read_time):
-    if doc_snapshot.exists:
-        enabled = bool(doc_snapshot.to_dict().get('enabled', False))
-    else:
-        enabled = False
+def on_bot_config_snapshot(keys, changes, read_time):
+    # Document watch callback: (sorted_keys, DocumentChange[], read_time) — not a DocumentSnapshot.
+    if not changes:
+        return
+    enabled = False
+    for change in changes:
+        doc = change.document
+        if getattr(doc, 'exists', False):
+            enabled = bool((doc.to_dict() or {}).get('enabled', False))
+        break
     prev = is_bot_enabled()
     set_bot_enabled(enabled)
     if enabled != prev:
@@ -588,7 +593,7 @@ def check_finished_orders():
     except Exception as e:
         print(f"❌ Lỗi monitor: {e}")
 
-def on_pending_orders_snapshot(col_snapshot, changes, read_time):
+def on_pending_orders_snapshot(keys, changes, read_time):
     if not is_bot_enabled():
         return
     for ch in changes:
