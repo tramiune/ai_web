@@ -57,6 +57,20 @@ export default {
       });
     }
 
+    // Proxy R2 template API to avoid CORS issues.
+    if (url.pathname === '/api/templates' && method === 'GET') {
+      const r2Url = 'https://pub-4496e76c4ba34c28980998855e485fbd.r2.dev/api/template.json';
+      const r2Res = await fetch(r2Url);
+      return new Response(r2Res.body, {
+        status: r2Res.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=300'
+        }
+      });
+    }
+
     // Not an API route - let Cloudflare Assets serve static files.
     return new Response('Not Found', { status: 404 });
   }

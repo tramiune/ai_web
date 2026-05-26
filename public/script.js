@@ -46,14 +46,44 @@ const AI_MODELS = [
 window.AI_MODELS = AI_MODELS;
 
 
-const TREND_VIDEOS = [
-    { id: 't1', titleKey: 'trends.t1', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%89y%20vui%20nho%CC%A3%CC%82n.mp4' },
-    { id: 't5', titleKey: 'trends.t5', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/sexy%20dance.mp4' },
-    { id: 't2', titleKey: 'trends.t2', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/hot%20trend.mp4' },
-    { id: 't6', titleKey: 'trends.t6', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/trend%20L%20S.mp4' },
-    { id: 't8', titleKey: 'trends.t8', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/what%20do%20you%20want%20from%20me.mp4' },
-    { id: 't9', titleKey: 'trends.t9', url: 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/nha%CC%A3c%20hay.mp4' }
-];
+const TEMPLATE_API_URL = '/api/templates';
+let TREND_VIDEOS = [];
+let _templatesFetched = false;
+
+async function fetchTemplates() {
+    if (_templatesFetched) return TREND_VIDEOS;
+    try {
+        const R2_FALLBACK = 'https://pub-4496e76c4ba34c28980998855e485fbd.r2.dev/api/template.json';
+        console.log('[Templates] Fetching from', TEMPLATE_API_URL);
+        let res = await fetch(TEMPLATE_API_URL).catch(() => null);
+        if (!res || !res.ok) {
+            console.log('[Templates] Proxy failed, trying R2 direct');
+            res = await fetch(R2_FALLBACK);
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const raw = await res.json();
+        console.log('[Templates] Got', raw.length, 'items');
+        TREND_VIDEOS = raw.map(item => {
+            const videoMedia = item.medias.find(m => m.contentType === 'video/mp4');
+            const imageMedia = item.medias.find(m => m.contentType === 'image/webp');
+            const name = (videoMedia?.name || item.id).replace(/\.\w+$/, '').replace(/[_-]/g, ' ');
+            return {
+                id: item.id,
+                url: videoMedia?.url || '',
+                thumb: imageMedia?.thumbUrl || imageMedia?.url || '',
+                poster: imageMedia?.url || '',
+                title: name,
+                categoryId: item.categoryId || '',
+                isPremium: !!item.isPremium
+            };
+        });
+        _templatesFetched = true;
+        console.log('[Templates] Mapped', TREND_VIDEOS.length, 'videos');
+    } catch (e) {
+        console.error('[Templates] Failed to fetch:', e);
+    }
+    return TREND_VIDEOS;
+}
 
 function trendTitle(video) {
     return video.titleKey ? t(video.titleKey) : (video.title || video.id);
@@ -536,17 +566,24 @@ window.downloadUrl = (event, url) => {
 };
 
 // --- Auth Functions ---
-window.renderShowcase = () => {
+window.renderShowcase = async () => {
     const gallery = document.getElementById('showcase-gallery');
     if (!gallery) return;
 
+    gallery.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</div>';
+    await fetchTemplates();
+    if (!TREND_VIDEOS.length) {
+        gallery.innerHTML = '';
+        return;
+    }
     gallery.innerHTML = TREND_VIDEOS.map(v => `
         <div class="showcase-card" 
              onclick="window.playOrderVideo(event, '${v.url}')"
              onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
              onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
             <video class="showcase-video" 
-                   data-src="${v.url}#t=1" 
+                   data-src="${v.url}#t=1"
+                   poster="${v.thumb}"
                    muted loop playsinline preload="none">
             </video>
             <div class="showcase-play-overlay">
@@ -1188,16 +1225,22 @@ window.switchVideoSource = (type) => {
     }
 };
 
-window.renderTemplates = () => {
+window.renderTemplates = async () => {
     const grid = document.getElementById('template-library-grid');
     if (!grid) return;
+    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">Loading templates...</div>';
+    await fetchTemplates();
+    if (!TREND_VIDEOS.length) {
+        grid.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">No templates available</div>';
+        return;
+    }
     grid.innerHTML = TREND_VIDEOS.map(t => `
         <div class="template-item" id="tpl-${t.id}" 
              onclick="window.previewTemplate('${t.id}')"
              onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
              onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
             <video class="template-video" src="${t.url}#t=1" poster="${t.thumb}" muted loop playsinline preload="metadata"></video>
-            <div class="template-overlay">${t.title}</div>
+            <div class="template-overlay">${trendTitle(t)}</div>
         </div>
     `).join('');
 };
@@ -1213,7 +1256,7 @@ window.previewTemplate = (id) => {
 
     if (modal && video) {
         video.src = template.url;
-        nameText.innerText = template.title;
+        nameText.innerText = trendTitle(template);
         modal.style.display = 'flex';
         video.play();
 
