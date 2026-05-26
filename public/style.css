@@ -648,12 +648,14 @@ button {
 }
 
 .pricing-pay-btn--vietqr {
-  padding: 0.9rem 1rem;
+  padding: 0.75rem 0.9rem;
   border: 2px solid rgba(0, 242, 254, 0.55);
   background: linear-gradient(135deg, rgba(0, 242, 254, 0.16) 0%, rgba(138, 43, 226, 0.1) 100%);
   box-shadow: 0 6px 22px rgba(0, 242, 254, 0.12);
   color: #fff;
-  justify-content: flex-start;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.82rem;
 }
 
 .pricing-pay-btn--vietqr:hover {

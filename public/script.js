@@ -1228,10 +1228,7 @@ function renderPricing() {
                 </button>
                 <button type="button" class="pricing-pay-btn pricing-pay-btn--vietqr" onclick="window.selectTopup('${pkg.id}', 'vietqr')">
                     ${vietqrPayIcon}
-                    <span class="pricing-pay-label">
-                        <span class="pricing-pay-title">${t('pricing.pay_vietqr')}</span>
-                        <span class="pricing-pay-sub">${t('pricing.pay_vietqr_sub')}</span>
-                    </span>
+                    <span class="pricing-pay-label pricing-pay-label--single">${t('pricing.pay_vietqr')}</span>
                 </button>
             </div>
         </div>
