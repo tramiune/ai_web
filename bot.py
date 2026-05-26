@@ -1,8 +1,11 @@
 import time
 import os
+import sys
+import re
+import argparse
+import socket
 import requests
 import firebase_admin
-import re
 import threading
 from datetime import datetime, timezone
 from firebase_admin import credentials, firestore
@@ -14,6 +17,20 @@ cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
+# Tên bot: bắt buộc khi chạy — python bot.py --name aidancing-vps1
+BOT_NAME = None
+bot_enabled = False
+bot_enabled_lock = threading.Lock()
+
+def is_bot_enabled():
+    with bot_enabled_lock:
+        return bot_enabled
+
+def set_bot_enabled(value):
+    global bot_enabled
+    with bot_enabled_lock:
+        bot_enabled = bool(value)
+
 # CREATE_URL đã được chuyển thành dynamic theo modelId trong đơn hàng
 DASHBOARD_URL = "https://aidancing.net/dashboard"
 WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
@@ -23,6 +40,69 @@ browser_lock = threading.Lock()
 TELEGRAM_BOT_TOKEN = "8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc"
 TELEGRAM_CHAT_ID = "6067707939"
 AIDANCING_LOW_BALANCE_THRESHOLD = 10
+
+def normalize_bot_name(name):
+    name = (name or '').strip().lower()
+    name = re.sub(r'[^a-z0-9_-]', '-', name)
+    name = re.sub(r'-+', '-', name).strip('-')
+    return name[:64]
+
+def ensure_bot_registered():
+    ref = db.collection('bots').document(BOT_NAME)
+    doc = ref.get()
+    now = firestore.SERVER_TIMESTAMP
+    if not doc.exists:
+        ref.set({
+            'name': BOT_NAME,
+            'displayName': BOT_NAME,
+            'enabled': False,
+            'hostname': socket.gethostname(),
+            'createdAt': now,
+            'lastSeenAt': now,
+            'startedAt': now,
+        })
+        print(f"🆕 Bot mới đăng ký trên Firestore: {BOT_NAME} (mặc định TẮT — bật trên Admin)")
+    else:
+        ref.set({
+            'name': BOT_NAME,
+            'lastSeenAt': now,
+            'startedAt': now,
+            'hostname': socket.gethostname(),
+        }, merge=True)
+
+def bot_heartbeat_loop():
+    while True:
+        try:
+            if BOT_NAME:
+                db.collection('bots').document(BOT_NAME).set({
+                    'lastSeenAt': firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+        except Exception as e:
+            print(f"⚠️ Heartbeat lỗi: {e}")
+        time.sleep(30)
+
+def on_bot_config_snapshot(doc_snapshot, changes, read_time):
+    if doc_snapshot.exists:
+        enabled = bool(doc_snapshot.to_dict().get('enabled', False))
+    else:
+        enabled = False
+    prev = is_bot_enabled()
+    set_bot_enabled(enabled)
+    if enabled != prev:
+        status = "🟢 BẬT — bot đang xử lý đơn" if enabled else "🔴 TẮT — bot không làm gì"
+        print(f"\n[{BOT_NAME}] Admin đổi trạng thái: {status}\n")
+
+def start_bot_control_listener():
+    ensure_bot_registered()
+    doc = db.collection('bots').document(BOT_NAME).get()
+    set_bot_enabled(bool(doc.to_dict().get('enabled', False)) if doc.exists else False)
+    status = "🟢 BẬT" if is_bot_enabled() else "🔴 TẮT"
+    print(f"[{BOT_NAME}] Trạng thái hiện tại: {status}")
+    if not is_bot_enabled():
+        print("⏸️  Bot đang TẮT. Vào Admin → Bots để bật.")
+
+    db.collection('bots').document(BOT_NAME).on_snapshot(on_bot_config_snapshot)
+    threading.Thread(target=bot_heartbeat_loop, daemon=True).start()
 
 def send_telegram_message(text):
     try:
@@ -147,6 +227,9 @@ def send_completion_email(order_id, order_data, result_link):
 
 # --- PHA 1: NẠP ĐƠN ---
 def submit_to_aidancing(order_id):
+    if not is_bot_enabled():
+        print(f"⏸️ [{BOT_NAME}] Bot TẮT — bỏ qua nạp đơn {order_id}")
+        return
     with browser_lock:
         doc_ref = db.collection('orders').document(order_id)
         doc = doc_ref.get()
@@ -300,6 +383,8 @@ def submit_to_aidancing(order_id):
 
 # --- PHA 2: RÌNH KẾT QUẢ ---
 def check_finished_orders():
+    if not is_bot_enabled():
+        return
     try:
         # Nếu đang nạp đơn thì không check dashboard để tránh khóa profile
         if browser_lock.locked(): return
@@ -503,26 +588,39 @@ def check_finished_orders():
     except Exception as e:
         print(f"❌ Lỗi monitor: {e}")
 
+def on_pending_orders_snapshot(col_snapshot, changes, read_time):
+    if not is_bot_enabled():
+        return
+    for ch in changes:
+        if ch.type.name in ['ADDED', 'MODIFIED']:
+            threading.Thread(target=submit_to_aidancing, args=(ch.document.id,), daemon=True).start()
+
 def start_bot():
-    print("📡 MotionAI REAL-TIME BOT (v3.2 - Auto Email + Telegram Notify) IS ONLINE!")
+    global BOT_NAME
+    parser = argparse.ArgumentParser(description='MotionAI order bot — aidancing.net')
+    parser.add_argument('--name', required=True, help='Tên bot duy nhất (vd: aidancing-vps1, bot-may-nha)')
+    args = parser.parse_args()
+    BOT_NAME = normalize_bot_name(args.name)
+    if not BOT_NAME:
+        print("❌ Tên bot không hợp lệ. Dùng: python bot.py --name aidancing-vps1")
+        sys.exit(1)
+
+    print(f"📡 MotionAI BOT [{BOT_NAME}] (v3.3 - Admin on/off) đang khởi động...")
+    start_bot_control_listener()
 
     def monitor_loop():
         while True:
-            check_finished_orders()
+            if is_bot_enabled():
+                check_finished_orders()
             time.sleep(30)
 
     threading.Thread(target=monitor_loop, daemon=True).start()
 
-    # Listener đơn mới
-    db.collection('orders').where(filter=FieldFilter("status", "==", "pending")).on_snapshot(
-        lambda col_snapshot, changes, read_time: [
-            threading.Thread(target=submit_to_aidancing, args=(ch.document.id,), daemon=True).start()
-            for ch in changes if ch.type.name in ['ADDED', 'MODIFIED']
-        ]
-    )
+    db.collection('orders').where(filter=FieldFilter("status", "==", "pending")).on_snapshot(on_pending_orders_snapshot)
 
-    print("🟢 Đang trực chiến...")
-    while True: time.sleep(1)
+    print(f"🟢 [{BOT_NAME}] Đang trực — lắng nghe Firestore (bật/tắt từ Admin)...")
+    while True:
+        time.sleep(1)
 
 if __name__ == "__main__":
     start_bot()

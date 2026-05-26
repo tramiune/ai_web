@@ -350,6 +350,7 @@ window.switchLanguage = (lang) => {
         else if (adminActiveTab === 'topups') renderAdminTopups();
         else if (adminActiveTab === 'users') renderAdminUsers();
         else if (adminActiveTab === 'referrals') renderAdminReferrals();
+        else if (adminActiveTab === 'bots') renderAdminBots();
     }
 };
 
@@ -1082,6 +1083,8 @@ window.navTo = (target) => {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
+        fbUnsub('adminReferrals');
+        fbUnsub('adminBots');
         adminSubscribedOrderStatus = null;
         adminSubscribedTopupStatus = null;
     }
@@ -2493,6 +2496,93 @@ window.changeAdminUserPage = (newPage) => {
     renderAdminUsers();
 };
 
+// ----- BOTS (Admin tab) -----
+const BOT_ONLINE_MS = 90 * 1000;
+
+function subscribeAdminBots() {
+    if (!window.__isAdmin) return;
+
+    if (fbHas('adminBots')) {
+        renderAdminBots();
+        return;
+    }
+
+    const { db, collection, onSnapshot } = window.firebase;
+    fbSub('adminBots', onSnapshot(collection(db, 'bots'), (snapshot) => {
+        FB_CACHE.adminBots = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderAdminBots();
+    }, (err) => {
+        console.error('Admin bots snapshot error:', err);
+        showToast(t('admin.toast_load_error', { msg: err.message }));
+    }));
+}
+
+function renderAdminBots() {
+    const list = document.getElementById('admin-bots-list');
+    if (!list) return;
+
+    const rows = (FB_CACHE.adminBots || []).slice().sort((a, b) => {
+        const ta = safeToDate(a.lastSeenAt)?.getTime() || 0;
+        const tb = safeToDate(b.lastSeenAt)?.getTime() || 0;
+        return tb - ta;
+    });
+
+    if (rows.length === 0) {
+        list.innerHTML = `<tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;">${t('admin.bots_empty')}</td></tr>`;
+        return;
+    }
+
+    list.innerHTML = rows.map(b => {
+        const lastSeen = safeToDate(b.lastSeenAt);
+        const online = lastSeen && (Date.now() - lastSeen.getTime() < BOT_ONLINE_MS);
+        const lastStr = lastSeen
+            ? lastSeen.toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN')
+            : '—';
+        const enabled = !!b.enabled;
+        const statusHtml = online
+            ? `<span style="color:#27ae60; font-weight:600;">● ${t('admin.bots_online')}</span>`
+            : `<span style="opacity:0.5;">○ ${t('admin.bots_offline')}</span>`;
+        const runLabel = enabled ? t('admin.bots_running') : t('admin.bots_stopped');
+        const runColor = enabled ? '#27ae60' : '#c0392b';
+
+        return `
+            <tr>
+                <td>
+                    <div style="font-weight:700; font-family: monospace;">${escapeHTML(b.displayName || b.name || b.id)}</div>
+                    <small style="opacity:0.55;">ID: ${escapeHTML(b.id)}</small>
+                </td>
+                <td>${statusHtml}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                        <span style="color:${runColor}; font-weight:600; font-size:0.85rem;">${runLabel}</span>
+                        <button class="btn-secondary" style="padding:4px 12px; font-size:0.75rem; ${enabled ? 'background:#c0392b;' : 'background:#27ae60;'}"
+                            onclick="window.setBotEnabled(${JSON.stringify(b.id)}, ${!enabled})">
+                            ${enabled ? t('admin.bots_btn_off') : t('admin.bots_btn_on')}
+                        </button>
+                    </div>
+                </td>
+                <td>${lastStr}</td>
+                <td><small style="opacity:0.7;">${escapeHTML(b.hostname || '—')}</small></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.setBotEnabled = async (botId, enabled) => {
+    if (!window.__isAdmin) return;
+    const { db, doc, updateDoc, serverTimestamp } = window.firebase;
+    try {
+        await updateDoc(doc(db, 'bots', botId), {
+            enabled: !!enabled,
+            updatedAt: serverTimestamp(),
+            updatedBy: currentUser?.email || ''
+        });
+        showToast(enabled ? t('admin.bots_toast_on', { name: botId }) : t('admin.bots_toast_off', { name: botId }));
+    } catch (e) {
+        showToast(t('common.error_with_msg', { msg: e.message }));
+    }
+};
+
 // ----- REFERRALS (Admin tab) -----
 function subscribeAdminReferrals() {
     const { db, collection, onSnapshot, query, orderBy, limit } = window.firebase;
@@ -2970,7 +3060,7 @@ window.deleteTopup = async (event, topupId) => {
 //   5) Switch tab (orders/topups/users) -> unsub các tab khác (Mức 3: subscribe per active tab).
 //   6) Tất cả query admin có orderBy('createdAt','desc') + limit(100) (Mức 2).
 
-let adminActiveTab = 'orders';            // 'orders' | 'topups' | 'users' | 'referrals'
+let adminActiveTab = 'orders';            // 'orders' | 'topups' | 'users' | 'referrals' | 'bots'
 let adminSubscribedOrderStatus = null;    // status đang sub cho orders
 let adminSubscribedTopupStatus = null;    // status đang sub cho topups
 let adminSearchDebounceTimer = null;
@@ -3042,6 +3132,7 @@ function setupAdminSearchInputOnce() {
             else if (adminActiveTab === 'topups') renderAdminTopups();
             else if (adminActiveTab === 'users') renderAdminUsers();
             else if (adminActiveTab === 'referrals') renderAdminReferrals();
+            else if (adminActiveTab === 'bots') renderAdminBots();
         }, 300);
     });
     window.adminSearchInited = true;
@@ -3063,6 +3154,7 @@ function refreshActiveAdminSubscription() {
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
         fbUnsub('adminReferrals');
+        fbUnsub('adminBots');
         return;
     }
 
@@ -3070,22 +3162,32 @@ function refreshActiveAdminSubscription() {
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
         fbUnsub('adminReferrals');
+        fbUnsub('adminBots');
         subscribeAdminOrders();
     } else if (adminActiveTab === 'topups') {
         fbUnsub('adminOrders');
         fbUnsub('adminUsers');
         fbUnsub('adminReferrals');
+        fbUnsub('adminBots');
         subscribeAdminTopups();
     } else if (adminActiveTab === 'users') {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
         fbUnsub('adminReferrals');
+        fbUnsub('adminBots');
         subscribeAdminUsers();
     } else if (adminActiveTab === 'referrals') {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
+        fbUnsub('adminBots');
         subscribeAdminReferrals();
+    } else if (adminActiveTab === 'bots') {
+        fbUnsub('adminOrders');
+        fbUnsub('adminTopups');
+        fbUnsub('adminUsers');
+        fbUnsub('adminReferrals');
+        subscribeAdminBots();
     }
 }
 
