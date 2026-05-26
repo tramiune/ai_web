@@ -172,31 +172,8 @@
 
     <!-- Main Content (Landing Page) -->
     <main id="landing-page">
-        <!-- Banner with CTA overlay -->
-        <div class="top-video-banner">
-            <video autoplay muted loop playsinline class="wide-banner-video">
-                <source src="https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/banner.mp4" type="video/mp4">
-            </video>
-            <div class="wide-banner-overlay"></div>
-            <div class="banner-cta-overlay">
-                <button class="btn-banner-create" onclick="if(typeof ttq!=='undefined')ttq.track('ClickButton',{content_name:'Hero CTA',content_id:'create_video_hero'});openOrderModal()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
-                    </svg>
-                    <span data-i18n="hero.cta_create">Tạo video ngay</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Divider giữa banner và template list -->
-        <div class="showcase-divider">
-            <div class="divider-line"></div>
-            <span class="divider-label" data-i18n="showcase.title">Chọn video mẫu</span>
-            <div class="divider-line"></div>
-        </div>
-
-        <!-- Template list -->
-        <section id="showcase" class="showcase-flush">
+        <!-- Template Showcase -->
+        <section id="showcase" class="showcase-section">
             <div class="showcase-grid" id="showcase-gallery">
                 <!-- Loaded by JS -->
             </div>
@@ -1285,14 +1262,20 @@
                 data-i18n="footer.privacy">Chính sách bảo mật</a>
         </div>
     </footer>
-    <!-- Floating Telegram Button -->
+    <!-- Floating Create Video Button (left) -->
+    <button class="create-fab" onclick="openOrderModal()" data-i18n-title="hero.cta_create" title="Tạo video ngay">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+        </svg>
+    </button>
+
+    <!-- Floating Telegram Button (right) -->
     <a href="https://t.me/motionaistudio" target="_blank" class="telegram-fab" data-i18n-title="common.support_chat" title="Chat với chúng tôi ✨">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22 2L11 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" />
         </svg>
-        <span class="fab-tooltip" data-i18n="common.support_chat">Chat với chúng tôi ✨</span>
     </a>
 
     <!-- SVG Gradients -->
