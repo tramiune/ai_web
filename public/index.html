@@ -181,7 +181,7 @@
         </div>
 
         <!-- Hero Section -->
-        <section class="hero" style="padding-top: 3rem;">
+        <section class="hero hero-tall" style="padding-top: 3rem;">
             <div class="hero-content">
                 <div class="comparison-badge" data-i18n="hero.comparison">
                     ✨ Chất lượng tương đương <b>Kling AI</b> nhưng giá <b>rẻ hơn gấp 5 lần</b>
@@ -191,8 +191,8 @@
                     trong đó nhân vật của bạn
                     thực hiện chuyển động theo video tham chiếu.</p>
                 <div class="cta-group">
-                    <button class="btn-primary" onclick="if(typeof ttq!=='undefined')ttq.track('ClickButton',{content_name:'Hero CTA',content_id:'create_video_hero'});openOrderModal()">
-                        <svg class="nav-icon" style="stroke: white; width: 20px; height: 20px;" viewBox="0 0 24 24"
+                    <button class="btn-primary btn-hero-create" onclick="if(typeof ttq!=='undefined')ttq.track('ClickButton',{content_name:'Hero CTA',content_id:'create_video_hero'});openOrderModal()">
+                        <svg class="nav-icon" style="stroke: white; width: 24px; height: 24px;" viewBox="0 0 24 24"
                             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
                             stroke-linejoin="round">
                             <path
@@ -205,38 +205,25 @@
                         </svg>
                         <span data-i18n="hero.cta_create">Tạo video ngay</span>
                     </button>
-                    <button class="btn-secondary" onclick="scrollToHow()" data-i18n="hero.cta_how">Xem cách hoạt
-                        động</button>
                 </div>
-            </div>
 
-
-            <div class="trust-badges">
-                <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.no_prompt">Không cần
-                        prompt</span></div>
-                <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.support_tiktok">Hỗ trợ
-                        TikTok/Reels</span></div>
-                <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.high_quality">Xử lý chất
-                        lượng cao</span></div>
-                <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.custom_req">Tùy chỉnh theo
-                        yêu cầu</span></div>
+                <div class="trust-badges">
+                    <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.no_prompt">Không cần
+                            prompt</span></div>
+                    <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.support_tiktok">Hỗ trợ
+                            TikTok/Reels</span></div>
+                    <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.high_quality">Xử lý chất
+                            lượng cao</span></div>
+                    <div class="badge"><span class="badge-icon">✓</span> <span data-i18n="badges.custom_req">Tùy chỉnh theo
+                            yêu cầu</span></div>
+                </div>
             </div>
         </section>
 
-
-
-        <!-- Showcase Section -->
-        <section id="showcase">
-            <div class="section-header">
-                <h2 data-i18n="showcase.title">Sáng tạo nổi bật</h2>
-                <p data-i18n="showcase.subtitle">Khám phá những video AI ấn tượng được tạo bởi cộng đồng MotionAI.</p>
-            </div>
+        <!-- Template Showcase - ngay dưới hero -->
+        <section id="showcase" class="showcase-flush">
             <div class="showcase-grid" id="showcase-gallery">
                 <!-- Loaded by JS -->
-            </div>
-            <div style="text-align: center; margin-top: 3rem;">
-                <button class="btn-secondary" onclick="openOrderModal()" data-i18n="showcase.cta">Khám phá thêm & Tạo
-                    ngay</button>
             </div>
         </section>
 

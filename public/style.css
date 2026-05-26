@@ -1363,9 +1363,28 @@ button {
   text-align: center;
 }
 
+.hero-tall {
+  padding: 10rem 2rem 5rem;
+}
+
 .hero-content {
   max-width: 800px;
-  margin: 0 auto 4rem;
+  margin: 0 auto 2rem;
+}
+
+.btn-hero-create {
+  font-size: 1.2rem;
+  padding: 1rem 2.5rem;
+  height: auto;
+}
+
+.hero-tall .trust-badges {
+  margin-top: 2.5rem;
+}
+
+.showcase-flush {
+  padding-top: 0;
+  margin-top: -1rem;
 }
 
 .hero h1 {
@@ -2731,6 +2750,15 @@ section {
   /* Hero Mobile */
   .hero {
     padding: 6rem 1rem 3rem;
+  }
+
+  .hero-tall {
+    padding: 7rem 1rem 3rem;
+  }
+
+  .btn-hero-create {
+    font-size: 1.05rem;
+    padding: 0.9rem 2rem;
   }
   
   .hero h1 {
