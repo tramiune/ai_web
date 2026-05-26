@@ -926,10 +926,10 @@ function navigateFromURLParam() {
             showTopupHistory();
         } else if (page === 'admin-panel' && window.__isAdmin) {
             showAdminPanel();
-        } else if (page === 'build-channel-page') {
-            showBuildChannel();
-        } else {
+        } else if (page === 'user-dashboard') {
             showDashboard();
+        } else {
+            showLanding();
         }
         if (page) {
             const url = new URL(window.location.href);
@@ -938,7 +938,7 @@ function navigateFromURLParam() {
             window.history.replaceState({}, '', clean || '/');
         }
     } catch (e) {
-        showDashboard();
+        showLanding();
     }
 }
 
