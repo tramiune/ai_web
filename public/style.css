@@ -3457,7 +3457,7 @@ section {
 
 @media (max-width: 768px) {
   .showcase-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 0.75rem !important;
   }
   .showcase-card {
