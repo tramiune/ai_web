@@ -566,7 +566,7 @@ window.downloadUrl = (event, url) => {
 };
 
 // --- Auth Functions ---
-const SHOWCASE_PER_PAGE = 12;
+const SHOWCASE_PER_PAGE = 10;
 let _showcasePage = 1;
 let _showcaseShuffled = [];
 
