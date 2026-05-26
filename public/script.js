@@ -1575,10 +1575,15 @@ window.openOrderModal = () => {
     updateFirstOrderUI();
     window.openModal('order-modal');
 
-    setTimeout(() => {
-        const modalBody = document.querySelector('#order-modal .modal-body');
-        if (modalBody) modalBody.scrollTop = 0;
-    }, 50);
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            document.querySelectorAll('#order-modal .modal-body, #order-modal .modal-content').forEach(el => {
+                el.scrollTop = 0;
+            });
+            const orderForm = document.getElementById('order-form');
+            if (orderForm) orderForm.scrollTop = 0;
+        }, 300);
+    });
 
     // TikTok Pixel: ViewContent (Viewing AI Service)
     if (typeof ttq !== 'undefined') {
@@ -1835,9 +1840,8 @@ async function setupEventListeners() {
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
-                    const modalBody = document.querySelector('#order-modal .modal-body');
-                    if (charZone && modalBody) {
-                        modalBody.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (charZone) {
+                        document.querySelectorAll('#order-modal .modal-body, #order-modal .modal-content, #order-modal').forEach(el => el.scrollTo({ top: 0, behavior: 'smooth' }));
                         charZone.classList.add('highlight-pulse');
                         setTimeout(() => charZone.classList.remove('highlight-pulse'), 2000);
                     }
