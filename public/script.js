@@ -580,7 +580,7 @@ window.renderShowcase = async () => {
     gallery.innerHTML = shuffled.map(v => `
         <div class="showcase-card showcase-webp"
              onclick="window.playOrderVideo(event, '${v.url}')">
-            <img class="showcase-preview" data-src="${v.poster}" alt="${trendTitle(v)}">
+            <img class="showcase-preview" data-src="${v.thumb}" alt="${trendTitle(v)}">
             <div class="showcase-info">
                 <div class="showcase-title">${trendTitle(v)}</div>
                 <button class="use-trend-btn" onclick="event.stopPropagation(); window.useTrendShortcut('${v.id}', '${v.url}')">
@@ -590,7 +590,7 @@ window.renderShowcase = async () => {
         </div>
     `).join('');
 
-    // Lazy load images when they scroll into view
+    // Lazy load animated webp when they scroll into view
     const lazyImages = gallery.querySelectorAll('img[data-src]');
     const mediaObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
