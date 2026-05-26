@@ -184,7 +184,7 @@ window.TRANSLATIONS = {
             bonus_included_note: "(Đã bao gồm số lượng tặng)",
             featured_hot: "Hot",
             start_now: "Bắt đầu ngay",
-            pay_vietqr: "NH VN · VietQR",
+            pay_vietqr: "Chuyển khoản",
             pay_vietqr_sub: "",
             pay_intl: "Thẻ quốc tế",
             notes: {
@@ -766,7 +766,7 @@ window.TRANSLATIONS = {
             bonus_included_note: "(Bonus coins included)",
             featured_hot: "Hot",
             start_now: "Get Started",
-            pay_vietqr: "VN · VietQR",
+            pay_vietqr: "Bank transfer",
             pay_vietqr_sub: "",
             pay_intl: "Intl card",
             notes: {
