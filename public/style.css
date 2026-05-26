@@ -617,7 +617,7 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   width: 100%;
   padding: 0.65rem 0.85rem;
   border-radius: var(--radius-sm);
@@ -627,13 +627,68 @@ button {
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  text-align: left;
 }
 
-.pricing-pay-btn:hover {
-  border-color: rgba(0, 242, 254, 0.45);
-  background: rgba(0, 242, 254, 0.08);
+.pricing-pay-btn--intl {
+  opacity: 0.92;
+  font-size: 0.76rem;
+  padding: 0.55rem 0.8rem;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  justify-content: center;
+  text-align: center;
+}
+
+.pricing-pay-btn--intl:hover {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pricing-pay-btn--vietqr {
+  padding: 0.9rem 1rem;
+  border: 2px solid rgba(0, 242, 254, 0.55);
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.16) 0%, rgba(138, 43, 226, 0.1) 100%);
+  box-shadow: 0 6px 22px rgba(0, 242, 254, 0.12);
   color: #fff;
+  justify-content: flex-start;
+}
+
+.pricing-pay-btn--vietqr:hover {
+  border-color: rgba(0, 242, 254, 0.85);
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.24) 0%, rgba(138, 43, 226, 0.16) 100%);
+  box-shadow: 0 8px 28px rgba(0, 242, 254, 0.2);
+  transform: translateY(-1px);
+}
+
+.pricing-pay-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  line-height: 1.25;
+  flex: 1;
+  min-width: 0;
+}
+
+.pricing-pay-label--single {
+  align-items: center;
+  text-align: center;
+}
+
+.pricing-pay-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.pricing-pay-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(0, 242, 254, 0.95);
+  opacity: 0.95;
 }
 
 .pricing-pay-icon {
@@ -641,6 +696,19 @@ button {
   height: 16px;
   flex-shrink: 0;
   opacity: 0.85;
+}
+
+.pricing-pay-icon--qr {
+  width: 22px;
+  height: 22px;
+  opacity: 1;
+  color: #00f2fe;
+}
+
+.pricing-pay-icon--intl {
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
 }
 
 .price-card:hover {

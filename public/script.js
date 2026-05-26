@@ -1200,8 +1200,8 @@ function renderPricing() {
     const modalCoinGrid = document.getElementById('modal-coin-packages');
     const filteredPackages = COIN_PACKAGES;
 
-    const bankPayIcon = `<svg class="pricing-pay-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M3 10h18M7 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-    const intlPayIcon = `<svg class="pricing-pay-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.5"/><path d="M6 15h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    const vietqrPayIcon = `<svg class="pricing-pay-icon pricing-pay-icon--qr" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="15" y="15" width="3" height="3" fill="currentColor"/><rect x="18" y="18" width="3" height="3" fill="currentColor"/><path d="M15 18h3M18 15v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    const intlPayIcon = `<svg class="pricing-pay-icon pricing-pay-icon--intl" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 12h16M12 4.2c2.2 2.8 2.2 12.8 0 15.6M12 4.2c-2.2 2.8-2.2 12.8 0 15.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
     const coinIcon = `<svg class="coin-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/><path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/><path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
     const html = filteredPackages.map(pkg => {
@@ -1222,13 +1222,16 @@ function renderPricing() {
                 <li><span class="check-icon">✓</span> ${t('pricing.no_expiry')}</li>
             </ul>
             <div class="pricing-pay-actions">
-                <button type="button" class="pricing-pay-btn" onclick="window.selectTopup('${pkg.id}', 'vietqr')">
-                    ${bankPayIcon}
-                    <span>${t('pricing.pay_vietqr')}</span>
-                </button>
-                <button type="button" class="pricing-pay-btn" onclick="window.selectTopup('${pkg.id}', 'intl')">
+                <button type="button" class="pricing-pay-btn pricing-pay-btn--intl" onclick="window.selectTopup('${pkg.id}', 'intl')">
                     ${intlPayIcon}
-                    <span>${t('pricing.pay_intl')}</span>
+                    <span class="pricing-pay-label pricing-pay-label--single">${t('pricing.pay_intl')}</span>
+                </button>
+                <button type="button" class="pricing-pay-btn pricing-pay-btn--vietqr" onclick="window.selectTopup('${pkg.id}', 'vietqr')">
+                    ${vietqrPayIcon}
+                    <span class="pricing-pay-label">
+                        <span class="pricing-pay-title">${t('pricing.pay_vietqr')}</span>
+                        <span class="pricing-pay-sub">${t('pricing.pay_vietqr_sub')}</span>
+                    </span>
                 </button>
             </div>
         </div>

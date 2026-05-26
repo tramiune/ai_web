@@ -184,7 +184,8 @@ window.TRANSLATIONS = {
             bonus_included_note: "(Đã bao gồm số lượng tặng)",
             featured_hot: "Hot",
             start_now: "Bắt đầu ngay",
-            pay_vietqr: "Chuyển khoản",
+            pay_vietqr: "Chuyển khoản ngân hàng Việt Nam",
+            pay_vietqr_sub: "Quét VietQR · cộng coin tự động",
             pay_intl: "PayPal / Thẻ quốc tế",
             notes: {
                 starter_v2: "Gói giới hạn",
@@ -765,8 +766,9 @@ window.TRANSLATIONS = {
             bonus_included_note: "(Bonus coins included)",
             featured_hot: "Hot",
             start_now: "Get Started",
-            pay_vietqr: "Bank transfer",
-            pay_intl: "PayPal / Card",
+            pay_vietqr: "Vietnamese bank transfer",
+            pay_vietqr_sub: "Scan VietQR · auto credit",
+            pay_intl: "PayPal / International card",
             notes: {
                 starter_v2: "Limited package",
                 creator: "Bonus 50 Coins",
