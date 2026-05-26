@@ -1572,12 +1572,14 @@ window.selectTopup = async (id, method = 'vietqr') => {
 };
 
 window.openOrderModal = () => {
-    // Thông báo click nút tạo video về Telegram
-    // const clickMsg = `🎯 <b>NÚT TẠO VIDEO VỪA ĐƯỢC BẤM! (TRANG CHỦ)</b>\n👤 Trạng thái: ${currentUser ? 'Đã đăng nhập' : 'Khách vãng lai'}\n📧 Email: ${currentUser ? escapeHTML(currentUser.email) : 'N/A'}\n🕐 Thời gian: ${new Date().toLocaleString('vi-VN')}`;
-    // sendTelegramMessage(clickMsg);
-
     updateFirstOrderUI();
     window.openModal('order-modal');
+
+    // Cuộn popup lên đầu
+    setTimeout(() => {
+        const modalContent = document.querySelector('#order-modal .modal-content');
+        if (modalContent) modalContent.scrollTop = 0;
+    }, 50);
 
     // TikTok Pixel: ViewContent (Viewing AI Service)
     if (typeof ttq !== 'undefined') {
@@ -1832,7 +1834,15 @@ async function setupEventListeners() {
                 const videoFile = document.getElementById('file-video').files[0];
                 const templateUrl = document.getElementById('selected-template-url').value;
 
-                if (!charFile) return showToast(t('modals.char_placeholder'));
+                if (!charFile) {
+                    const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
+                    if (charZone) {
+                        charZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        charZone.classList.add('highlight-pulse');
+                        setTimeout(() => charZone.classList.remove('highlight-pulse'), 2000);
+                    }
+                    return showToast(t('modals.char_placeholder'));
+                }
                 if (window.currentVideoSource === 'upload' && !videoFile) return showToast(t('modals.video_placeholder'));
                 if (window.currentVideoSource === 'library' && !templateUrl) return showToast(t('modals.video_placeholder'));
 
