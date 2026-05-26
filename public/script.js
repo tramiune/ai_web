@@ -577,62 +577,33 @@ window.renderShowcase = async () => {
         return;
     }
     const shuffled = [...TREND_VIDEOS].sort(() => Math.random() - 0.5);
-    gallery.innerHTML = shuffled.map((v, i) => {
-        const useWebp = v.poster && i % 3 !== 0;
-        if (useWebp) {
-            return `
-            <div class="showcase-card showcase-webp"
-                 onclick="window.playOrderVideo(event, '${v.url}')"
-                 onmouseenter="window.handleVideoHover(this.querySelector('video'), true)"
-                 onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
-                <img class="showcase-preview" data-src="${v.poster}" alt="${trendTitle(v)}" loading="lazy">
-                <div class="showcase-info">
-                    <div class="showcase-title">${trendTitle(v)}</div>
-                    <button class="use-trend-btn" onclick="event.stopPropagation(); window.useTrendShortcut('${v.id}', '${v.url}')">
-                        ${window.t('showcase.use_this')}
-                    </button>
-                </div>
-            </div>`;
-        }
-        return `
-            <div class="showcase-card"
-                 onclick="window.playOrderVideo(event, '${v.url}')"
-                 onmouseenter="window.handleVideoHover(this.querySelector('video'), true)"
-                 onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
-                <video class="showcase-video"
-                       data-src="${v.url}#t=1"
-                       poster="${v.thumb}"
-                       muted loop playsinline preload="none">
-                </video>
-                <div class="showcase-play-overlay">
-                    <div class="play-icon-central">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </div>
-                </div>
-                <div class="showcase-info">
-                    <div class="showcase-title">${trendTitle(v)}</div>
-                    <button class="use-trend-btn" onclick="event.stopPropagation(); window.useTrendShortcut('${v.id}', '${v.url}')">
-                        ${window.t('showcase.use_this')}
-                    </button>
-                </div>
-            </div>`;
-    }).join('');
+    gallery.innerHTML = shuffled.map(v => `
+        <div class="showcase-card showcase-webp"
+             onclick="window.playOrderVideo(event, '${v.url}')">
+            <img class="showcase-preview" data-src="${v.poster}" alt="${trendTitle(v)}">
+            <div class="showcase-info">
+                <div class="showcase-title">${trendTitle(v)}</div>
+                <button class="use-trend-btn" onclick="event.stopPropagation(); window.useTrendShortcut('${v.id}', '${v.url}')">
+                    ${window.t('showcase.use_this')}
+                </button>
+            </div>
+        </div>
+    `).join('');
 
-    // Lazy load videos & images when they scroll into view
-    const lazyMedia = gallery.querySelectorAll('video[data-src], img[data-src]');
+    // Lazy load images when they scroll into view
+    const lazyImages = gallery.querySelectorAll('img[data-src]');
     const mediaObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const el = entry.target;
                 el.src = el.dataset.src;
-                if (el.tagName === 'VIDEO') el.preload = 'metadata';
                 delete el.dataset.src;
                 mediaObserver.unobserve(el);
             }
         });
     }, { rootMargin: '200px' });
 
-    lazyMedia.forEach(el => mediaObserver.observe(el));
+    lazyImages.forEach(el => mediaObserver.observe(el));
 
     initPremiumEffects();
 };
