@@ -645,12 +645,12 @@ window.renderShowcase = async (page) => {
 // Lazy loading handled by IntersectionObserver in renderShowcase
 
 window.useTrendShortcut = (id, url) => {
+    _tplPinnedId = id;
+    _tplPage = 1;
     window.openOrderModal();
     window.switchVideoSource('library');
     setTimeout(() => {
         window.selectTemplate(id, url);
-        const el = document.getElementById(`tpl-${id}`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
 };
 
@@ -1248,8 +1248,9 @@ window.switchVideoSource = (type) => {
     }
 };
 
-const TPL_PER_PAGE = 10;
+const TPL_PER_PAGE = 4;
 let _tplPage = 1;
+let _tplPinnedId = null;
 
 window.renderTemplates = async (page) => {
     const grid = document.getElementById('template-library-grid');
@@ -1264,16 +1265,26 @@ window.renderTemplates = async (page) => {
         return;
     }
 
+    // Build list: pinned item first, then rest shuffled
+    let ordered;
+    if (_tplPinnedId) {
+        const pinned = TREND_VIDEOS.find(v => v.id === _tplPinnedId);
+        const rest = TREND_VIDEOS.filter(v => v.id !== _tplPinnedId).sort(() => Math.random() - 0.5);
+        ordered = pinned ? [pinned, ...rest] : rest;
+    } else {
+        ordered = [...TREND_VIDEOS].sort(() => Math.random() - 0.5);
+    }
+
     if (page) _tplPage = page;
-    const totalPages = Math.ceil(TREND_VIDEOS.length / TPL_PER_PAGE);
+    const totalPages = Math.ceil(ordered.length / TPL_PER_PAGE);
     if (_tplPage < 1) _tplPage = 1;
     if (_tplPage > totalPages) _tplPage = totalPages;
 
     const start = (_tplPage - 1) * TPL_PER_PAGE;
-    const items = TREND_VIDEOS.slice(start, start + TPL_PER_PAGE);
+    const items = ordered.slice(start, start + TPL_PER_PAGE);
 
     grid.innerHTML = items.map(t => `
-        <div class="template-item" id="tpl-${t.id}" 
+        <div class="template-item${t.id === _tplPinnedId ? ' active' : ''}" id="tpl-${t.id}" 
              onclick="window.previewTemplate('${t.id}')"
              onmouseenter="window.handleVideoHover(this.querySelector('video'), true)" 
              onmouseleave="window.handleVideoHover(this.querySelector('video'), false)">
@@ -1290,13 +1301,17 @@ window.renderTemplates = async (page) => {
         pagerEl.className = 'pager pager-compact';
         grid.parentNode.appendChild(pagerEl);
     }
-    let pagerHtml = '';
-    if (_tplPage > 1) pagerHtml += `<button class="pager-btn" onclick="window.renderTemplates(${_tplPage - 1})">‹</button>`;
-    for (let i = 1; i <= totalPages; i++) {
-        pagerHtml += `<button class="pager-btn${i === _tplPage ? ' active' : ''}" onclick="window.renderTemplates(${i})">${i}</button>`;
+    if (totalPages <= 1) {
+        pagerEl.innerHTML = '';
+    } else {
+        let pagerHtml = '';
+        if (_tplPage > 1) pagerHtml += `<button class="pager-btn" onclick="window.renderTemplates(${_tplPage - 1})">‹</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            pagerHtml += `<button class="pager-btn${i === _tplPage ? ' active' : ''}" onclick="window.renderTemplates(${i})">${i}</button>`;
+        }
+        if (_tplPage < totalPages) pagerHtml += `<button class="pager-btn" onclick="window.renderTemplates(${_tplPage + 1})">›</button>`;
+        pagerEl.innerHTML = pagerHtml;
     }
-    if (_tplPage < totalPages) pagerHtml += `<button class="pager-btn" onclick="window.renderTemplates(${_tplPage + 1})">›</button>`;
-    pagerEl.innerHTML = pagerHtml;
 };
 
 window.previewTemplate = (id) => {

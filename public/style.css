@@ -3187,15 +3187,9 @@ section {
 
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   padding: 10px 4px;
-}
-
-@media (max-width: 768px) {
-  .template-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
 }
 
 .template-item {
