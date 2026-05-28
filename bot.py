@@ -624,7 +624,9 @@ def start_bot():
         while True:
             if is_bot_enabled():
                 check_finished_orders()
-            time.sleep(30)
+            # Orders are only eligible for monitoring after 10 minutes (see check_finished_orders),
+            # so polling faster than 60s just wastes reads/CPU.
+            time.sleep(60)
 
     threading.Thread(target=monitor_loop, daemon=True).start()
 
