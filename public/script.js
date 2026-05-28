@@ -219,8 +219,8 @@ async function resolveInitialLanguage() {
     return detectLangFromBrowser();
 }
 
-// Force Vietnamese only
-let currentLang = 'vi';
+// vi/en only. Default: en (non-VN).
+let currentLang = 'en';
 window.currentLang = currentLang;
 
 function logFirebaseEvent(name, params = {}) {
@@ -309,7 +309,7 @@ export function applyTranslations() {
 }
 
 window.toggleLangMenu = (e) => {
-    // disabled (force VI)
+    // language UI removed
 };
 
 window.toggleUserMenu = (e) => {
@@ -319,9 +319,9 @@ window.toggleUserMenu = (e) => {
 };
 
 window.switchLanguage = (lang) => {
-    // disabled (force VI)
-    currentLang = 'vi';
-    window.currentLang = 'vi';
+    // language UI removed, but keep API for deep-links/testing
+    currentLang = (lang === 'vi') ? 'vi' : 'en';
+    window.currentLang = currentLang;
     applyTranslations();
 
     // Close menus after switch
@@ -389,8 +389,13 @@ function clearPendingReferralCode() {
 
 // --- App Initialization ---
 export async function initAppLogic() {
-    currentLang = 'vi';
-    window.currentLang = 'vi';
+    try {
+        currentLang = await resolveInitialLanguage();
+    } catch (e) {
+        currentLang = 'en';
+    }
+    if (!['vi', 'en'].includes(currentLang)) currentLang = 'en';
+    window.currentLang = currentLang;
 
     // Global Error Handler for debugging
     window.onerror = function (msg, url, lineNo, columnNo, error) {
