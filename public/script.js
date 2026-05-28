@@ -219,10 +219,8 @@ async function resolveInitialLanguage() {
     return detectLangFromBrowser();
 }
 
-let currentLang = localStorage.getItem(LANG_STORAGE_KEY);
-if (!supportedLangs().includes(currentLang)) {
-    currentLang = detectLangFromBrowser();
-}
+// Force Vietnamese only
+let currentLang = 'vi';
 window.currentLang = currentLang;
 
 function logFirebaseEvent(name, params = {}) {
@@ -300,9 +298,7 @@ export function applyTranslations() {
         if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', t(key));
     });
 
-    const flagMap = window.LANG_CONFIG?.flags || { vi: '🇻🇳', en: '🇺🇸', es: '🇪🇸', pt: '🇧🇷', th: '🇹🇭', id: '🇮🇩' };
-    const flagEl = document.getElementById('current-lang-flag');
-    if (flagEl) flagEl.innerText = flagMap[currentLang] || '🇻🇳';
+    // Flag UI removed
 
     // Render 4 Model AI grid
     if (window.renderAIModels) {
@@ -313,9 +309,7 @@ export function applyTranslations() {
 }
 
 window.toggleLangMenu = (e) => {
-    if (e) e.stopPropagation();
-    document.getElementById('dropdown-menu')?.classList.remove('show');
-    document.getElementById('lang-menu').classList.toggle('show');
+    // disabled (force VI)
 };
 
 window.toggleUserMenu = (e) => {
@@ -325,15 +319,12 @@ window.toggleUserMenu = (e) => {
 };
 
 window.switchLanguage = (lang) => {
-    if (!supportedLangs().includes(lang)) return;
-    currentLang = lang;
-    window.currentLang = lang;
-    localStorage.setItem(LANG_STORAGE_KEY, lang);
+    // disabled (force VI)
+    currentLang = 'vi';
+    window.currentLang = 'vi';
     applyTranslations();
 
     // Close menus after switch
-    const langMenu = document.getElementById('lang-menu');
-    if (langMenu) langMenu.classList.remove('show');
     document.getElementById('dropdown-menu')?.classList.remove('show');
 
     if (currentUser) {
@@ -398,10 +389,8 @@ function clearPendingReferralCode() {
 
 // --- App Initialization ---
 export async function initAppLogic() {
-    if (!localStorage.getItem(LANG_STORAGE_KEY)) {
-        currentLang = await resolveInitialLanguage();
-        window.currentLang = currentLang;
-    }
+    currentLang = 'vi';
+    window.currentLang = 'vi';
 
     // Global Error Handler for debugging
     window.onerror = function (msg, url, lineNo, columnNo, error) {
@@ -418,6 +407,8 @@ export async function initAppLogic() {
 
     // Capture ?ref=XXX before auth state initialises so it survives signup
     captureReferralFromURL();
+
+    // (Intro modal removed; login-required uses auth-modal)
 
     const { auth, onAuthStateChanged } = window.firebase;
 
@@ -817,6 +808,21 @@ async function handleUserLoggedIn(user) {
     document.getElementById('dropdown-user-name').innerText = user.displayName || user.email.split('@')[0];
     document.getElementById('dropdown-user-email').innerText = user.email;
 
+    // Avatar for user menu button
+    const avatarImg = document.getElementById('user-menu-avatar');
+    const avatarFallback = document.getElementById('user-menu-avatar-fallback');
+    const photoUrl = user.photoURL;
+    if (avatarImg && avatarFallback) {
+        if (photoUrl) {
+            avatarImg.src = photoUrl;
+            avatarImg.style.display = 'block';
+            avatarFallback.style.display = 'none';
+        } else {
+            avatarImg.style.display = 'none';
+            avatarFallback.style.display = 'block';
+        }
+    }
+
     // Hiển thị Profile Menu
     const dashIn = document.getElementById('dashboard-logged-in');
     const dashOut = document.getElementById('dashboard-auth-placeholder');
@@ -1029,7 +1035,8 @@ function navigateFromURLParam() {
         } else if (page === 'user-dashboard') {
             showDashboard();
         } else {
-            showLanding();
+            // Home = My videos
+            showDashboard();
         }
         if (page) {
             const url = new URL(window.location.href);
@@ -1038,14 +1045,19 @@ function navigateFromURLParam() {
             window.history.replaceState({}, '', clean || '/');
         }
     } catch (e) {
-        showLanding();
+        // Home = My videos
+        showDashboard();
     }
 }
 
 function handleUserLoggedOut() {
-    // Không hiện Auth Modal bắt buộc lúc đầu nữa
+    // Show login-required popup with banner video
     const authModal = document.getElementById('auth-modal');
-    if (authModal) authModal.style.display = 'none';
+    if (authModal) authModal.style.display = 'flex';
+    const v = document.getElementById('auth-banner-video');
+    if (v && !v.src) {
+        v.src = 'https://pub-2b53cd37b4a44642afdbb8bb470bde66.r2.dev/banner.mp4';
+    }
 
     document.getElementById('login-btn').style.display = 'flex';
     document.getElementById('user-profile-menu').style.display = 'none';
@@ -1087,7 +1099,8 @@ function handleUserLoggedOut() {
     isFirstTimeUser = false;
     updateFirstOrderUI();
 
-    showLanding();
+    // Home = My videos (dashboard sẽ hiện placeholder login-required)
+    showDashboard();
 }
 
 function showDashboard() {
@@ -1118,8 +1131,8 @@ function showAdminPanel() {
 }
 
 function showLanding() {
-    hideAllPages();
-    document.getElementById('landing-page').style.display = 'block';
+    // Home = My videos
+    showDashboard();
 }
 
 function hideAllPages() {
@@ -1282,13 +1295,19 @@ function renderPricing() {
     const modalCoinGrid = document.getElementById('modal-coin-packages');
     const filteredPackages = COIN_PACKAGES;
 
-    const vietqrPayIcon = `<svg class="pricing-pay-icon pricing-pay-icon--qr" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="15" y="15" width="3" height="3" fill="currentColor"/><rect x="18" y="18" width="3" height="3" fill="currentColor"/><path d="M15 18h3M18 15v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+    const vietqrPayIcon = `<svg class="pricing-pay-icon pricing-pay-icon--vietqr" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="3" fill="#DA251D"/><path fill="#FFCD00" d="M12 5.4l1.55 3.14 3.46.5-2.5 2.44.59 3.45L12 14.7l-3.1 1.63.59-3.45-2.5-2.44 3.46-.5L12 5.4z"/></svg>`;
     const intlPayIcon = `<svg class="pricing-pay-icon pricing-pay-icon--intl" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 12h16M12 4.2c2.2 2.8 2.2 12.8 0 15.6M12 4.2c-2.2 2.8-2.2 12.8 0 15.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
     const coinIcon = `<svg class="coin-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)" fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2"/><path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)"/><path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
-    const html = filteredPackages.map(pkg => {
+    const buildCoinCard = (pkg, { showFeatures = false } = {}) => {
         const noteText = t(`pricing.notes.${pkg.id}`);
         const showNote = noteText && !noteText.startsWith('pricing.notes.');
+        const featuresHtml = showFeatures ? `
+            <ul class="pkg-features">
+                <li><span class="check-icon">✓</span> ${t('pricing.instant_credit')}</li>
+                <li><span class="check-icon">✓</span> ${t('pricing.high_quality')}</li>
+                <li><span class="check-icon">✓</span> ${t('pricing.no_expiry')}</li>
+            </ul>` : '';
         return `
         <div class="price-card price-card--coin">
             <div class="price-card-note">${showNote ? noteText : '&#8203;'}</div>
@@ -1298,11 +1317,7 @@ function renderPricing() {
             </div>
             <div class="price-card-bonus-hint${pkg.hasBonus ? '' : ' price-card-bonus-hint--empty'}">${t('pricing.bonus_included_note')}</div>
             <div class="price-value">${pkg.price}</div>
-            <ul class="pkg-features">
-                <li><span class="check-icon">✓</span> ${t('pricing.instant_credit')}</li>
-                <li><span class="check-icon">✓</span> ${t('pricing.high_quality')}</li>
-                <li><span class="check-icon">✓</span> ${t('pricing.no_expiry')}</li>
-            </ul>
+            ${featuresHtml}
             <div class="pricing-pay-actions">
                 <button type="button" class="pricing-pay-btn pricing-pay-btn--intl" onclick="window.selectTopup('${pkg.id}', 'intl')">
                     ${intlPayIcon}
@@ -1315,10 +1330,14 @@ function renderPricing() {
             </div>
         </div>
     `;
-    }).join('');
+    };
 
-    if (coinGrid) coinGrid.innerHTML = html;
-    if (modalCoinGrid) modalCoinGrid.innerHTML = html;
+    if (coinGrid) {
+        coinGrid.innerHTML = filteredPackages.map(pkg => buildCoinCard(pkg, { showFeatures: true })).join('');
+    }
+    if (modalCoinGrid) {
+        modalCoinGrid.innerHTML = filteredPackages.map(pkg => buildCoinCard(pkg, { showFeatures: false })).join('');
+    }
 }
 
 function renderServicePackages() {
@@ -1508,6 +1527,7 @@ window.openModal = (id) => {
 };
 
 window.closeModal = (id) => {
+    if (id === 'auth-modal') return; // non-dismissible
     document.getElementById(id).style.display = 'none';
 };
 
@@ -1767,11 +1787,38 @@ window.niceConfirm = ({ title, message, icon, onConfirm }) => {
     window.openModal('confirm-modal');
 };
 
+function syncUploadZonePreviewState(container) {
+    const zone = container?.closest('.upload-zone');
+    if (!zone) return;
+    zone.classList.toggle('has-preview', !!container?.querySelector('img, video'));
+}
+
+function appendPreviewChangeButton(container, inputId, labelKey) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'preview-change-btn btn-primary order-upload-btn';
+    btn.textContent = t(labelKey);
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById(inputId)?.click();
+    });
+    container.appendChild(btn);
+}
+
 window.handlePreview = (input, containerId) => {
     const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const previewMeta = {
+        'preview-char-container': { inputId: 'file-char', changeKey: 'modals.char_change' },
+        'preview-video-container': { inputId: 'file-video', changeKey: 'modals.video_change' }
+    };
+    const meta = previewMeta[containerId] || { inputId: input.id, changeKey: 'modals.char_change' };
+
     const file = input.files[0];
     if (!file) {
         container.innerHTML = '';
+        syncUploadZonePreviewState(container);
         return;
     }
 
@@ -1781,6 +1828,7 @@ window.handlePreview = (input, containerId) => {
         if (file.size > 10 * 1024 * 1024) {
             showToast(t('modals.char_size_limit'));
             input.value = '';
+            syncUploadZonePreviewState(container);
             return;
         }
         const img = document.createElement('img');
@@ -1791,6 +1839,8 @@ window.handlePreview = (input, containerId) => {
         img.style.borderRadius = '8px';
         img.onload = () => URL.revokeObjectURL(img.src);
         container.appendChild(img);
+        appendPreviewChangeButton(container, meta.inputId, meta.changeKey);
+        syncUploadZonePreviewState(container);
     } else if (file.type.startsWith('video/')) {
         if (file.size > 90 * 1024 * 1024) {
             showToast(t('modals.video_size_limit'));
@@ -1818,6 +1868,8 @@ window.handlePreview = (input, containerId) => {
             previewVideo.style.objectFit = 'cover';
             previewVideo.style.borderRadius = '8px';
             container.appendChild(previewVideo);
+            appendPreviewChangeButton(container, meta.inputId, meta.changeKey);
+            syncUploadZonePreviewState(container);
         };
         video.src = URL.createObjectURL(file);
     }
@@ -1947,10 +1999,10 @@ async function setupEventListeners() {
                         charZone.classList.add('highlight-pulse');
                         setTimeout(() => charZone.classList.remove('highlight-pulse'), 2000);
                     }
-                    return showToast(t('modals.char_placeholder'));
+                    return showToast(t('modals.char_upload_required'));
                 }
-                if (window.currentVideoSource === 'upload' && !videoFile) return showToast(t('modals.video_placeholder'));
-                if (window.currentVideoSource === 'library' && !templateUrl) return showToast(t('modals.video_placeholder'));
+                if (window.currentVideoSource === 'upload' && !videoFile) return showToast(t('modals.video_upload_required'));
+                if (window.currentVideoSource === 'library' && !templateUrl) return showToast(t('modals.video_upload_required'));
 
                 // Kiểm tra lại lần cuối trước khi upload
                 if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
@@ -2082,8 +2134,13 @@ async function setupEventListeners() {
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
-                            document.getElementById('preview-char-container').innerHTML = '';
-                            document.getElementById('preview-video-container').innerHTML = '';
+                            ['preview-char-container', 'preview-video-container'].forEach((id) => {
+                                const el = document.getElementById(id);
+                                if (el) {
+                                    el.innerHTML = '';
+                                    syncUploadZonePreviewState(el);
+                                }
+                            });
                             showDashboard();
                             const serviceLabel = SERVICE_TYPE_MAP()[serviceType] || serviceType;
                             const msg = `🚀 <b>ĐƠN HÀNG MỚI: ${serviceLabel.toUpperCase()}</b>\n\n` +

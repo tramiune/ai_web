@@ -1,13 +1,8 @@
 /** Country → language for tier-1 / tier-2 ad markets. Fallback: en. */
 window.LANG_CONFIG = {
-    supported: ['vi', 'en', 'es', 'pt', 'th', 'id'],
+    supported: ['vi'],
     flags: {
-        vi: '🇻🇳',
-        en: '🇺🇸',
-        es: '🇪🇸',
-        pt: '🇧🇷',
-        th: '🇹🇭',
-        id: '🇮🇩'
+        vi: '🇻🇳'
     },
     /** ISO 3166-1 alpha-2 → locale code */
     countryToLang: {
@@ -23,7 +18,6 @@ window.LANG_CONFIG = {
         // Tier 1 + rest → en (US, GB, CA, AU, PH, SG, DE, FR, …)
     },
     langFromCountry(country) {
-        const code = String(country || '').toUpperCase();
-        return this.countryToLang[code] || 'en';
+        return 'vi';
     }
 };

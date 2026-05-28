@@ -707,6 +707,14 @@ button {
   color: #00f2fe;
 }
 
+.pricing-pay-icon--vietqr {
+  width: 22px;
+  height: 22px;
+  opacity: 1;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
 .pricing-pay-icon--intl {
   width: 18px;
   height: 18px;
@@ -1638,6 +1646,129 @@ button {
   .showcase-section {
     padding: 0.5rem 1rem 0;
   }
+
+  .upload-zone.upload-zone--small {
+    min-height: 52px;
+    padding: 0.45rem 0.5rem;
+    border-radius: 10px;
+  }
+
+  #order-modal .order-modal-header {
+    padding: 0.2rem 1rem 0.85rem;
+  }
+  #order-modal .order-modal-header h2 {
+    font-size: 1.3rem;
+  }
+  #order-modal .order-modal-body {
+    padding-top: 0.85rem;
+  }
+  #order-form .order-upload-grid {
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* My video: inline topup button */
+.btn-topup-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(0, 242, 254, 0.2));
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  box-sizing: border-box;
+}
+.btn-topup-inline:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 242, 254, 0.35);
+  box-shadow: 0 12px 30px rgba(0, 242, 254, 0.12);
+}
+.btn-topup-inline__label {
+  letter-spacing: 0.2px;
+}
+
+.myvideo-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.myvideo-actions .btn-topup-inline,
+.myvideo-actions .btn-primary {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 42px;
+  height: 42px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+  line-height: 1;
+  border-radius: 12px;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .myvideo-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .myvideo-actions .btn-topup-inline,
+  .myvideo-actions .btn-primary {
+    flex: 1 1 0;
+    padding: 0 10px;
+    font-size: 0.8rem;
+  }
+}
+
+.myvideo-actions .btn-primary {
+  box-shadow: 0 8px 20px rgba(138, 43, 226, 0.28);
+}
+
+/* User menu: avatar only — no box/border */
+.nav-hamburger-btn.user-icon-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
+.nav-hamburger-btn.user-icon-btn:hover {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.nav-hamburger-btn.user-icon-btn #user-menu-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.nav-hamburger-btn.user-icon-btn .user-menu-icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Modals */
@@ -2643,6 +2774,86 @@ section {
   justify-content: center;
 }
 
+.upload-zone.upload-zone--small {
+  min-height: 68px;
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  gap: 0.25rem;
+}
+
+.upload-zone.upload-zone--small span {
+  font-size: 1.25rem;
+  margin-bottom: 0;
+  line-height: 1;
+}
+
+.upload-zone.upload-zone--small .upload-note {
+  font-size: 0.7rem;
+  margin-top: 0.15rem;
+  text-align: center;
+}
+
+.upload-zone.upload-zone--small .order-upload-btn,
+#order-modal .order-upload-btn.btn-primary {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(138, 43, 226, 0.28);
+}
+
+.upload-zone.upload-zone--small .order-upload-btn:hover,
+#order-modal .order-upload-btn.btn-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+#order-modal .order-modal-header {
+  padding: 0.25rem 2.5rem 1rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+#order-modal .order-modal-header h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-main);
+}
+#order-modal .order-modal-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+#order-modal .order-modal-body {
+  padding-top: 1rem;
+}
+#order-form .order-upload-field {
+  margin-bottom: 0;
+}
+#order-form .order-upload-field > label {
+  margin-top: 0;
+  margin-bottom: 0.2rem;
+  min-height: auto;
+  font-size: 0.85rem;
+}
+#order-form .order-upload-grid {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  gap: 0.75rem;
+}
+
 .upload-zone:hover {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--accent);
@@ -2678,19 +2889,45 @@ section {
   align-items: center;
   justify-content: center;
   z-index: 10;
-  pointer-events: none; /* Let clicks pass through to input or zone */
+  pointer-events: none;
+}
+
+.preview-container:not(:empty) {
+  pointer-events: auto;
 }
 
 .preview-container:empty {
   display: none;
 }
 
-.preview-container img, 
+.preview-container img,
 .preview-container video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: var(--radius-lg);
+}
+
+.preview-container .preview-change-btn {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.upload-zone.upload-zone--small.has-preview {
+  min-height: 100px;
+}
+
+.upload-zone.upload-zone--small.has-preview > span,
+.upload-zone.upload-zone--small.has-preview > .order-upload-btn:not(.preview-change-btn),
+.upload-zone.upload-zone--small.has-preview > .upload-note {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .dot-flashing {
@@ -2817,10 +3054,28 @@ section {
     font-size: 0.9rem;
   }
 
-  .nav-hamburger-btn {
+  .nav-hamburger-btn:not(.user-icon-btn) {
     width: 36px;
     height: 36px;
     padding: 10px 8px;
+  }
+
+  .nav-hamburger-btn.user-icon-btn {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0;
+  }
+
+  .nav-hamburger-btn.user-icon-btn #user-menu-avatar {
+    width: 26px;
+    height: 26px;
+  }
+
+  .nav-hamburger-btn.user-icon-btn .user-menu-icon {
+    width: 17px;
+    height: 17px;
   }
 
   #auth-section {
