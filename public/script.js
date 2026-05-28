@@ -116,7 +116,8 @@ function gatewayLabel(gateway) {
 }
 
 const MODELS = {
-    fast: { nameKey: "modals.model_fast", cost: 10, timeKey: "modals.model_fast_desc", modelId: "34" },
+    // "Model thường" uses Aidancing model id 124
+    fast: { nameKey: "modals.model_fast", cost: 10, timeKey: "modals.model_fast_desc", modelId: "124" },
     turbo: { nameKey: "modals.model_turbo", cost: 20, timeKey: "modals.model_turbo_desc", modelId: "117" }
 };
 
@@ -134,6 +135,35 @@ const SERVICE_PACKAGES = [
     { id: 'plus', name: 'Plus', cost: 12, featureKeys: ['services.plus_f1', 'services.plus_f2', 'services.plus_f3'], featured: true },
     { id: 'viral', name: 'Viral', cost: 25, featureKeys: ['services.viral_f1', 'services.viral_f2', 'services.viral_f3'] }
 ];
+
+async function getVideoDurationSeconds(file) {
+    if (!file) return null;
+    try {
+        const url = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        const duration = await new Promise((resolve, reject) => {
+            const cleanup = () => {
+                try { URL.revokeObjectURL(url); } catch { }
+                video.removeAttribute('src');
+                video.load();
+            };
+            video.onloadedmetadata = () => {
+                const d = Number(video.duration);
+                cleanup();
+                resolve(Number.isFinite(d) ? d : null);
+            };
+            video.onerror = () => {
+                cleanup();
+                reject(new Error('metadata error'));
+            };
+            video.src = url;
+        });
+        return duration;
+    } catch {
+        return null;
+    }
+}
 
 let currentUser = null;
 let selectedTopupPackage = null;
@@ -1996,6 +2026,18 @@ async function setupEventListeners() {
                 const charFile = document.getElementById('file-char').files[0];
                 const videoFile = document.getElementById('file-video').files[0];
                 const templateUrl = document.getElementById('selected-template-url').value;
+                const modelKeySelected = document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
+                let modelIdOverride = null;
+
+                // Model thường: auto select Aidancing id by uploaded video duration
+                // <10s  -> 125
+                // 10-20 -> 124
+                if (modelKeySelected === 'fast' && window.currentVideoSource === 'upload' && videoFile) {
+                    const dur = await getVideoDurationSeconds(videoFile);
+                    if (typeof dur === 'number') {
+                        modelIdOverride = dur < 10 ? '125' : '124';
+                    }
+                }
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
@@ -2025,9 +2067,10 @@ async function setupEventListeners() {
                 const userRef = doc(db, "users", currentUser.uid);
                 const userSnap = await runTransaction(db, async (transaction) => {
                     const userDoc = await transaction.get(userRef);
-                    const modelKey = document.querySelector('input[name="model-type"]:checked').value;
+                    const modelKey = modelKeySelected;
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
                     let model = { ...localizedModel(modelKey) };
+                    if (modelIdOverride) model.modelId = modelIdOverride;
 
                     // Apply First Order Offer: 1 Coin
                     if (orderCount === 0) {

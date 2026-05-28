@@ -335,7 +335,8 @@ def submit_to_aidancing(order_id):
                 old_job_ids = set(re.findall(r'\b\d{6}\b', page.content()))
                 print(f"📦 Đã ghi nhận {len(old_job_ids)} Job ID cũ.")
 
-                model_id = data.get('modelId', '34')
+                # Default ("model thường"): Aidancing model id 124
+                model_id = data.get('modelId', '124')
                 create_url = f"https://aidancing.net/create/general?id={model_id}"
                 print(f"🌐 Vào trang tạo: {create_url}")
                 page.goto(create_url, timeout=90000)
