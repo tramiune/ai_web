@@ -44,7 +44,7 @@ const PAYPAL_DEFAULTS = {
 // Server-side package map. Frontend must NEVER set the price.
 // Keep in sync with COIN_PACKAGES in public/script.js (id + coins).
 const PACKAGES = {
-    'starter_v2':  { coins: 20,   priceUsd: 2.99,  name: 'Starter (International)' },
+    'starter_v2':  { coins: 30,   priceUsd: 2.99,  name: 'Starter (International)' },
     'creator':     { coins: 100,  priceUsd: 5.99,  name: 'Creator (International)' },
     'studio':      { coins: 550,  priceUsd: 24.99, name: 'Studio (International)' },
     'pro-studio':  { coins: 1100, priceUsd: 49.99, name: 'Enterprise (International)' }
@@ -373,7 +373,7 @@ function inferPackageFromAmount(usd) {
     if (usd >= 45) return { coins: 1100, name: 'Enterprise (Fallback)' };
     if (usd >= 20) return { coins: 550,  name: 'Studio (Fallback)' };
     if (usd >= 4)  return { coins: 100,  name: 'Creator (Fallback)' };
-    return { coins: 20, name: 'Starter (Fallback)' };
+    return { coins: 30, name: 'Starter (Fallback)' };
 }
 
 // --- Firebase Admin REST helpers ---------------------------------------------

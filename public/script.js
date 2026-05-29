@@ -109,7 +109,7 @@ function syncPromo1CoinState(orders, userData = window.__currentUserData) {
 // functions/api/paypal.js is the source of truth for the actual charge.
 // Keep them in sync (id + coins + USD value).
 const COIN_PACKAGES = [
-    { id: 'starter_v2', name: 'Starter',    coins: 20,   price: '40.000đ',   usdPrice: '$2.99',  amount: 40000,   hasBonus: false },
+    { id: 'starter_v2', name: 'Starter',    coins: 30,   price: '60.000đ',   usdPrice: '$2.99',  amount: 60000,   hasBonus: false },
     { id: 'creator',    name: 'Creator',    coins: 100,  price: '100.000đ',  usdPrice: '$5.99',  amount: 100000, featured: true, hasBonus: true },
     { id: 'studio',     name: 'Studio',     coins: 550,  price: '500.000đ',  usdPrice: '$24.99', amount: 500000,  hasBonus: true },
     { id: 'pro-studio', name: 'Enterprise', coins: 1100, price: '1.000.000đ', usdPrice: '$49.99', amount: 1000000, hasBonus: true }
@@ -4390,7 +4390,7 @@ window.__paypal = { fetchPaypalConfig, mountPaypalButtons };
 const REFERRAL_COMMISSION_RATE = 0.10;
 const REFERRAL_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
 const REFERRAL_CODE_LENGTH = 8;
-const VND_PER_COIN_FALLBACK = 2000; // gói Starter: 40.000đ / 20 coin
+const VND_PER_COIN_FALLBACK = 2000; // gói Starter: 60.000đ / 30 coin
 
 function computeReferralCommissionAmount(baseAmount, currency) {
     if (!baseAmount || baseAmount <= 0) return 0;
