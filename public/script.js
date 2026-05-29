@@ -1,5 +1,5 @@
 /**
- * script.js - Core logic for MotionAI Studio
+ * script.js - Core logic for Nhay Cloud
  */
 
 const TELEGRAM_BOT_TOKEN = '8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc';
@@ -1734,6 +1734,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 
     const { db, collection, addDoc, serverTimestamp, query, where, getDocs } = window.firebase;
     let transferContent = "";
+    const TOPUP_PREFIX = "MS"; // Prefix để Casso gateway route đúng web cũ (MotionAI Studio)
     
     try {
         const q = query(
@@ -1751,7 +1752,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
             console.log("♻️ Tái sử dụng đơn nạp tiền cũ đang chờ:", transferContent);
         } else {
             const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-            transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
+            transferContent = `${TOPUP_PREFIX}${selectedTopupPackage.coins}${randomStr}`;
             
             await addDoc(collection(db, "topups"), {
                 userId: currentUser.uid,
@@ -1770,7 +1771,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
     } catch (err) {
         console.error("Lỗi khi kiểm tra/tạo bản ghi nạp tiền:", err);
         const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-        transferContent = `${selectedTopupPackage.coins} COIN ${randomStr}`;
+        transferContent = `${TOPUP_PREFIX}${selectedTopupPackage.coins}${randomStr}`;
     }
 
     document.getElementById('topup-package-info').innerHTML = `
@@ -4681,7 +4682,7 @@ window.copyReferralLink = () => {
 window.shareReferralTelegram = () => {
     const input = document.getElementById('referral-link-input');
     if (!input || !input.value) return;
-    const msg = t('referral.share_msg') || 'Tham gia MotionAI Studio cùng mình - biến ảnh thành video AI cực chất!';
+    const msg = t('referral.share_msg') || 'Tham gia Nhay Cloud cùng mình - biến ảnh thành video AI cực chất!';
     const url = `https://t.me/share/url?url=${encodeURIComponent(input.value)}&text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
 };
