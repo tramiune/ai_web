@@ -20,6 +20,90 @@ function safeToDate(field) {
     return new Date(field);
 }
 
+const PROMO_1_COIN_MAX_TOTAL = 3;
+const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
+
+function getLocalDayKey(date = new Date(), timeZone = PROMO_1_COIN_TIMEZONE) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    return `${y}-${m}-${d}`;
+}
+
+function isPromo1CoinOrder(order) {
+    return order?.promo1Coin === true || Number(order?.costCoins) === 1;
+}
+
+function computePromo1CoinStats(orders = [], userData = null) {
+    const promoOrders = (orders || []).filter(isPromo1CoinOrder);
+    const todayKey = getLocalDayKey();
+    const totalFromOrders = promoOrders.length;
+    const usedTodayFromOrders = promoOrders.some((o) => {
+        const created = safeToDate(o.createdAt);
+        return created && getLocalDayKey(created) === todayKey;
+    });
+    const totalFromUser = Number(userData?.promo1CoinCount) || 0;
+    const lastDayUser = userData?.promo1CoinLastDay || '';
+    const totalUsed = Math.max(totalFromOrders, totalFromUser);
+    const usedToday = usedTodayFromOrders || lastDayUser === todayKey;
+    const remainingTotal = Math.max(0, PROMO_1_COIN_MAX_TOTAL - totalUsed);
+    const eligible = remainingTotal > 0 && !usedToday;
+    return { eligible, totalUsed, usedToday, remainingTotal, todayKey };
+}
+
+function getPromo1CoinEligibilityFromUser(userData) {
+    const todayKey = getLocalDayKey();
+    const totalUsed = Number(userData?.promo1CoinCount) || 0;
+    const usedToday = (userData?.promo1CoinLastDay || '') === todayKey;
+    const remainingTotal = Math.max(0, PROMO_1_COIN_MAX_TOTAL - totalUsed);
+    return {
+        eligible: remainingTotal > 0 && !usedToday,
+        totalUsed,
+        usedToday,
+        remainingTotal,
+        todayKey
+    };
+}
+
+async function ensureUserPromoFieldsSynced(orders, userData) {
+    if (!currentUser || !window.firebase) return;
+    const promoOrders = (orders || []).filter(isPromo1CoinOrder);
+    const countFromOrders = promoOrders.length;
+    const countFromUser = Number(userData?.promo1CoinCount) || 0;
+    if (countFromOrders <= countFromUser) return;
+
+    let lastDay = userData?.promo1CoinLastDay || '';
+    promoOrders.forEach((o) => {
+        const created = safeToDate(o.createdAt);
+        if (!created) return;
+        const dayKey = getLocalDayKey(created);
+        if (!lastDay || dayKey > lastDay) lastDay = dayKey;
+    });
+
+    const { db, doc, updateDoc } = window.firebase;
+    try {
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+            promo1CoinCount: countFromOrders,
+            promo1CoinLastDay: lastDay,
+            updatedAt: window.firebase.serverTimestamp()
+        });
+    } catch (e) {
+        console.warn('[promo1coin] sync user fields failed:', e.message);
+    }
+}
+
+function syncPromo1CoinState(orders, userData = window.__currentUserData) {
+    promo1CoinStats = computePromo1CoinStats(orders, userData);
+    isFirstTimeUser = promo1CoinStats.eligible;
+    return promo1CoinStats;
+}
+
 // --- Data Constants ---
 // IMPORTANT: usdPrice here is for display only. Server-side `PACKAGES` in
 // functions/api/paypal.js is the source of truth for the actual charge.
@@ -168,7 +252,8 @@ async function getVideoDurationSeconds(file) {
 let currentUser = null;
 let selectedTopupPackage = null;
 let selectedPaymentMethod = 'vietqr';
-let isFirstTimeUser = false; // Flag for special offer (0 or 1 order)
+let isFirstTimeUser = false; // true when 1-coin promo is still available
+let promo1CoinStats = { eligible: false, totalUsed: 0, usedToday: false, remainingTotal: 0, todayKey: '' };
 let orderCount = 0; // Track total orders
 let initialCoinsBeforeTopup = 0; // Để theo dõi số dư trước khi nạp
 let referralEarningsUnsubscribe = null; // Cleanup handle for referralEarnings onSnapshot (legacy - giờ dùng FB_LISTENERS)
@@ -925,6 +1010,8 @@ async function handleUserLoggedIn(user) {
             email: user.email,
             photoURL: defaultPhoto,
             coins: 0,
+            promo1CoinCount: 0,
+            promo1CoinLastDay: '',
             role: isBootstrapSuperAdmin ? 'super-admin' : 'user', // Tự động gán role vào DB
             createdAt: window.firebase.serverTimestamp(),
             updatedAt: window.firebase.serverTimestamp()
@@ -951,7 +1038,13 @@ async function handleUserLoggedIn(user) {
     fbSub('userProfile', onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.data();
+            window.__currentUserData = data;
             const currentCoins = data.coins || 0;
+            if (FB_CACHE.myOrders) {
+                syncPromo1CoinState(FB_CACHE.myOrders, data);
+                ensureUserPromoFieldsSynced(FB_CACHE.myOrders, data);
+                updateFirstOrderUI();
+            }
 
             // [TỐI ƯU] KHÔNG còn log 'login' event ở đây nữa.
             // Listener này fire mỗi khi user.coins / role / v.v. thay đổi (nhiều lần),
@@ -1775,8 +1868,7 @@ function updateFirstOrderUI() {
         const checkedModel = document.querySelector('input[name="model-type"]:checked');
         const modelKey = checkedModel ? checkedModel.value : 'fast';
 
-        if (orderCount === 0) {
-            // First order: 1 Coin
+        if (promo1CoinStats.eligible) {
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
@@ -2072,10 +2164,14 @@ async function setupEventListeners() {
                     let model = { ...localizedModel(modelKey) };
                     if (modelIdOverride) model.modelId = modelIdOverride;
 
-                    // Apply First Order Offer: 1 Coin
-                    if (orderCount === 0) {
+                    const userData = userDoc.data();
+                    const promo = getPromo1CoinEligibilityFromUser(userData);
+                    if (promo.eligible) {
                         model.cost = 1;
-                        console.log("🎁 Áp dụng ưu đãi 1 Coin cho đơn hàng đầu tiên!");
+                        model.promo1Coin = true;
+                    } else if (model.cost === 1) {
+                        if (promo.usedToday) throw t('modals.promo1coin_daily_limit');
+                        if (promo.totalUsed >= PROMO_1_COIN_MAX_TOTAL) throw t('modals.promo1coin_max_reached');
                     }
 
                     if (userDoc.data().coins < model.cost) {
@@ -2124,14 +2220,33 @@ async function setupEventListeners() {
                             // 3. Finalize Transaction (Deduct coins and create order)
                             const orderId = await runTransaction(db, async (transaction) => {
                                 const userDoc = await transaction.get(userRef);
-                                const currentCoins = userDoc.data().coins;
+                                const userData = userDoc.data();
+                                const currentCoins = userData.coins;
+                                const todayKey = getLocalDayKey();
+                                const isPromoOrder = model.promo1Coin === true || model.cost === 1;
+
+                                if (isPromoOrder) {
+                                    const promo = getPromo1CoinEligibilityFromUser(userData);
+                                    if (!promo.eligible) {
+                                        if (promo.usedToday) throw t('modals.promo1coin_daily_limit');
+                                        throw t('modals.promo1coin_max_reached');
+                                    }
+                                    model.cost = 1;
+                                    model.promo1Coin = true;
+                                }
 
                                 const aspectRatioEl = document.querySelector('input[name="aspect-ratio"]:checked');
                                 const aspectRatio = aspectRatioEl ? aspectRatioEl.value : '16:9';
 
-                                if (model.cost > 0) {
-                                    transaction.update(userRef, { coins: currentCoins - model.cost });
+                                const userUpdate = {
+                                    coins: currentCoins - model.cost,
+                                    updatedAt: serverTimestamp()
+                                };
+                                if (model.promo1Coin) {
+                                    userUpdate.promo1CoinCount = (Number(userData.promo1CoinCount) || 0) + 1;
+                                    userUpdate.promo1CoinLastDay = todayKey;
                                 }
+                                transaction.update(userRef, userUpdate);
 
                                 const orderRef = doc(collection(db, "orders"));
                                 transaction.set(orderRef, {
@@ -2143,6 +2258,7 @@ async function setupEventListeners() {
                                     serviceType: serviceType,
                                     serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
                                     costCoins: model.cost,
+                                    promo1Coin: !!model.promo1Coin,
                                     characterImageLink: charUrl,
                                     referenceVideoLink: videoUrl,
                                     aspectRatio: aspectRatio,
@@ -2178,7 +2294,7 @@ async function setupEventListeners() {
 
                             // Update order state for immediate UI feedback
                             orderCount++;
-                            isFirstTimeUser = orderCount < 2;
+                            syncPromo1CoinState(FB_CACHE.myOrders || [], window.__currentUserData);
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
@@ -2203,7 +2319,14 @@ async function setupEventListeners() {
                             sendTelegramMessage(msg);
                         } catch (err) {
                             console.error("Order Creation Error:", err);
-                            showToast(t('common.error') + ": " + (err.message || err));
+                            const errMsg = err?.message || err;
+                            if (errMsg === t('modals.promo1coin_daily_limit') || errMsg === t('modals.promo1coin_max_reached')) {
+                                showToast(errMsg);
+                                syncPromo1CoinState(FB_CACHE.myOrders || [], window.__currentUserData);
+                                updateFirstOrderUI();
+                            } else {
+                                showToast(t('common.error') + ": " + errMsg);
+                            }
                         } finally {
                             submitBtn.disabled = false;
                             const mainText = submitBtn.querySelector('[data-i18n="hero.cta_create"]');
@@ -2226,6 +2349,10 @@ async function setupEventListeners() {
                             if (window.openPricingModal) window.openPricingModal();
                         }
                     });
+                } else if (error === t('modals.promo1coin_daily_limit') || error === t('modals.promo1coin_max_reached')) {
+                    showToast(error);
+                    syncPromo1CoinState(FB_CACHE.myOrders || [], window.__currentUserData);
+                    updateFirstOrderUI();
                 } else {
                     showToast(t('common.error') + ": " + error);
                 }
@@ -2294,9 +2421,10 @@ function loadMyOrders() {
         // Cache snapshot data
         FB_CACHE.myOrders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        isFirstTimeUser = snapshot.size === 0;
         orderCount = snapshot.size;
-        console.log("🔍 loadMyOrders: orderCount =", orderCount, "=> isFirstTimeUser =", isFirstTimeUser);
+        syncPromo1CoinState(FB_CACHE.myOrders, window.__currentUserData);
+        ensureUserPromoFieldsSynced(FB_CACHE.myOrders, window.__currentUserData);
+        console.log("🔍 loadMyOrders: orderCount =", orderCount, "promo1Coin =", promo1CoinStats);
         updateFirstOrderUI();
 
         renderMyOrders();
