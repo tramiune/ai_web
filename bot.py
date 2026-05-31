@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 from playwright.sync_api import sync_playwright
+from aidancing_api import AidancingApiClient
 
 # --- CONFIGURATION ---
 cred = credentials.Certificate("serviceAccountKey.json")
@@ -58,7 +59,7 @@ def _cdp_not_running_error(cdp_url):
         "  /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome \\\n"
         "    --remote-debugging-port=9222 --remote-allow-origins='*' \\\n"
         "    --user-data-dir=\"$HOME/.chrome-aidancing-bot\" \\\n"
-        "    --profile-directory=\"Profile 4\""
+        "    --profile-directory=\"Profile 14\""
     )
 
 def _ensure_pending_worker():
@@ -598,7 +599,114 @@ def send_completion_email(order_id, order_data, result_link):
     except Exception as e:
         print(f"❌ Lỗi kết nối khi gửi email thông báo qua EmailJS: {e}")
 
-# --- PHA 1: NẠP ĐƠN ---
+def use_api_mode():
+    return os.environ.get("BOT_MODE", "browser").strip().lower() == "api"
+
+def _complete_order_with_video(doc, local_vid):
+    """Upload R2 + cập nhật Firestore + thông báo."""
+    r2_url = upload_to_r2(local_vid)
+    if not r2_url:
+        return False
+    db.collection('orders').document(doc.id).update({
+        'status': 'completed',
+        'resultLink': r2_url,
+        'updatedAt': firestore.SERVER_TIMESTAMP
+    })
+    print(f"✅ ĐÃ TRẢ HÀNG CHO ĐƠN {doc.id}")
+    try:
+        order_data = doc.to_dict()
+        short_id = doc.id[-6:].upper()
+        user_name = order_data.get('userName', 'Khách hàng')
+        user_email = order_data.get('userEmail', 'N/A')
+        char_img = order_data.get('characterImageLink', '')
+        msg = (
+            f"✅ <b>ĐƠN HÀNG HOÀN THÀNH</b>\n\n"
+            f"🆔 Mã đơn: #{short_id}\n"
+            f"👤 Khách: {user_name}\n"
+            f"📧 Email: {user_email}\n"
+        )
+        if char_img:
+            msg += f"📸 Ảnh đầu vào: <a href=\"{char_img}\">Xem ảnh gốc</a>\n"
+        msg += f"📹 Kết quả: <a href=\"{r2_url}\">Xem video kết quả</a>"
+        send_telegram_message(msg)
+    except Exception as tele_err:
+        print(f"⚠️ Lỗi gửi thông báo Telegram hoàn thành: {tele_err}")
+    try:
+        send_completion_email(doc.id, doc.to_dict(), r2_url)
+    except Exception as mail_err:
+        print(f"⚠️ Không gửi được email thông báo: {mail_err}")
+    if os.path.exists(local_vid):
+        os.remove(local_vid)
+    return True
+
+def check_finished_orders_api():
+    """Monitor qua GET /api/proxy/jobs — không scrape dashboard."""
+    if not is_bot_enabled() or browser_lock.locked():
+        return
+    now = datetime.now(timezone.utc)
+    processing_orders = db.collection('orders').where(filter=FieldFilter("status", "==", "processing")).stream()
+    orders_to_check = []
+    for doc in processing_orders:
+        d = doc.to_dict()
+        job_id = d.get('aidancingJobId')
+        submitted_at = d.get('submittedAt')
+        if not job_id or job_id == "MANUAL":
+            continue
+        if submitted_at:
+            if (now - submitted_at).total_seconds() > 600:
+                orders_to_check.append(doc)
+        else:
+            orders_to_check.append(doc)
+    if not orders_to_check:
+        return
+
+    print(f"\n🔍 [MONITOR/API] Kiểm tra {len(orders_to_check)} đơn qua API...")
+    with browser_lock:
+        with sync_playwright() as p:
+            browser = launch_aidancing_browser(p)
+            api = AidancingApiClient(browser.context)
+            try:
+                for doc in orders_to_check:
+                    job_id = str(doc.to_dict().get('aidancingJobId'))
+                    print(f"🧐 API — Job {job_id}...")
+                    try:
+                        job = api.find_job(job_id)
+                    except Exception as e:
+                        print(f"⚠️ API lỗi job {job_id}: {e}")
+                        continue
+                    if not job:
+                        print(f"❌ Không thấy job {job_id} trong API (3 trang đầu)")
+                        continue
+                    status = (job.get('status') or '').upper()
+                    print(f"   status={status}, outputFileId={job.get('outputFileId')}")
+                    if status == 'COMPLETED' and job.get('outputFileId'):
+                        print(f"🎉 Job {job_id} HOÀN TẤT — tải file {job['outputFileId']}...")
+                        try:
+                            local_vid = api.download_file(job['outputFileId'], f"res_{doc.id}.mp4")
+                            _complete_order_with_video(doc, local_vid)
+                        except Exception as e:
+                            print(f"⚠️ Lỗi tải/hoàn đơn {doc.id}: {e}")
+                    elif status in ('FAILED', 'ERROR', 'CANCELLED'):
+                        print(f"❌ Job {job_id} thất bại trên aidancing ({status})")
+                        order_data = doc.to_dict()
+                        cost_coins = order_data.get('costCoins', 0)
+                        user_id = order_data.get('userId')
+                        if cost_coins > 0 and user_id:
+                            try:
+                                db.collection('users').document(user_id).update({'coins': firestore.Increment(cost_coins)})
+                            except Exception as e:
+                                print(f"⚠️ Hoàn coin lỗi: {e}")
+                        db.collection('orders').document(doc.id).update({
+                            'status': 'failed',
+                            'adminNote': f'Aidancing job {status}: {job.get("errorMessage") or ""}',
+                            'updatedAt': firestore.SERVER_TIMESTAMP
+                        })
+                    else:
+                        print(f"⏳ Job {job_id} vẫn {status}")
+            finally:
+                api.close()
+                browser.close()
+
 def submit_to_aidancing(order_id):
     if not is_bot_enabled():
         print(f"⏸️ [{BOT_NAME}] Bot TẮT — bỏ qua nạp đơn {order_id}")
@@ -663,6 +771,42 @@ def submit_to_aidancing(order_id):
                 print(f"⚠️ Lỗi gửi thông báo Telegram thất bại: {tele_err}")
             if char_path and os.path.exists(char_path): os.remove(char_path)
             if vid_path and os.path.exists(vid_path): os.remove(vid_path)
+            return
+
+        if use_api_mode():
+            with sync_playwright() as p:
+                browser = launch_aidancing_browser(p)
+                api = AidancingApiClient(browser.context)
+                try:
+                    model_id = data.get('modelId', '124')
+                    print(f"🚀 [API] Nạp đơn model {model_id}...")
+                    job_id = api.create_job(model_id, char_path, vid_path)
+                    print(f"🆔 [API] Job mới: {job_id}")
+                    doc_ref.update({'aidancingJobId': job_id, 'submittedAt': firestore.SERVER_TIMESTAMP})
+                    try:
+                        short_id = order_id[-6:].upper()
+                        msg = (
+                            f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
+                            f"🆔 Mã đơn: #{short_id}\n"
+                            f"🤖 Job ID aidancing: <code>{job_id}</code>\n"
+                            f"⏳ Đang render (API mode)..."
+                        )
+                        send_telegram_message(msg)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    print(f"❌ Lỗi nạp API: {e}")
+                    err = str(e)
+                    updates = {'adminNote': f"Bot nạp lỗi: {err}", 'updatedAt': firestore.SERVER_TIMESTAMP}
+                    if any(x in err for x in ('ECONNREFUSED', 'Chrome CDP chưa chạy', 'connect_over_cdp')):
+                        updates['status'] = 'pending'
+                        updates['adminNote'] = 'Chờ Chrome CDP (port 9222) — mở Chrome rồi bot tự thử lại'
+                    doc_ref.update(updates)
+                finally:
+                    api.close()
+                    browser.close()
+                    if char_path and os.path.exists(char_path): os.remove(char_path)
+                    if vid_path and os.path.exists(vid_path): os.remove(vid_path)
             return
 
         with sync_playwright() as p:
@@ -755,6 +899,12 @@ def submit_to_aidancing(order_id):
 
 # --- PHA 2: RÌNH KẾT QUẢ ---
 def check_finished_orders():
+    if use_api_mode():
+        try:
+            check_finished_orders_api()
+        except Exception as e:
+            print(f"❌ Lỗi monitor API: {e}")
+        return
     if not is_bot_enabled():
         return
     try:
@@ -976,13 +1126,17 @@ def start_bot():
     global BOT_NAME
     parser = argparse.ArgumentParser(description='MotionAI order bot — aidancing.net')
     parser.add_argument('--name', required=True, help='Tên bot duy nhất (vd: aidancing-vps1, bot-may-nha)')
+    parser.add_argument('--mode', choices=['browser', 'api'], default=None,
+                        help='browser=scrape dashboard (mặc định), api=gọi /api/proxy/jobs')
     args = parser.parse_args()
+    if args.mode:
+        os.environ['BOT_MODE'] = args.mode
     BOT_NAME = normalize_bot_name(args.name)
     if not BOT_NAME:
         print("❌ Tên bot không hợp lệ. Dùng: python bot.py --name aidancing-vps1")
         sys.exit(1)
 
-    print(f"📡 MotionAI BOT [{BOT_NAME}] (v3.3 - Admin on/off) đang khởi động...")
+    print(f"📡 MotionAI BOT [{BOT_NAME}] (v3.4 - mode={os.environ.get('BOT_MODE', 'browser')}) đang khởi động...")
     cdp_url = os.environ.get("BOT_CDP_URL", "").strip()
     if cdp_url:
         if ensure_cdp_available(cdp_url):
