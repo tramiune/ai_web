@@ -2,6 +2,7 @@ import time
 import os
 import sys
 import re
+import base64
 import argparse
 import socket
 import requests
@@ -32,10 +33,255 @@ def set_bot_enabled(value):
         bot_enabled = bool(value)
 
 # CREATE_URL đã được chuyển thành dynamic theo modelId trong đơn hàng
-DASHBOARD_URL = "https://aidancing.net/dashboard"
+AIDANCING_ORIGIN = "https://aidancing.net"
+DASHBOARD_URL = f"{AIDANCING_ORIGIN}/dashboard"
 WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
+BOT_CHROME_PROFILE = os.path.abspath(os.environ.get("BOT_CHROME_PROFILE", "bot_chrome_profile"))
 
 browser_lock = threading.Lock()
+_pending_order_queue = []
+_pending_queue_lock = threading.Lock()
+_pending_worker_started = False
+
+def ensure_cdp_available(cdp_url, timeout=3):
+    try:
+        url = cdp_url.rstrip("/") + "/json/version"
+        requests.get(url, timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+def _cdp_not_running_error(cdp_url):
+    return RuntimeError(
+        f"Chrome CDP chưa chạy tại {cdp_url}. "
+        "Mở Chrome ở terminal RIÊNG và GIỮ chạy (đừng Ctrl+C), rồi chạy bot:\n"
+        "  /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome \\\n"
+        "    --remote-debugging-port=9222 --remote-allow-origins='*' \\\n"
+        "    --user-data-dir=\"$HOME/.chrome-aidancing-bot\" \\\n"
+        "    --profile-directory=\"Profile 4\""
+    )
+
+def _ensure_pending_worker():
+    global _pending_worker_started
+    with _pending_queue_lock:
+        if _pending_worker_started:
+            return
+        _pending_worker_started = True
+        threading.Thread(target=_pending_order_worker, daemon=True).start()
+
+def _pending_order_worker():
+    while True:
+        order_id = None
+        with _pending_queue_lock:
+            if _pending_order_queue:
+                order_id = _pending_order_queue.pop(0)
+        if order_id:
+            submit_to_aidancing(order_id)
+        else:
+            time.sleep(0.5)
+
+AIDANCING_BLOCKED_MARKERS = (
+    "bảo trì", "bao tri", "maintenance", "under maintenance",
+    "scheduled maintenance", "hệ thống đang", "temporarily unavailable",
+    "service unavailable", "coming soon",
+)
+
+STEALTH_INIT_SCRIPT = """
+Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+window.chrome = window.chrome || { runtime: {}, loadTimes: function() {}, csi: function() {} };
+Object.defineProperty(navigator, 'languages', { get: () => ['vi-VN', 'vi', 'en-US', 'en'] });
+Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+const originalQuery = window.navigator.permissions.query;
+window.navigator.permissions.query = (parameters) =>
+  parameters.name === 'notifications'
+    ? Promise.resolve({ state: Notification.permission })
+    : originalQuery(parameters);
+"""
+
+class AidancingBrowserSession:
+    """Wrapper: CDP mode không đóng Chrome của user khi bot xong."""
+
+    def __init__(self, context, close_context_on_exit=True):
+        self.context = context
+        self.close_context_on_exit = close_context_on_exit
+        self._pages = []
+
+    def new_page(self):
+        page = self.context.new_page()
+        self._pages.append(page)
+        return page
+
+    def cookies(self, urls=None):
+        if urls:
+            return self.context.cookies(urls)
+        return self.context.cookies()
+
+    def clear_cookies(self):
+        self.context.clear_cookies()
+
+    def close(self):
+        for page in self._pages:
+            try:
+                page.close()
+            except Exception:
+                pass
+        self._pages.clear()
+        if self.close_context_on_exit:
+            try:
+                self.context.close()
+            except Exception:
+                pass
+
+def close_extra_aidancing_tabs(session, keep_page):
+    """Đóng tab aidancing phụ (do nút Tải mở target=_blank)."""
+    for p in list(session.context.pages):
+        if p == keep_page:
+            continue
+        try:
+            u = p.url or ''
+            if 'aidancing' in u or u.startswith('blob:') or 'proxy/files' in u:
+                p.close()
+        except Exception:
+            pass
+
+def _apply_stealth(context):
+    try:
+        context.add_init_script(STEALTH_INIT_SCRIPT)
+    except Exception as e:
+        print(f"⚠️ Không gắn stealth script: {e}")
+
+def _aidancing_chrome_args():
+    args = [
+        "--disable-blink-features=AutomationControlled",
+        "--no-first-run",
+        "--no-default-browser-check",
+    ]
+    if os.environ.get("BOT_CHROME_OFFSCREEN", "0") == "1":
+        args.append("--window-position=-2400,-2400")
+    return args
+
+def _chrome_profile_dir():
+    return os.path.abspath(os.environ.get("BOT_CHROME_PROFILE", BOT_CHROME_PROFILE))
+
+def launch_aidancing_browser(playwright):
+    cdp_url = os.environ.get("BOT_CDP_URL", "").strip()
+    if cdp_url:
+        if not ensure_cdp_available(cdp_url):
+            raise _cdp_not_running_error(cdp_url)
+        browser = playwright.chromium.connect_over_cdp(cdp_url)
+        context = browser.contexts[0] if browser.contexts else browser.new_context(
+            locale="vi-VN",
+            timezone_id="Asia/Ho_Chi_Minh",
+            viewport={"width": 1280, "height": 800},
+        )
+        _apply_stealth(context)
+        print(f"🔗 Nối Chrome qua CDP ({cdp_url}) — dùng Chrome thật, không đóng khi bot xong.")
+        return AidancingBrowserSession(context, close_context_on_exit=False)
+
+    profile_dir = _chrome_profile_dir()
+    kwargs = dict(
+        user_data_dir=profile_dir,
+        headless=False,
+        slow_mo=int(os.environ.get("BOT_SLOW_MO", "500")),
+        ignore_default_args=["--enable-automation"],
+        args=_aidancing_chrome_args(),
+        viewport={"width": 1280, "height": 800},
+        locale="vi-VN",
+        timezone_id="Asia/Ho_Chi_Minh",
+    )
+    try:
+        context = playwright.chromium.launch_persistent_context(channel="chrome", **kwargs)
+    except Exception as e:
+        print(f"⚠️ Không mở được Chrome ({e}), dùng Chromium bundled...")
+        context = playwright.chromium.launch_persistent_context(**kwargs)
+    _apply_stealth(context)
+    return AidancingBrowserSession(context, close_context_on_exit=True)
+
+def _aidancing_page_info(page):
+    try:
+        return f"{page.url} | {page.title()}"
+    except Exception:
+        return page.url
+
+def is_aidancing_blocked(page):
+    try:
+        url = (page.url or "").lower()
+        if any(x in url for x in ("maintenance", "maintain", "bao-tri")):
+            return True
+        combined = f"{page.title() or ''} {page.content()}".lower()
+        return any(marker in combined for marker in AIDANCING_BLOCKED_MARKERS)
+    except Exception:
+        return False
+
+def _raise_if_aidancing_blocked(page):
+    if not is_aidancing_blocked(page):
+        return
+    print(f"🚫 Aidancing chặn/trang bảo trì: {_aidancing_page_info(page)}")
+    raise RuntimeError(
+        "Aidancing hiển thị trang bảo trì hoặc chặn trình duyệt tự động. "
+        "Thường do profile Chrome BOT chưa có cookie đăng nhập (Chrome thường của bạn vẫn vào được vì đã login). "
+        "Cách xử lý: thoát hết Chrome (Cmd+Q), copy profile Default đã login sang ~/.chrome-aidancing-bot "
+        "(xem README hoặc hướng dẫn setup), mở Chrome CDP rồi BOT_CDP_URL=http://127.0.0.1:9222 python3 bot.py --name ..."
+    )
+
+def _aidancing_on_dashboard(page):
+    u = page.url.lower()
+    if "login" in u or "signin" in u or "sign-in" in u:
+        return False
+    if is_aidancing_blocked(page):
+        return False
+    return "dashboard" in u
+
+def goto_aidancing_dashboard(page, session, login_wait_sec=120):
+    """Mở dashboard; xử lý redirect loop (cookie hỏng) và chờ đăng nhập thủ công."""
+
+    def _goto(url):
+        page.goto(url, timeout=60000, wait_until="domcontentloaded")
+        print(f"📄 {_aidancing_page_info(page)}")
+        _raise_if_aidancing_blocked(page)
+
+    try:
+        _goto(DASHBOARD_URL)
+    except Exception as e:
+        err = str(e)
+        if "Aidancing hiển thị" in err:
+            raise
+        if "ERR_TOO_MANY_REDIRECTS" in err or "too many redirects" in err.lower():
+            print("⚠️ Redirect loop — xóa cookie profile bot và thử lại...")
+            try:
+                session.clear_cookies()
+            except Exception as ce:
+                print(f"   (không xóa được cookie: {ce})")
+            _goto(AIDANCING_ORIGIN)
+            page.wait_for_timeout(2000)
+            _goto(DASHBOARD_URL)
+        else:
+            raise
+
+    page.wait_for_timeout(2000)
+    if _aidancing_on_dashboard(page):
+        return
+
+    print(f"⚠️ Chưa vào Dashboard (URL: {page.url})")
+    print("👉 Đăng nhập aidancing.net trên cửa sổ Chrome BOT (thư mục bot_chrome_profile).")
+    print("   Chrome thường của bạn dùng profile khác — cần login 1 lần trên cửa sổ bot.")
+
+    deadline = time.time() + login_wait_sec
+    while time.time() < deadline:
+        page.wait_for_timeout(3000)
+        if _aidancing_on_dashboard(page):
+            print("✅ Đã vào Dashboard sau khi đăng nhập.")
+            return
+        try:
+            _goto(DASHBOARD_URL)
+        except Exception as e:
+            if "Aidancing hiển thị" in str(e):
+                raise
+
+    raise RuntimeError(
+        f"Không vào được Dashboard sau {login_wait_sec}s. "
+        f"Đăng nhập trên cửa sổ Chrome bot rồi chạy lại. URL: {page.url}"
+    )
 
 TELEGRAM_BOT_TOKEN = "8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc"
 TELEGRAM_CHAT_ID = "6067707939"
@@ -163,18 +409,134 @@ def alert_low_aidancing_balance(balance, extra=''):
     )
     send_telegram_message(msg)
 
-def download_file(url, filename, cookies=None):
-    print(f"📥 Tải file: {filename}...")
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        response = requests.get(url, headers=headers, cookies=cookies, timeout=60)
-        response.raise_for_status()
+def download_file(url, filename, cookies=None, referer=None, retries=2):
+    print(f"📥 Tải file (requests): {filename}...")
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': referer or f'{AIDANCING_ORIGIN}/dashboard',
+        'Origin': AIDANCING_ORIGIN,
+    }
+    last_err = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(url, headers=headers, cookies=cookies, timeout=120)
+            if response.status_code in (503, 502, 429) and attempt < retries:
+                wait = 5 * attempt
+                print(f"⚠️ HTTP {response.status_code} — thử lại {attempt}/{retries} sau {wait}s...")
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            with open(filename, 'wb') as f:
+                f.write(response.content)
+            return os.path.abspath(filename)
+        except Exception as e:
+            last_err = e
+            if attempt < retries:
+                time.sleep(3 * attempt)
+    print(f"❌ Lỗi tải file: {last_err}")
+    return None
+
+def download_aidancing_result(session, page, url, filename, download_locator=None):
+    """Tải video kết quả aidancing — không click mở tab (aidancing dùng target=_blank)."""
+    print(f"📥 Tải kết quả aidancing: {filename}...")
+    if not url.startswith('http'):
+        url = AIDANCING_ORIGIN + url
+
+    def save_bytes(data):
         with open(filename, 'wb') as f:
-            f.write(response.content)
+            f.write(data)
         return os.path.abspath(filename)
-    except Exception as e:
-        print(f"❌ Lỗi tải file: {e}")
+
+    def session_get(target_url, label):
+        try:
+            resp = session.context.request.get(
+                target_url,
+                headers={'Referer': DASHBOARD_URL, 'Origin': AIDANCING_ORIGIN},
+                timeout=120000,
+            )
+            if resp.ok:
+                save_bytes(resp.body())
+                print(f"✅ {label}")
+                return os.path.abspath(filename)
+            print(f"⚠️ {label} — HTTP {resp.status}")
+        except Exception as e:
+            print(f"⚠️ {label} — {e}")
         return None
+
+    # 1) Tải thẳng URL proxy/API — không click (tránh mở tab mới)
+    result = session_get(url, "Tải direct URL (session cookie)")
+    if result:
+        return result
+
+    # 2) fetch() ngay trên dashboard (credentials: include)
+    try:
+        data = page.evaluate('''async (videoUrl) => {
+            const r = await fetch(videoUrl, { credentials: 'include' });
+            if (!r.ok) return { ok: false, status: r.status };
+            const buf = await r.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let binary = '';
+            const chunk = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunk) {
+                binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+            }
+            return { ok: true, b64: btoa(binary) };
+        }''', url)
+        if data and data.get('ok') and data.get('b64'):
+            save_bytes(base64.b64decode(data['b64']))
+            print("✅ Tải qua fetch in-page")
+            return os.path.abspath(filename)
+        if data:
+            print(f"⚠️ In-page fetch HTTP {data.get('status')}")
+    except Exception as e:
+        print(f"⚠️ In-page fetch lỗi: {e}")
+
+    # 3) Nút Tải mở tab video mới (target=_blank) — bắt tab, lấy src, đóng tab
+    if download_locator is not None and download_locator.count() > 0:
+        new_page = None
+        try:
+            print("🖱️ Nút Tải mở tab mới — bắt tab video...")
+            with session.context.expect_page(timeout=30000) as page_info:
+                download_locator.click()
+            new_page = page_info.value
+            new_page.wait_for_load_state('domcontentloaded', timeout=30000)
+            new_page.wait_for_timeout(1500)
+            video_url = new_page.evaluate('''() => {
+                const v = document.querySelector('video');
+                if (v) {
+                    const s = v.querySelector('source');
+                    const src = (s && s.src) || v.src || v.currentSrc || '';
+                    if (src) return src;
+                }
+                return location.href;
+            }''')
+            if video_url and not video_url.startswith('http'):
+                video_url = AIDANCING_ORIGIN + video_url
+            if video_url:
+                print(f"🔗 URL tab video: {video_url[:100]}...")
+                result = session_get(video_url, "Tải từ tab video")
+                if result:
+                    return result
+                result = session_get(url, "Tải lại URL gốc sau tab")
+                if result:
+                    return result
+        except Exception as e:
+            print(f"⚠️ Xử lý tab video: {e}")
+        finally:
+            if new_page:
+                try:
+                    new_page.close()
+                except Exception:
+                    pass
+            close_extra_aidancing_tabs(session, page)
+
+    # 4) Fallback requests + cookie
+    try:
+        cookie_list = session.cookies(urls=[AIDANCING_ORIGIN, f"{AIDANCING_ORIGIN}/"])
+        jar = {c['name']: c['value'] for c in cookie_list}
+    except Exception:
+        jar = {c['name']: c['value'] for c in session.cookies()}
+    return download_file(url, filename, cookies=jar, referer=DASHBOARD_URL, retries=3)
 
 def upload_to_r2(file_path, folder="results"):
     print(f"📤 Đang upload lên R2...")
@@ -304,19 +666,12 @@ def submit_to_aidancing(order_id):
             return
 
         with sync_playwright() as p:
-            browser = p.chromium.launch_persistent_context(
-                user_data_dir=os.path.abspath("bot_chrome_profile"),
-                channel="chrome", headless=False, slow_mo=500,
-                ignore_default_args=["--enable-automation"],
-                args=["--disable-blink-features=AutomationControlled",
-                      "--window-position=-2400,-2400"]
-            )
+            browser = launch_aidancing_browser(p)
             page = browser.new_page()
             try:
                 # [FIX]: Lấy danh sách Job cũ trước để tránh lấy nhầm
                 print("🌐 Đang kiểm tra danh sách Job cũ trên Dashboard...")
-                page.goto(DASHBOARD_URL, timeout=60000)
-                page.wait_for_timeout(3000)
+                goto_aidancing_dashboard(page, browser)
 
                 balance = scrape_aidancing_balance(page)
                 if balance is not None:
@@ -337,7 +692,7 @@ def submit_to_aidancing(order_id):
 
                 # Default ("model thường"): Aidancing model id 124
                 model_id = data.get('modelId', '124')
-                create_url = f"https://aidancing.net/create/general?id={model_id}"
+                create_url = f"{AIDANCING_ORIGIN}/create/general?id={model_id}"
                 print(f"🌐 Vào trang tạo: {create_url}")
                 page.goto(create_url, timeout=90000)
                 page.set_input_files('input[name="image"]', char_path)
@@ -387,7 +742,12 @@ def submit_to_aidancing(order_id):
 
             except Exception as e:
                 print(f"❌ Lỗi nạp: {e}")
-                doc_ref.update({'adminNote': f"Bot nạp lỗi: {str(e)}"})
+                err = str(e)
+                updates = {'adminNote': f"Bot nạp lỗi: {err}", 'updatedAt': firestore.SERVER_TIMESTAMP}
+                if any(x in err for x in ('ECONNREFUSED', 'Chrome CDP chưa chạy', 'connect_over_cdp')):
+                    updates['status'] = 'pending'
+                    updates['adminNote'] = 'Chờ Chrome CDP (port 9222) — mở Chrome rồi bot tự thử lại'
+                doc_ref.update(updates)
             finally:
                 browser.close()
                 if os.path.exists(char_path): os.remove(char_path)
@@ -424,24 +784,17 @@ def check_finished_orders():
         print(f"\n🔍 [MONITOR] Đang rình kết quả cho {len(orders_to_check)} đơn đủ 10p...")
         with browser_lock:
             with sync_playwright() as p:
-                browser = p.chromium.launch_persistent_context(
-                    user_data_dir=os.path.abspath("bot_chrome_profile"),
-                    headless=False,
-                    ignore_default_args=["--enable-automation"],
-                    args=["--disable-blink-features=AutomationControlled",
-                          "--window-position=-2400,-2400"]
-                )
+                browser = launch_aidancing_browser(p)
                 page = browser.new_page()
-                page.goto(DASHBOARD_URL, timeout=60000)
-                print(f"🌐 Đang ở: {page.url}")
-                time.sleep(10)
-
-                # Nếu bị đá ra trang chủ/login thì dừng để bạn đăng nhập
-                if "dashboard" not in page.url:
-                    print(f"⚠️ Bot chưa đăng nhập! Bạn hãy đăng nhập trên cửa sổ Chrome đang mở này, sau đó chạy lại bot.")
-                    time.sleep(60) # Để trình duyệt mở trong 1 phút cho bạn nhìn
+                try:
+                    goto_aidancing_dashboard(page, browser)
+                except RuntimeError as e:
+                    print(f"⚠️ {e}")
+                    time.sleep(60)
                     browser.close()
                     return
+                print(f"🌐 Đang ở: {page.url}")
+                time.sleep(10)
 
                 for doc in orders_to_check:
                     job_id = str(doc.to_dict().get('aidancingJobId'))
@@ -477,16 +830,16 @@ def check_finished_orders():
                             # ... (giữ nguyên logic xử lý thành công)
                             try:
                                 # Bước 1: Thử lấy link trực tiếp từ nút Tải TRONG CARD NÀY
-                                download_link = card.locator('a[href*="download"], a:has-text("Tải"), a:has-text("Download")').first
                                 ext_url = None
-                                if download_link.count() > 0 and download_link.is_visible():
-                                    ext_url = download_link.get_attribute('href', timeout=3000)
+                                video_element = card.locator('video source, video[src]').first
+                                if video_element.count() > 0 and video_element.is_visible():
+                                    ext_url = video_element.get_attribute('src') or video_element.get_attribute('currentSrc')
 
-                                # Bước 2 (MỚI): Thử tìm thẻ video NGAY TRONG CARD NÀY (Không quét toàn trang)
-                                if not ext_url:
-                                    video_element = card.locator('video source, video[src]').first
-                                    if video_element.count() > 0 and video_element.is_visible():
-                                        ext_url = video_element.get_attribute('src')
+                                download_link = card.locator(
+                                    'a[href*="proxy/files"], a[href*="download"], a:has-text("Tải"), a:has-text("Download")'
+                                ).first
+                                if not ext_url and download_link.count() > 0 and download_link.is_visible():
+                                    ext_url = download_link.get_attribute('href', timeout=3000)
 
                                 # Bước 3 (Dự phòng): Click vào card để vào trang chi tiết lấy video
                                 if not ext_url:
@@ -508,12 +861,13 @@ def check_finished_orders():
 
                                 # Bước 3: Tải file nếu đã có link (kèm cookies)
                                 if ext_url:
-                                    if not ext_url.startswith('http'): ext_url = "https://aidancing.net" + ext_url
+                                    if not ext_url.startswith('http'):
+                                        ext_url = AIDANCING_ORIGIN + ext_url
 
-                                    # Lấy cookies từ trình duyệt để vượt qua lỗi 401
-                                    browser_cookies = {c['name']: c['value'] for c in browser.cookies()}
-
-                                    local_vid = download_file(ext_url, f"res_{doc.id}.mp4", cookies=browser_cookies)
+                                    dl_btn = download_link if (download_link.count() > 0 and ext_url) else None
+                                    local_vid = download_aidancing_result(
+                                        browser, page, ext_url, f"res_{doc.id}.mp4", download_locator=dl_btn
+                                    )
                                     if local_vid:
                                         r2_url = upload_to_r2(local_vid)
                                         if r2_url:
@@ -554,8 +908,14 @@ def check_finished_orders():
                                             os.remove(local_vid)
                             except Exception as e:
                                 print(f"⚠️ Lỗi xử lý Job {job_id}: {e}")
+                            finally:
+                                close_extra_aidancing_tabs(browser, page)
                                 if page.url != DASHBOARD_URL:
-                                    page.goto(DASHBOARD_URL)
+                                    try:
+                                        page.goto(DASHBOARD_URL, wait_until='domcontentloaded', timeout=60000)
+                                        time.sleep(2)
+                                    except Exception:
+                                        pass
                         elif any(x in text for x in ["Chưa thành công", "Thất bại", "Failed", "Error"]):
                             print(f"❌ Job {job_id} THẤT BẠI TRÊN AIDANCING!")
                             order_data = doc.to_dict()
@@ -603,9 +963,14 @@ def check_finished_orders():
 def on_pending_orders_snapshot(keys, changes, read_time):
     if not is_bot_enabled():
         return
-    for ch in changes:
-        if ch.type.name in ['ADDED', 'MODIFIED']:
-            threading.Thread(target=submit_to_aidancing, args=(ch.document.id,), daemon=True).start()
+    _ensure_pending_worker()
+    with _pending_queue_lock:
+        for ch in changes:
+            if ch.type.name in ['ADDED', 'MODIFIED']:
+                oid = ch.document.id
+                if oid not in _pending_order_queue:
+                    _pending_order_queue.append(oid)
+                    print(f"📋 Xếp hàng nạp đơn: {oid} (còn {len(_pending_order_queue)} trong queue)")
 
 def start_bot():
     global BOT_NAME
@@ -618,6 +983,13 @@ def start_bot():
         sys.exit(1)
 
     print(f"📡 MotionAI BOT [{BOT_NAME}] (v3.3 - Admin on/off) đang khởi động...")
+    cdp_url = os.environ.get("BOT_CDP_URL", "").strip()
+    if cdp_url:
+        if ensure_cdp_available(cdp_url):
+            print(f"✅ Chrome CDP sẵn sàng: {cdp_url}")
+        else:
+            print(f"⚠️  BOT_CDP_URL={cdp_url} nhưng Chrome chưa mở port 9222!")
+            print("    → Mở Chrome CDP ở terminal KHÁC trước, giữ chạy, rồi bot mới nối được.")
     start_bot_control_listener()
 
     def monitor_loop():
