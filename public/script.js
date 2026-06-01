@@ -1732,7 +1732,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
         items: [{ item_id: selectedTopupPackage.id, item_name: selectedTopupPackage.name }]
     });
 
-    const { db, collection, addDoc, serverTimestamp, query, where, getDocs } = window.firebase;
+    const { db, collection, addDoc, updateDoc, serverTimestamp, query, where, getDocs } = window.firebase;
     let transferContent = "";
     const TOPUP_PREFIX = "MS"; // Prefix để Casso gateway route đúng web cũ (MotionAI Studio)
     
@@ -1747,9 +1747,25 @@ window.selectTopup = async (id, method = 'vietqr') => {
         const snapshot = await getDocs(q);
         
         if (!snapshot.empty) {
+            const existingRef = snapshot.docs[0].ref;
             const existingDoc = snapshot.docs[0].data();
-            transferContent = existingDoc.transferContent;
-            console.log("♻️ Tái sử dụng đơn nạp tiền cũ đang chờ:", transferContent);
+            const staleCoins = Number(existingDoc.coins) !== Number(selectedTopupPackage.coins);
+            const staleAmount = Number(existingDoc.amount) !== Number(selectedTopupPackage.amount);
+
+            if (staleCoins || staleAmount) {
+                const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+                transferContent = `${TOPUP_PREFIX}${selectedTopupPackage.coins}${randomStr}`;
+                await updateDoc(existingRef, {
+                    coins: selectedTopupPackage.coins,
+                    amount: selectedTopupPackage.amount,
+                    transferContent,
+                    updatedAt: serverTimestamp()
+                });
+                console.log("♻️ Cập nhật đơn pending (gói đổi coin/giá):", transferContent, selectedTopupPackage.coins, "coin");
+            } else {
+                transferContent = existingDoc.transferContent;
+                console.log("♻️ Tái sử dụng đơn nạp tiền cũ đang chờ:", transferContent);
+            }
         } else {
             const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
             transferContent = `${TOPUP_PREFIX}${selectedTopupPackage.coins}${randomStr}`;
