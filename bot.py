@@ -20,7 +20,7 @@ cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# Tên bot: bắt buộc khi chạy — python bot.py --name aidancing-vps1
+# T?n bot: b?t bu?c khi ch?y ? python bot.py --name aidancing-vps1
 BOT_NAME = None
 bot_enabled = False
 bot_enabled_lock = threading.Lock()
@@ -34,7 +34,7 @@ def set_bot_enabled(value):
     with bot_enabled_lock:
         bot_enabled = bool(value)
 
-# CREATE_URL đã được chuyển thành dynamic theo modelId trong đơn hàng
+# CREATE_URL ?? ???c chuy?n th?nh dynamic theo modelId trong ??n h?ng
 AIDANCING_ORIGIN = "https://aidancing.net"
 DASHBOARD_URL = f"{AIDANCING_ORIGIN}/dashboard"
 WORKER_URL = "https://motionai-upload-api.traderfinn0312.workers.dev"
@@ -50,6 +50,32 @@ MIN_RENDER_SEC = int(os.environ.get("BOT_MIN_RENDER_SEC", "600"))
 _processing_cache = {}
 _processing_cache_lock = threading.Lock()
 HEARTBEAT_SEC = int(os.environ.get("BOT_HEARTBEAT_SEC", "60"))
+
+
+def _pop_processing_cache(order_id):
+    with _processing_cache_lock:
+        _processing_cache.pop(order_id, None)
+
+
+def _order_already_completed(order_id):
+    """Re-fetch Firestore ? tr?nh ho?n ??n / spam Telegram l?p."""
+    try:
+        snap = db.collection('orders').document(order_id).get()
+        if not snap.exists:
+            return True
+        d = snap.to_dict() or {}
+        return d.get('status') == 'completed' or bool(d.get('resultLink'))
+    except Exception as e:
+        print(f"?? Kh?ng ??c ???c ??n {order_id}: {e}")
+        return False
+
+
+def _skip_if_order_done(order_id, reason):
+    if _order_already_completed(order_id):
+        print(f"?? B? qua ??n {order_id} ? {reason}")
+        _pop_processing_cache(order_id)
+        return True
+    return False
 
 
 _http_client = None
@@ -88,7 +114,7 @@ def _playwright_worker_loop():
 
 
 def run_playwright(fn, *args, **kwargs):
-    """Playwright sync API chỉ chạy trên 1 thread — gọi hàm này từ thread khác."""
+    """Playwright sync API ch? ch?y tr?n 1 thread ? g?i h?m n?y t? thread kh?c."""
     if _pw_worker_tid == threading.get_ident():
         return fn(*args, **kwargs)
     _ensure_playwright_worker()
@@ -125,22 +151,24 @@ def _http_poll_orders(orders_to_check):
     jobs_map = api.find_jobs_by_ids(job_ids)
     for doc in orders_to_check:
         job_id = str(doc.to_dict().get('aidancingJobId'))
-        print(f"🧐 API — Job {job_id}...")
+        print(f"?? API ? Job {job_id}...")
         job = jobs_map.get(int(job_id))
         if not job:
-            print(f"❌ Không thấy job {job_id} trong API (3 trang đầu)")
+            print(f"? Kh?ng th?y job {job_id} trong API (3 trang ??u)")
             continue
         status = (job.get('status') or '').upper()
         print(f"   status={status}, outputFileId={job.get('outputFileId')}")
         if status == 'COMPLETED' and job.get('outputFileId'):
-            print(f"🎉 Job {job_id} HOÀN TẤT — tải file {job['outputFileId']}...")
+            if _skip_if_order_done(doc.id, "?? completed tr?n Firestore"):
+                continue
+            print(f"?? Job {job_id} HO?N T?T ? t?i file {job['outputFileId']}...")
             try:
                 local_vid = api.download_file(job['outputFileId'], f"res_{doc.id}.mp4")
                 _complete_order_with_video(doc, local_vid)
             except Exception as e:
-                print(f"⚠️ Lỗi tải/hoàn đơn {doc.id}: {e}")
+                print(f"?? L?i t?i/ho?n ??n {doc.id}: {e}")
         elif status in ('FAILED', 'ERROR', 'CANCELLED'):
-            print(f"❌ Job {job_id} thất bại trên aidancing ({status})")
+            print(f"? Job {job_id} th?t b?i tr?n aidancing ({status})")
             order_data = doc.to_dict()
             err_detail = f'Aidancing job {job_id} {status}: {job.get("errorMessage") or ""}'
             notify_internal_error_telegram(doc.id, order_data, err_detail, 'render aidancing')
@@ -150,25 +178,35 @@ def _http_poll_orders(orders_to_check):
                 try:
                     db.collection('users').document(user_id).update({'coins': firestore.Increment(cost_coins)})
                 except Exception as e:
-                    print(f"⚠️ Hoàn coin lỗi: {e}")
+                    print(f"?? Ho?n coin l?i: {e}")
             db.collection('orders').document(doc.id).update({
                 'status': 'failed',
                 'adminNote': firestore.DELETE_FIELD,
-                'systemNote': 'Đơn hàng xử lý không thành công, hệ thống đã hoàn lại coin.',
+                'systemNote': '??n h?ng x? l? kh?ng th?nh c?ng, h? th?ng ?? ho?n l?i coin.',
                 'updatedAt': firestore.SERVER_TIMESTAMP
             })
+            _pop_processing_cache(doc.id)
         else:
-            print(f"⏳ Job {job_id} vẫn {status}")
+            print(f"? Job {job_id} v?n {status}")
 
 
 def _processing_monitor_state():
-    """Đọc từ RAM — không query Firestore mỗi lần poll."""
+    """??c t? RAM ? kh?ng query Firestore m?i l?n poll."""
     now = datetime.now(timezone.utc)
     eligible = []
     with _processing_cache_lock:
+        stale_ids = []
+        for oid, doc in _processing_cache.items():
+            d = doc.to_dict() or {}
+            if d.get('status') != 'processing':
+                stale_ids.append(oid)
+        for oid in stale_ids:
+            _processing_cache.pop(oid, None)
         processing_count = len(_processing_cache)
         for doc in _processing_cache.values():
             d = doc.to_dict() or {}
+            if d.get('status') != 'processing':
+                continue
             job_id = d.get('aidancingJobId')
             submitted_at = d.get('submittedAt')
             if not job_id or job_id == "MANUAL":
@@ -182,7 +220,7 @@ def _processing_monitor_state():
 
 
 def on_processing_orders_snapshot(keys, changes, read_time):
-    """Listener: chỉ read Firestore khi đơn vào/ra khỏi processing (không poll lặp)."""
+    """Listener: ch? read Firestore khi ??n v?o/ra kh?i processing (kh?ng poll l?p)."""
     with _processing_cache_lock:
         for ch in changes:
             doc = ch.document
@@ -201,11 +239,11 @@ def start_processing_listener():
     db.collection('orders').where(
         filter=FieldFilter("status", "==", "processing")
     ).on_snapshot(on_processing_orders_snapshot)
-    print("👂 Listener processing orders — cache RAM, không query Firestore mỗi lần poll")
+    print("?? Listener processing orders ? cache RAM, kh?ng query Firestore m?i l?n poll")
 
 
 def _monitor_sleep_seconds(eligible_count, processing_count):
-    """Không có webhook aidancing — chỉ poll; interval dài khi không có việc."""
+    """Kh?ng c? webhook aidancing ? ch? poll; interval d?i khi kh?ng c? vi?c."""
     idle = int(os.environ.get("BOT_POLL_IDLE_SEC", "300"))
     wait_render = int(os.environ.get("BOT_POLL_WAIT_RENDER_SEC", "120"))
     active = int(os.environ.get("BOT_POLL_ACTIVE_SEC", "90"))
@@ -226,8 +264,8 @@ def ensure_cdp_available(cdp_url, timeout=3):
 
 def _cdp_not_running_error(cdp_url):
     return RuntimeError(
-        f"Chrome CDP chưa chạy tại {cdp_url}. "
-        "Mở Chrome ở terminal RIÊNG và GIỮ chạy (đừng Ctrl+C), rồi chạy bot:\n"
+        f"Chrome CDP ch?a ch?y t?i {cdp_url}. "
+        "M? Chrome ? terminal RI?NG v? GI? ch?y (??ng Ctrl+C), r?i ch?y bot:\n"
         "  /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome \\\n"
         "    --remote-debugging-port=9222 --remote-allow-origins='*' \\\n"
         "    --user-data-dir=\"$HOME/.chrome-aidancing-motionai\" \\\n"
@@ -254,8 +292,8 @@ def _pending_order_worker():
             time.sleep(0.5)
 
 AIDANCING_BLOCKED_MARKERS = (
-    "bảo trì", "bao tri", "maintenance", "under maintenance",
-    "scheduled maintenance", "hệ thống đang", "temporarily unavailable",
+    "b?o tr?", "bao tri", "maintenance", "under maintenance",
+    "scheduled maintenance", "h? th?ng ?ang", "temporarily unavailable",
     "service unavailable", "coming soon",
 )
 
@@ -272,7 +310,7 @@ window.navigator.permissions.query = (parameters) =>
 """
 
 class AidancingBrowserSession:
-    """Wrapper: CDP mode không đóng Chrome của user khi bot xong."""
+    """Wrapper: CDP mode kh?ng ??ng Chrome c?a user khi bot xong."""
 
     def __init__(self, context, close_context_on_exit=True):
         self.context = context
@@ -306,7 +344,7 @@ class AidancingBrowserSession:
                 pass
 
 def close_extra_aidancing_tabs(session, keep_page):
-    """Đóng tab aidancing phụ (do nút Tải mở target=_blank)."""
+    """??ng tab aidancing ph? (do n?t T?i m? target=_blank)."""
     for p in list(session.context.pages):
         if p == keep_page:
             continue
@@ -321,7 +359,7 @@ def _apply_stealth(context):
     try:
         context.add_init_script(STEALTH_INIT_SCRIPT)
     except Exception as e:
-        print(f"⚠️ Không gắn stealth script: {e}")
+        print(f"?? Kh?ng g?n stealth script: {e}")
 
 def _aidancing_chrome_args():
     args = [
@@ -348,7 +386,7 @@ def launch_aidancing_browser(playwright):
             viewport={"width": 1280, "height": 800},
         )
         _apply_stealth(context)
-        print(f"🔗 Nối Chrome qua CDP ({cdp_url}) — dùng Chrome thật, không đóng khi bot xong.")
+        print(f"?? N?i Chrome qua CDP ({cdp_url}) ? d?ng Chrome th?t, kh?ng ??ng khi bot xong.")
         return AidancingBrowserSession(context, close_context_on_exit=False)
 
     profile_dir = _chrome_profile_dir()
@@ -365,7 +403,7 @@ def launch_aidancing_browser(playwright):
     try:
         context = playwright.chromium.launch_persistent_context(channel="chrome", **kwargs)
     except Exception as e:
-        print(f"⚠️ Không mở được Chrome ({e}), dùng Chromium bundled...")
+        print(f"?? Kh?ng m? ???c Chrome ({e}), d?ng Chromium bundled...")
         context = playwright.chromium.launch_persistent_context(**kwargs)
     _apply_stealth(context)
     return AidancingBrowserSession(context, close_context_on_exit=True)
@@ -389,12 +427,12 @@ def is_aidancing_blocked(page):
 def _raise_if_aidancing_blocked(page):
     if not is_aidancing_blocked(page):
         return
-    print(f"🚫 Aidancing chặn/trang bảo trì: {_aidancing_page_info(page)}")
+    print(f"?? Aidancing ch?n/trang b?o tr?: {_aidancing_page_info(page)}")
     raise RuntimeError(
-        "Aidancing hiển thị trang bảo trì hoặc chặn trình duyệt tự động. "
-        "Thường do profile Chrome BOT chưa có cookie đăng nhập (Chrome thường của bạn vẫn vào được vì đã login). "
-        "Cách xử lý: thoát hết Chrome (Cmd+Q), copy profile Default đã login sang ~/.chrome-aidancing-bot "
-        "(xem README hoặc hướng dẫn setup), mở Chrome CDP rồi BOT_CDP_URL=http://127.0.0.1:9222 python3 bot.py --name mac --mode api"
+        "Aidancing hi?n th? trang b?o tr? ho?c ch?n tr?nh duy?t t? ??ng. "
+        "Th??ng do profile Chrome BOT ch?a c? cookie ??ng nh?p (Chrome th??ng c?a b?n v?n v?o ???c v? ?? login). "
+        "C?ch x? l?: tho?t h?t Chrome (Cmd+Q), copy profile Default ?? login sang ~/.chrome-aidancing-bot "
+        "(xem README ho?c h??ng d?n setup), m? Chrome CDP r?i BOT_CDP_URL=http://127.0.0.1:9222 python3 bot.py --name mac --mode api"
     )
 
 def _aidancing_on_dashboard(page):
@@ -406,25 +444,25 @@ def _aidancing_on_dashboard(page):
     return "dashboard" in u
 
 def goto_aidancing_dashboard(page, session, login_wait_sec=120):
-    """Mở dashboard; xử lý redirect loop (cookie hỏng) và chờ đăng nhập thủ công."""
+    """M? dashboard; x? l? redirect loop (cookie h?ng) v? ch? ??ng nh?p th? c?ng."""
 
     def _goto(url):
         page.goto(url, timeout=60000, wait_until="domcontentloaded")
-        print(f"📄 {_aidancing_page_info(page)}")
+        print(f"?? {_aidancing_page_info(page)}")
         _raise_if_aidancing_blocked(page)
 
     try:
         _goto(DASHBOARD_URL)
     except Exception as e:
         err = str(e)
-        if "Aidancing hiển thị" in err:
+        if "Aidancing hi?n th?" in err:
             raise
         if "ERR_TOO_MANY_REDIRECTS" in err or "too many redirects" in err.lower():
-            print("⚠️ Redirect loop — xóa cookie profile bot và thử lại...")
+            print("?? Redirect loop ? x?a cookie profile bot v? th? l?i...")
             try:
                 session.clear_cookies()
             except Exception as ce:
-                print(f"   (không xóa được cookie: {ce})")
+                print(f"   (kh?ng x?a ???c cookie: {ce})")
             _goto(AIDANCING_ORIGIN)
             page.wait_for_timeout(2000)
             _goto(DASHBOARD_URL)
@@ -435,25 +473,25 @@ def goto_aidancing_dashboard(page, session, login_wait_sec=120):
     if _aidancing_on_dashboard(page):
         return
 
-    print(f"⚠️ Chưa vào Dashboard (URL: {page.url})")
-    print("👉 Đăng nhập aidancing.net trên cửa sổ Chrome BOT (thư mục bot_chrome_profile).")
-    print("   Chrome thường của bạn dùng profile khác — cần login 1 lần trên cửa sổ bot.")
+    print(f"?? Ch?a v?o Dashboard (URL: {page.url})")
+    print("?? ??ng nh?p aidancing.net tr?n c?a s? Chrome BOT (th? m?c bot_chrome_profile).")
+    print("   Chrome th??ng c?a b?n d?ng profile kh?c ? c?n login 1 l?n tr?n c?a s? bot.")
 
     deadline = time.time() + login_wait_sec
     while time.time() < deadline:
         page.wait_for_timeout(3000)
         if _aidancing_on_dashboard(page):
-            print("✅ Đã vào Dashboard sau khi đăng nhập.")
+            print("? ?? v?o Dashboard sau khi ??ng nh?p.")
             return
         try:
             _goto(DASHBOARD_URL)
         except Exception as e:
-            if "Aidancing hiển thị" in str(e):
+            if "Aidancing hi?n th?" in str(e):
                 raise
 
     raise RuntimeError(
-        f"Không vào được Dashboard sau {login_wait_sec}s. "
-        f"Đăng nhập trên cửa sổ Chrome bot rồi chạy lại. URL: {page.url}"
+        f"Kh?ng v?o ???c Dashboard sau {login_wait_sec}s. "
+        f"??ng nh?p tr?n c?a s? Chrome bot r?i ch?y l?i. URL: {page.url}"
     )
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc")
@@ -480,7 +518,7 @@ def ensure_bot_registered():
             'lastSeenAt': now,
             'startedAt': now,
         })
-        print(f"🆕 Bot mới đăng ký trên Firestore: {BOT_NAME} (mặc định TẮT — bật trên Admin)")
+        print(f"?? Bot m?i ??ng k? tr?n Firestore: {BOT_NAME} (m?c ??nh T?T ? b?t tr?n Admin)")
     else:
         ref.set({
             'name': BOT_NAME,
@@ -497,17 +535,17 @@ def bot_heartbeat_loop():
                 try:
                     ref.update({'lastSeenAt': firestore.SERVER_TIMESTAMP})
                 except Exception as e:
-                    # Doc bị admin xóa — đăng ký lại đầy đủ (cùng tên = cùng 1 bot)
+                    # Doc b? admin x?a ? ??ng k? l?i ??y ?? (c?ng t?n = c?ng 1 bot)
                     if 'NOT_FOUND' in str(e) or 'No document to update' in str(e):
                         ensure_bot_registered()
                     else:
                         raise
         except Exception as e:
-            print(f"⚠️ Heartbeat lỗi: {e}")
+            print(f"?? Heartbeat l?i: {e}")
         time.sleep(HEARTBEAT_SEC)
 
 def on_bot_config_snapshot(keys, changes, read_time):
-    # Document watch callback: (sorted_keys, DocumentChange[], read_time) — not a DocumentSnapshot.
+    # Document watch callback: (sorted_keys, DocumentChange[], read_time) ? not a DocumentSnapshot.
     if not changes:
         return
     enabled = False
@@ -519,17 +557,17 @@ def on_bot_config_snapshot(keys, changes, read_time):
     prev = is_bot_enabled()
     set_bot_enabled(enabled)
     if enabled != prev:
-        status = "🟢 BẬT — bot đang xử lý đơn" if enabled else "🔴 TẮT — bot không làm gì"
-        print(f"\n[{BOT_NAME}] Admin đổi trạng thái: {status}\n")
+        status = "?? B?T ? bot ?ang x? l? ??n" if enabled else "?? T?T ? bot kh?ng l?m g?"
+        print(f"\n[{BOT_NAME}] Admin ??i tr?ng th?i: {status}\n")
 
 def start_bot_control_listener():
     ensure_bot_registered()
     doc = db.collection('bots').document(BOT_NAME).get()
     set_bot_enabled(bool(doc.to_dict().get('enabled', False)) if doc.exists else False)
-    status = "🟢 BẬT" if is_bot_enabled() else "🔴 TẮT"
-    print(f"[{BOT_NAME}] Trạng thái hiện tại: {status}")
+    status = "?? B?T" if is_bot_enabled() else "?? T?T"
+    print(f"[{BOT_NAME}] Tr?ng th?i hi?n t?i: {status}")
     if not is_bot_enabled():
-        print("⏸️  Bot đang TẮT. Vào Admin → Bots để bật.")
+        print("??  Bot ?ang T?T. V?o Admin ? Bots ?? b?t.")
 
     db.collection('bots').document(BOT_NAME).on_snapshot(on_bot_config_snapshot)
     threading.Thread(target=bot_heartbeat_loop, daemon=True).start()
@@ -544,16 +582,16 @@ def send_telegram_message(text):
         }
         res = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=10)
         if res.status_code != 200:
-            print(f"❌ Lỗi gửi tin nhắn Telegram: {res.status_code} - {res.text}")
+            print(f"? L?i g?i tin nh?n Telegram: {res.status_code} - {res.text}")
     except Exception as e:
-        print(f"❌ Lỗi kết nối gửi Telegram: {e}")
+        print(f"? L?i k?t n?i g?i Telegram: {e}")
 
 _INTERNAL_ERROR_MARKERS = (
     'aidancing', '/api/proxy/', 'proxy/jobs', 'proxy/files',
-    '401', '503', '502', '429', 'đăng nhập lại', 'bảo trì',
+    '401', '503', '502', '429', '??ng nh?p l?i', 'b?o tr?',
     'chrome cdp', 'connect_over_cdp', 'econnrefused', 'target closed',
     'different thread', 'job id aidancing', 'dashboard', 'create/general',
-    'bot nạp', 'maintenance',
+    'bot n?p', 'maintenance',
 )
 _ERROR_TELEGRAM_COOLDOWN = 900
 _error_telegram_sent = {}
@@ -573,27 +611,27 @@ def notify_internal_error_telegram(order_id, order_data, err, context=''):
             return
         _error_telegram_sent[order_id] = now
     short_id = order_id[-6:].upper()
-    user_name = (order_data or {}).get('userName', 'Khách hàng')
+    user_name = (order_data or {}).get('userName', 'Kh?ch h?ng')
     user_email = (order_data or {}).get('userEmail', 'N/A')
     ctx = f" ({context})" if context else ""
     err_text = (err or '')[:500]
     msg = (
-        f"🚨 <b>[MotionAI] BOT LỖI NỘI BỘ{ctx}</b>\n\n"
-        f"🆔 Mã đơn: #{short_id}\n"
-        f"👤 Khách: {user_name}\n"
-        f"📧 Email: {user_email}\n"
-        f"⚠️ Chi tiết:\n<code>{err_text}</code>"
+        f"?? <b>[MotionAI] BOT L?I N?I B?{ctx}</b>\n\n"
+        f"?? M? ??n: #{short_id}\n"
+        f"?? Kh?ch: {user_name}\n"
+        f"?? Email: {user_email}\n"
+        f"?? Chi ti?t:\n<code>{err_text}</code>"
     )
     send_telegram_message(msg)
 
-def apply_bot_error_update(doc_ref, order_id, order_data, err, context='nạp đơn'):
-    """Lỗi Aidancing/hạ tầng bot → Telegram admin, không hiện adminNote cho khách."""
+def apply_bot_error_update(doc_ref, order_id, order_data, err, context='n?p ??n'):
+    """L?i Aidancing/h? t?ng bot ? Telegram admin, kh?ng hi?n adminNote cho kh?ch."""
     if is_internal_bot_error(err):
         notify_internal_error_telegram(order_id, order_data, err, context)
         _session_error_backoff[order_id] = time.time() + SESSION_ERROR_BACKOFF_SEC
         return True
     doc_ref.update({
-        'adminNote': f"Bot nạp lỗi: {err}",
+        'adminNote': f"Bot n?p l?i: {err}",
         'updatedAt': firestore.SERVER_TIMESTAMP,
     })
     return False
@@ -602,7 +640,7 @@ def _pending_submit_backoff_active(order_id):
     return time.time() < _session_error_backoff.get(order_id, 0)
 
 def scrape_aidancing_balance(page):
-    """Đọc số coin còn lại trên header aidancing.net (vd: 101.0)."""
+    """??c s? coin c?n l?i tr?n header aidancing.net (vd: 101.0)."""
     try:
         val = page.evaluate('''() => {
             const pick = (s) => {
@@ -620,23 +658,23 @@ def scrape_aidancing_balance(page):
         if val is not None:
             return float(val)
     except Exception as e:
-        print(f"⚠️ Không đọc được balance aidancing: {e}")
+        print(f"?? Kh?ng ??c ???c balance aidancing: {e}")
     return None
 
 def alert_low_aidancing_balance(balance, extra=''):
     if balance is None or balance >= AIDANCING_LOW_BALANCE_THRESHOLD:
         return
     msg = (
-        f"🚨🚨 <b>CẢNH BÁO KHẨN — SẮP HẾT COIN AIDANCING!</b>\n\n"
-        f"💰 Số dư aidancing.net: <b>{balance}</b> Coin\n"
-        f"⚠️ Dưới ngưỡng {AIDANCING_LOW_BALANCE_THRESHOLD} Coin — "
-        f"<b>nạp gấp</b> trước khi bot không tạo được đơn!\n"
+        f"???? <b>C?NH B?O KH?N ? S?P H?T COIN AIDANCING!</b>\n\n"
+        f"?? S? d? aidancing.net: <b>{balance}</b> Coin\n"
+        f"?? D??i ng??ng {AIDANCING_LOW_BALANCE_THRESHOLD} Coin ? "
+        f"<b>n?p g?p</b> tr??c khi bot kh?ng t?o ???c ??n!\n"
         f"{extra}"
     )
     send_telegram_message(msg)
 
 def download_file(url, filename, cookies=None, referer=None, retries=2):
-    print(f"📥 Tải file (requests): {filename}...")
+    print(f"?? T?i file (requests): {filename}...")
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': referer or f'{AIDANCING_ORIGIN}/dashboard',
@@ -648,7 +686,7 @@ def download_file(url, filename, cookies=None, referer=None, retries=2):
             response = requests.get(url, headers=headers, cookies=cookies, timeout=120)
             if response.status_code in (503, 502, 429) and attempt < retries:
                 wait = 5 * attempt
-                print(f"⚠️ HTTP {response.status_code} — thử lại {attempt}/{retries} sau {wait}s...")
+                print(f"?? HTTP {response.status_code} ? th? l?i {attempt}/{retries} sau {wait}s...")
                 time.sleep(wait)
                 continue
             response.raise_for_status()
@@ -659,12 +697,12 @@ def download_file(url, filename, cookies=None, referer=None, retries=2):
             last_err = e
             if attempt < retries:
                 time.sleep(3 * attempt)
-    print(f"❌ Lỗi tải file: {last_err}")
+    print(f"? L?i t?i file: {last_err}")
     return None
 
 def download_aidancing_result(session, page, url, filename, download_locator=None):
-    """Tải video kết quả aidancing — không click mở tab (aidancing dùng target=_blank)."""
-    print(f"📥 Tải kết quả aidancing: {filename}...")
+    """T?i video k?t qu? aidancing ? kh?ng click m? tab (aidancing d?ng target=_blank)."""
+    print(f"?? T?i k?t qu? aidancing: {filename}...")
     if not url.startswith('http'):
         url = AIDANCING_ORIGIN + url
 
@@ -682,19 +720,19 @@ def download_aidancing_result(session, page, url, filename, download_locator=Non
             )
             if resp.ok:
                 save_bytes(resp.body())
-                print(f"✅ {label}")
+                print(f"? {label}")
                 return os.path.abspath(filename)
-            print(f"⚠️ {label} — HTTP {resp.status}")
+            print(f"?? {label} ? HTTP {resp.status}")
         except Exception as e:
-            print(f"⚠️ {label} — {e}")
+            print(f"?? {label} ? {e}")
         return None
 
-    # 1) Tải thẳng URL proxy/API — không click (tránh mở tab mới)
-    result = session_get(url, "Tải direct URL (session cookie)")
+    # 1) T?i th?ng URL proxy/API ? kh?ng click (tr?nh m? tab m?i)
+    result = session_get(url, "T?i direct URL (session cookie)")
     if result:
         return result
 
-    # 2) fetch() ngay trên dashboard (credentials: include)
+    # 2) fetch() ngay tr?n dashboard (credentials: include)
     try:
         data = page.evaluate('''async (videoUrl) => {
             const r = await fetch(videoUrl, { credentials: 'include' });
@@ -710,18 +748,18 @@ def download_aidancing_result(session, page, url, filename, download_locator=Non
         }''', url)
         if data and data.get('ok') and data.get('b64'):
             save_bytes(base64.b64decode(data['b64']))
-            print("✅ Tải qua fetch in-page")
+            print("? T?i qua fetch in-page")
             return os.path.abspath(filename)
         if data:
-            print(f"⚠️ In-page fetch HTTP {data.get('status')}")
+            print(f"?? In-page fetch HTTP {data.get('status')}")
     except Exception as e:
-        print(f"⚠️ In-page fetch lỗi: {e}")
+        print(f"?? In-page fetch l?i: {e}")
 
-    # 3) Nút Tải mở tab video mới (target=_blank) — bắt tab, lấy src, đóng tab
+    # 3) N?t T?i m? tab video m?i (target=_blank) ? b?t tab, l?y src, ??ng tab
     if download_locator is not None and download_locator.count() > 0:
         new_page = None
         try:
-            print("🖱️ Nút Tải mở tab mới — bắt tab video...")
+            print("??? N?t T?i m? tab m?i ? b?t tab video...")
             with session.context.expect_page(timeout=30000) as page_info:
                 download_locator.click()
             new_page = page_info.value
@@ -739,15 +777,15 @@ def download_aidancing_result(session, page, url, filename, download_locator=Non
             if video_url and not video_url.startswith('http'):
                 video_url = AIDANCING_ORIGIN + video_url
             if video_url:
-                print(f"🔗 URL tab video: {video_url[:100]}...")
-                result = session_get(video_url, "Tải từ tab video")
+                print(f"?? URL tab video: {video_url[:100]}...")
+                result = session_get(video_url, "T?i t? tab video")
                 if result:
                     return result
-                result = session_get(url, "Tải lại URL gốc sau tab")
+                result = session_get(url, "T?i l?i URL g?c sau tab")
                 if result:
                     return result
         except Exception as e:
-            print(f"⚠️ Xử lý tab video: {e}")
+            print(f"?? X? l? tab video: {e}")
         finally:
             if new_page:
                 try:
@@ -765,7 +803,7 @@ def download_aidancing_result(session, page, url, filename, download_locator=Non
     return download_file(url, filename, cookies=jar, referer=DASHBOARD_URL, retries=3)
 
 def upload_to_r2(file_path, folder="results"):
-    print(f"📤 Đang upload lên R2...")
+    print(f"?? ?ang upload l?n R2...")
     try:
         file_name = f"{folder}/{int(time.time() * 1000)}_{os.path.basename(file_path)}"
         url = f"{WORKER_URL}/?file={requests.utils.quote(file_name)}&t={int(time.time() * 1000)}"
@@ -774,30 +812,30 @@ def upload_to_r2(file_path, folder="results"):
             if response.status_code == 200:
                 return response.json().get('url')
     except Exception as e:
-        print(f"❌ Lỗi R2: {e}")
+        print(f"? L?i R2: {e}")
     return None
 
 def send_completion_email(order_id, order_data, result_link):
     user_email = order_data.get('userEmail')
-    user_name = order_data.get('userName', 'Khách hàng')
+    user_name = order_data.get('userName', 'Kh?ch h?ng')
     service_type = order_data.get('serviceType', 'copy-motion-photo')
     
     if not user_email:
-        print("⚠️ Không tìm thấy Email của khách để gửi thông báo hoàn thành đơn.")
+        print("?? Kh?ng t?m th?y Email c?a kh?ch ?? g?i th?ng b?o ho?n th?nh ??n.")
         return
         
-    print(f"📧 Đang gửi email thông báo hoàn thành đơn tới: {user_email}...")
+    print(f"?? ?ang g?i email th?ng b?o ho?n th?nh ??n t?i: {user_email}...")
     
-    # Ánh xạ tên dịch vụ tiếng Việt
+    # ?nh x? t?n d?ch v? ti?ng Vi?t
     service_label = service_type
     if service_type == 'copy-motion-photo':
-        service_label = "AI Copy Chuyển Động Vào Ảnh (20s)"
+        service_label = "AI Copy Chuy?n ??ng V?o ?nh (20s)"
     elif service_type == 'copy-motion-multi':
-        service_label = "AI Copy Nhảy Nhiều Người"
+        service_label = "AI Copy Nh?y Nhi?u Ng??i"
     elif service_type == 'char-to-video-fashion':
-        service_label = "AI Copy Thời Trang"
+        service_label = "AI Copy Th?i Trang"
     elif service_type == 'char-to-video-ads':
-        service_label = "AI Copy Sản Phẩm"
+        service_label = "AI Copy S?n Ph?m"
 
     short_order_id = order_id[-6:].upper()
     
@@ -818,18 +856,25 @@ def send_completion_email(order_id, order_data, result_link):
         url = "https://api.emailjs.com/api/v1.0/email/send"
         response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=15)
         if response.status_code == 200 or response.text == "OK":
-            print(f"✅ Gửi email thông báo qua EmailJS thành công!")
+            print(f"? G?i email th?ng b?o qua EmailJS th?nh c?ng!")
         else:
-            print(f"❌ Lỗi gửi email qua EmailJS: {response.status_code} - {response.text}")
+            print(f"? L?i g?i email qua EmailJS: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"❌ Lỗi kết nối khi gửi email thông báo qua EmailJS: {e}")
+        print(f"? L?i k?t n?i khi g?i email th?ng b?o qua EmailJS: {e}")
 
 def use_api_mode():
-    """Pure HTTP — không cần Chrome/Playwright (cookie AIDANCING_COOKIE)."""
+    """Pure HTTP ? kh?ng c?n Chrome/Playwright (cookie AIDANCING_COOKIE)."""
     return os.environ.get("BOT_MODE", "browser").strip().lower() in ("api", "http")
 
 def _complete_order_with_video(doc, local_vid):
-    """Upload R2 + cập nhật Firestore + thông báo."""
+    """Upload R2 + c?p nh?t Firestore + th?ng b?o."""
+    order_id = doc.id
+    if _order_already_completed(order_id):
+        print(f"?? ??n {order_id} ?? completed ? kh?ng g?i l?i Telegram/R2")
+        _pop_processing_cache(order_id)
+        if os.path.exists(local_vid):
+            os.remove(local_vid)
+        return True
     r2_url = upload_to_r2(local_vid)
     if not r2_url:
         return False
@@ -838,56 +883,57 @@ def _complete_order_with_video(doc, local_vid):
         'resultLink': r2_url,
         'updatedAt': firestore.SERVER_TIMESTAMP
     })
-    print(f"✅ ĐÃ TRẢ HÀNG CHO ĐƠN {doc.id}")
+    print(f"[OK] DA TRA HANG CHO DON {doc.id}")
     try:
         order_data = doc.to_dict()
         short_id = doc.id[-6:].upper()
-        user_name = order_data.get('userName', 'Khách hàng')
+        user_name = order_data.get('userName', 'Khach hang')
         user_email = order_data.get('userEmail', 'N/A')
         char_img = order_data.get('characterImageLink', '')
         msg = (
-            f"✅ <b>ĐƠN HÀNG HOÀN THÀNH</b>\n\n"
-            f"🆔 Mã đơn: #{short_id}\n"
-            f"👤 Khách: {user_name}\n"
-            f"📧 Email: {user_email}\n"
+            f"<b>DON HANG HOAN THANH</b>\n\n"
+            f"Ma don: #{short_id}\n"
+            f"Khach: {user_name}\n"
+            f"Email: {user_email}\n"
         )
         if char_img:
-            msg += f"📸 Ảnh đầu vào: <a href=\"{char_img}\">Xem ảnh gốc</a>\n"
-        msg += f"📹 Kết quả: <a href=\"{r2_url}\">Xem video kết quả</a>"
+            msg += f"Anh dau vao: <a href=\"{char_img}\">Xem anh goc</a>\n"
+        msg += f"Ket qua: <a href=\"{r2_url}\">Xem video</a>"
         send_telegram_message(msg)
     except Exception as tele_err:
-        print(f"⚠️ Lỗi gửi thông báo Telegram hoàn thành: {tele_err}")
+        print(f"[WARN] Loi gui Telegram hoan thanh: {tele_err}")
     try:
         send_completion_email(doc.id, doc.to_dict(), r2_url)
     except Exception as mail_err:
-        print(f"⚠️ Không gửi được email thông báo: {mail_err}")
+        print(f"?? Kh?ng g?i ???c email th?ng b?o: {mail_err}")
     if os.path.exists(local_vid):
         os.remove(local_vid)
+    _pop_processing_cache(order_id)
     return True
 
 def check_finished_orders_api():
-    """Monitor qua GET /api/proxy/jobs — Pure HTTP, poll mỗi BOT_POLL_* giây."""
+    """Monitor qua GET /api/proxy/jobs ? Pure HTTP, poll m?i BOT_POLL_* gi?y."""
     if not is_bot_enabled() or browser_lock.locked():
         return
     orders_to_check, _ = _processing_monitor_state()
     if not orders_to_check:
         return
 
-    print(f"\n🔍 [MONITOR/HTTP] Poll {len(orders_to_check)} đơn...")
+    print(f"\n?? [MONITOR/HTTP] Poll {len(orders_to_check)} ??n...")
     with browser_lock:
         try:
             _http_poll_orders(orders_to_check)
         except SessionExpiredError as e:
-            print(f"❌ Session hết hạn: {e}")
+            print(f"? Session h?t h?n: {e}")
             _reset_http_client()
         except Exception as e:
             err = str(e)
-            print(f"❌ Lỗi monitor HTTP: {e}")
+            print(f"? L?i monitor HTTP: {e}")
             if any(x in err.lower() for x in ('401', '403', 'session expired', 'aidancing_cookie')):
                 _reset_http_client()
 
 def _mark_order_processing(doc_ref, job_id):
-    """Chỉ chuyển processing sau khi aidancing đã nhận job."""
+    """Ch? chuy?n processing sau khi aidancing ?? nh?n job."""
     doc_ref.update({
         'status': 'processing',
         'aidancingJobId': str(job_id),
@@ -898,13 +944,13 @@ def _mark_order_processing(doc_ref, job_id):
 
 def submit_to_aidancing(order_id):
     if not is_bot_enabled():
-        print(f"⏸️ [{BOT_NAME}] Bot TẮT — bỏ qua nạp đơn {order_id}")
+        print(f"?? [{BOT_NAME}] Bot T?T ? b? qua n?p ??n {order_id}")
         return
     if _pending_submit_backoff_active(order_id):
         return
     with _submitting_orders_lock:
         if order_id in _submitting_orders:
-            print(f"⏭️ [{BOT_NAME}] Đơn {order_id} đang nạp — bỏ qua trùng lặp")
+            print(f"?? [{BOT_NAME}] ??n {order_id} ?ang n?p ? b? qua tr?ng l?p")
             return
         _submitting_orders.add(order_id)
     try:
@@ -917,14 +963,14 @@ def submit_to_aidancing(order_id):
             if data.get('status') != 'pending':
                 return
 
-            print(f"\n⚡ [NẠP ĐƠN] {order_id}... (giữ pending cho đến khi aidancing OK)")
+            print(f"\n? [N?P ??N] {order_id}... (gi? pending cho ??n khi aidancing OK)")
 
             char_path = None
             vid_path = None
 
-            # Thử tải tối đa 2 lần
+            # Th? t?i t?i ?a 2 l?n
             for attempt in range(1, 3):
-                if attempt > 1: print(f"🔄 Thử lại lần {attempt}...")
+                if attempt > 1: print(f"?? Th? l?i l?n {attempt}...")
                 char_path = download_file(data.get('characterImageLink'), f"char_{order_id}.png")
                 vid_path = download_file(data.get('referenceVideoLink'), f"vid_{order_id}.mp4")
 
@@ -933,8 +979,8 @@ def submit_to_aidancing(order_id):
                 time.sleep(2)
 
             if not char_path or not vid_path:
-                print(f"❌ Không thể tải file sau 2 lần thử cho đơn {order_id}")
-                # Hoàn tiền cho khách
+                print(f"? Kh?ng th? t?i file sau 2 l?n th? cho ??n {order_id}")
+                # Ho?n ti?n cho kh?ch
                 cost_coins = data.get('costCoins', 0)
                 user_id = data.get('userId')
                 if cost_coins > 0 and user_id:
@@ -942,31 +988,31 @@ def submit_to_aidancing(order_id):
                         db.collection('users').document(user_id).update({
                             'coins': firestore.Increment(cost_coins)
                         })
-                        print(f"💰 Đã hoàn lại {cost_coins} coin cho user {user_id}")
+                        print(f"?? ?? ho?n l?i {cost_coins} coin cho user {user_id}")
                     except Exception as e:
-                        print(f"⚠️ Lỗi khi hoàn tiền cho user {user_id}: {e}")
+                        print(f"?? L?i khi ho?n ti?n cho user {user_id}: {e}")
 
                 doc_ref.update({
                     'status': 'failed',
-                    'adminNote': 'Ảnh hoặc video quý khách tải lên không tồn tại, hệ thống đã hoàn lại coin.',
+                    'adminNote': '?nh ho?c video qu? kh?ch t?i l?n kh?ng t?n t?i, h? th?ng ?? ho?n l?i coin.',
                     'updatedAt': firestore.SERVER_TIMESTAMP
                 })
 
-                # Gửi thông báo Telegram: Đơn hàng thất bại
+                # G?i th?ng b?o Telegram: ??n h?ng th?t b?i
                 try:
                     short_id = order_id[-6:].upper()
-                    user_name = data.get('userName', 'Khách hàng')
+                    user_name = data.get('userName', 'Khach hang')
                     user_email = data.get('userEmail', 'N/A')
                     msg = (
-                        f"❌ <b>ĐƠN HÀNG THẤT BẠI</b>\n\n"
-                        f"🆔 Mã đơn: #{short_id}\n"
-                        f"👤 Khách: {user_name}\n"
-                        f"📧 Email: {user_email}\n"
-                        f"📝 Lý do: Không thể tải ảnh/video nhân vật quý khách tải lên."
+                        f"<b>DON HANG THAT BAI</b>\n\n"
+                        f"Ma don: #{short_id}\n"
+                        f"Khach: {user_name}\n"
+                        f"Email: {user_email}\n"
+                        f"Ly do: Khong the tai anh/video nhan vat qua khach tai len."
                     )
                     send_telegram_message(msg)
                 except Exception as tele_err:
-                    print(f"⚠️ Lỗi gửi thông báo Telegram thất bại: {tele_err}")
+                    print(f"[WARN] Loi gui Telegram that bai: {tele_err}")
                 if char_path and os.path.exists(char_path): os.remove(char_path)
                 if vid_path and os.path.exists(vid_path): os.remove(vid_path)
                 return
@@ -974,33 +1020,33 @@ def submit_to_aidancing(order_id):
             if use_api_mode():
                 try:
                     model_id = data.get('modelId', '124')
-                    print(f"🚀 [HTTP] Nạp đơn model {model_id}...")
+                    print(f"?? [HTTP] N?p ??n model {model_id}...")
                     job_id = _http_create_job(model_id, char_path, vid_path)
-                    print(f"🆔 [HTTP] Job mới: {job_id}")
+                    print(f"?? [HTTP] Job m?i: {job_id}")
                     _mark_order_processing(doc_ref, job_id)
                     _session_error_backoff.pop(order_id, None)
-                    print(f"✅ Đơn {order_id} → processing (aidancing đã nhận job)")
+                    print(f"? ??n {order_id} ? processing (aidancing ?? nh?n job)")
                     try:
                         short_id = order_id[-6:].upper()
                         msg = (
-                            f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
-                            f"🆔 Mã đơn: #{short_id}\n"
-                            f"🤖 Job ID aidancing: <code>{job_id}</code>\n"
-                            f"⏳ Đang render (HTTP mode)..."
+                            f"<b>DON HANG DANG XU LY</b>\n\n"
+                            f"Ma don: #{short_id}\n"
+                            f"Job ID aidancing: <code>{job_id}</code>\n"
+                            f"Dang render (HTTP mode)..."
                         )
                         send_telegram_message(msg)
                     except Exception:
                         pass
                 except SessionExpiredError as e:
-                    print(f"❌ Session hết hạn: {e}")
+                    print(f"? Session h?t h?n: {e}")
                     _reset_http_client()
-                    apply_bot_error_update(doc_ref, order_id, data, str(e), 'nạp HTTP')
+                    apply_bot_error_update(doc_ref, order_id, data, str(e), 'n?p HTTP')
                 except Exception as e:
-                    print(f"❌ Lỗi nạp HTTP: {e}")
+                    print(f"? L?i n?p HTTP: {e}")
                     err = str(e)
                     if any(x in err.lower() for x in ('401', '403', 'session expired', 'aidancing_cookie')):
                         _reset_http_client()
-                    apply_bot_error_update(doc_ref, order_id, data, err, 'nạp HTTP')
+                    apply_bot_error_update(doc_ref, order_id, data, err, 'n?p HTTP')
                 finally:
                     if char_path and os.path.exists(char_path):
                         os.remove(char_path)
@@ -1013,28 +1059,28 @@ def submit_to_aidancing(order_id):
                     browser = launch_aidancing_browser(p)
                     page = browser.new_page()
                     try:
-                        print("🌐 Đang kiểm tra danh sách Job cũ trên Dashboard...")
+                        print("?? ?ang ki?m tra danh s?ch Job c? tr?n Dashboard...")
                         goto_aidancing_dashboard(page, browser)
                         balance = scrape_aidancing_balance(page)
                         if balance is not None:
-                            print(f"💰 Aidancing balance: {balance} Coin")
+                            print(f"?? Aidancing balance: {balance} Coin")
                         if balance is not None and balance < AIDANCING_LOW_BALANCE_THRESHOLD:
                             short_id = order_id[-6:].upper()
-                            user_name = data.get('userName', 'Khách hàng')
+                            user_name = data.get('userName', 'Kh?ch h?ng')
                             alert_low_aidancing_balance(
                                 balance,
-                                extra=f"\n📋 Bot đang nạp đơn: #{short_id}\n👤 Khách: {user_name}"
+                                extra=f"\n?? Bot ?ang n?p ??n: #{short_id}\n?? Kh?ch: {user_name}"
                             )
                         old_job_ids = set(re.findall(r'\b\d{6}\b', page.content()))
-                        print(f"📦 Đã ghi nhận {len(old_job_ids)} Job ID cũ.")
+                        print(f"?? ?? ghi nh?n {len(old_job_ids)} Job ID c?.")
                         model_id = data.get('modelId', '124')
                         create_url = f"{AIDANCING_ORIGIN}/create/general?id={model_id}"
-                        print(f"🌐 Vào trang tạo: {create_url}")
+                        print(f"?? V?o trang t?o: {create_url}")
                         page.goto(create_url, timeout=90000)
                         page.set_input_files('input[name="image"]', char_path)
                         page.set_input_files('input[name="video"]', vid_path)
                         page.locator('button.neon-ai-2').first.click()
-                        print("⏳ Đợi chuyển về Dashboard và quét Job ID mới...")
+                        print("? ??i chuy?n v? Dashboard v? qu?t Job ID m?i...")
                         page.wait_for_url("**/dashboard**", timeout=60000)
                         job_id = None
                         for _ in range(15):
@@ -1045,11 +1091,11 @@ def submit_to_aidancing(order_id):
                                 job_id = sorted(list(new_jobs))[-1]
                                 break
                         if not job_id:
-                            print("⚠️ Không tìm thấy Job ID mới sau 30s! Dùng cách lấy mặc định...")
+                            print("?? Kh?ng t?m th?y Job ID m?i sau 30s! D?ng c?ch l?y m?c ??nh...")
                             job_ids = re.findall(r'\b\d{6}\b', page.content())
                             if job_ids:
                                 job_id = job_ids[0]
-                                print(f"🆔 LẤY ĐƯỢC JOB ID (Fallback): {job_id}")
+                                print(f"?? L?Y ???C JOB ID (Fallback): {job_id}")
                         return job_id
                     finally:
                         browser.close()
@@ -1057,31 +1103,31 @@ def submit_to_aidancing(order_id):
             try:
                 job_id = run_playwright(_pw_browser_submit)
                 if job_id:
-                    print(f"🆔 LẤY ĐƯỢC JOB ID MỚI: {job_id}")
+                    print(f"?? L?Y ???C JOB ID M?I: {job_id}")
                     _mark_order_processing(doc_ref, job_id)
                     _session_error_backoff.pop(order_id, None)
-                    print(f"✅ Đơn {order_id} → processing (aidancing đã nhận job)")
+                    print(f"? ??n {order_id} ? processing (aidancing ?? nh?n job)")
                     try:
                         short_id = order_id[-6:].upper()
-                        user_name = data.get('userName', 'Khách hàng')
+                        user_name = data.get('userName', 'Khach hang')
                         user_email = data.get('userEmail', 'N/A')
                         msg = (
-                            f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
-                            f"🆔 Mã đơn: #{short_id}\n"
-                            f"👤 Khách: {user_name}\n"
-                            f"📧 Email: {user_email}\n"
-                            f"🤖 Job ID aidancing: <code>{job_id}</code>\n"
-                            f"⏳ Đang render trên aidancing.net..."
+                            f"<b>DON HANG DANG XU LY</b>\n\n"
+                            f"Ma don: #{short_id}\n"
+                            f"Khach: {user_name}\n"
+                            f"Email: {user_email}\n"
+                            f"Job ID aidancing: <code>{job_id}</code>\n"
+                            f"Dang render tren aidancing.net..."
                         )
                         send_telegram_message(msg)
                     except Exception as tele_err:
-                        print(f"⚠️ Lỗi gửi thông báo Telegram xử lý: {tele_err}")
+                        print(f"?? L?i g?i th?ng b?o Telegram x? l?: {tele_err}")
                 else:
-                    err = 'Bot nạp xong nhưng không lấy được Job ID aidancing — vẫn pending, thử lại sau.'
-                    apply_bot_error_update(doc_ref, order_id, data, err, 'nạp browser')
+                    err = 'Bot n?p xong nh?ng kh?ng l?y ???c Job ID aidancing ? v?n pending, th? l?i sau.'
+                    apply_bot_error_update(doc_ref, order_id, data, err, 'n?p browser')
             except Exception as e:
-                print(f"❌ Lỗi nạp: {e}")
-                apply_bot_error_update(doc_ref, order_id, data, str(e), 'nạp browser')
+                print(f"? L?i n?p: {e}")
+                apply_bot_error_update(doc_ref, order_id, data, str(e), 'n?p browser')
             finally:
                 if os.path.exists(char_path):
                     os.remove(char_path)
@@ -1091,18 +1137,18 @@ def submit_to_aidancing(order_id):
         with _submitting_orders_lock:
             _submitting_orders.discard(order_id)
 
-# --- PHA 2: RÌNH KẾT QUẢ ---
+# --- PHA 2: R?NH K?T QU? ---
 def check_finished_orders():
     if use_api_mode():
         try:
             check_finished_orders_api()
         except Exception as e:
-            print(f"❌ Lỗi monitor API: {e}")
+            print(f"? L?i monitor API: {e}")
         return
     if not is_bot_enabled():
         return
     try:
-        # Nếu đang nạp đơn thì không check dashboard để tránh khóa profile
+        # N?u ?ang n?p ??n th? kh?ng check dashboard ?? tr?nh kh?a profile
         if browser_lock.locked():
             return
 
@@ -1110,7 +1156,7 @@ def check_finished_orders():
         if not orders_to_check:
             return
 
-        print(f"\n🔍 [MONITOR] Đang rình kết quả cho {len(orders_to_check)} đơn đủ {MIN_RENDER_SEC // 60}p...")
+        print(f"\n?? [MONITOR] ?ang r?nh k?t qu? cho {len(orders_to_check)} ??n ?? {MIN_RENDER_SEC // 60}p...")
         with browser_lock:
             with sync_playwright() as p:
                 browser = launch_aidancing_browser(p)
@@ -1118,24 +1164,24 @@ def check_finished_orders():
                 try:
                     goto_aidancing_dashboard(page, browser)
                 except RuntimeError as e:
-                    print(f"⚠️ {e}")
+                    print(f"?? {e}")
                     time.sleep(60)
                     browser.close()
                     return
-                print(f"🌐 Đang ở: {page.url}")
+                print(f"?? ?ang ?: {page.url}")
                 time.sleep(10)
 
                 for doc in orders_to_check:
                     job_id = str(doc.to_dict().get('aidancingJobId'))
-                    print(f"🧐 Đang tìm Job {job_id}...")
+                    print(f"?? ?ang t?m Job {job_id}...")
 
-                    # Thử tìm text trong toàn bộ trang
+                    # Th? t?m text trong to?n b? trang
                     if job_id not in page.content():
-                        print(f"❌ Không thấy mã {job_id} trên trang này. Kiểm tra xem Job có ở trang 2 không?")
+                        print(f"? Kh?ng th?y m? {job_id} tr?n trang n?y. Ki?m tra xem Job c? ? trang 2 kh?ng?")
                         continue
 
-                    # [FIX]: Tìm chính xác thẻ Card chứa đơn hàng này bằng cách mở rộng dần từ phần tử nhỏ nhất
-                    # Đảm bảo không bao giờ bị dính vào thẻ List to đùng chứa nhiều đơn hàng (khiến cho bị nhận nhầm trạng thái của đơn khác)
+                    # [FIX]: T?m ch?nh x?c th? Card ch?a ??n h?ng n?y b?ng c?ch m? r?ng d?n t? ph?n t? nh? nh?t
+                    # ??m b?o kh?ng bao gi? b? d?nh v?o th? List to ??ng ch?a nhi?u ??n h?ng (khi?n cho b? nh?n nh?m tr?ng th?i c?a ??n kh?c)
                     containers = page.locator(f'div:has-text("{job_id}")')
                     count = containers.count()
                     card = None
@@ -1144,51 +1190,51 @@ def check_finished_orders():
                         container = containers.nth(i)
                         text = container.inner_text()
                         
-                        # Đếm số lượng Job ID (6 số) trong thẻ này
+                        # ??m s? l??ng Job ID (6 s?) trong th? n?y
                         ids_inside = set(re.findall(r'\b\d{6}\b', text))
                         if len(ids_inside) > 1:
-                            # Nếu thẻ chứa nhiều hơn 1 đơn hàng -> Nó là thẻ List cha. Dừng lại, dùng thẻ con trước đó.
+                            # N?u th? ch?a nhi?u h?n 1 ??n h?ng -> N? l? th? List cha. D?ng l?i, d?ng th? con tr??c ??.
                             break
                         card = container
 
                     if card and card.is_visible():
                         text = card.inner_text()
-                        # [FIX]: Bỏ "Tải Xuống" và "Download" khỏi điều kiện vì nút này luôn hiển thị trên UI kể cả khi đang xử lý
-                        if any(x in text for x in ["Đã xong", "Success"]):
-                            print(f"🎉 Job {job_id} HOÀN TẤT! Đang xử lý...")
-                            # ... (giữ nguyên logic xử lý thành công)
+                        # [FIX]: B? "T?i Xu?ng" v? "Download" kh?i ?i?u ki?n v? n?t n?y lu?n hi?n th? tr?n UI k? c? khi ?ang x? l?
+                        if any(x in text for x in ["?? xong", "Success"]):
+                            print(f"?? Job {job_id} HO?N T?T! ?ang x? l?...")
+                            # ... (gi? nguy?n logic x? l? th?nh c?ng)
                             try:
-                                # Bước 1: Thử lấy link trực tiếp từ nút Tải TRONG CARD NÀY
+                                # B??c 1: Th? l?y link tr?c ti?p t? n?t T?i TRONG CARD N?Y
                                 ext_url = None
                                 video_element = card.locator('video source, video[src]').first
                                 if video_element.count() > 0 and video_element.is_visible():
                                     ext_url = video_element.get_attribute('src') or video_element.get_attribute('currentSrc')
 
                                 download_link = card.locator(
-                                    'a[href*="proxy/files"], a[href*="download"], a:has-text("Tải"), a:has-text("Download")'
+                                    'a[href*="proxy/files"], a[href*="download"], a:has-text("T?i"), a:has-text("Download")'
                                 ).first
                                 if not ext_url and download_link.count() > 0 and download_link.is_visible():
                                     ext_url = download_link.get_attribute('href', timeout=3000)
 
-                                # Bước 3 (Dự phòng): Click vào card để vào trang chi tiết lấy video
+                                # B??c 3 (D? ph?ng): Click v?o card ?? v?o trang chi ti?t l?y video
                                 if not ext_url:
                                     try:
-                                        print(f"🖱️ Click vào Job {job_id} để lấy link video...")
+                                        print(f"??? Click v?o Job {job_id} ?? l?y link video...")
                                         card.click()
                                         page.wait_for_timeout(5000)
-                                        # [FIX]: Kiểm tra xem trang CÓ THỰC SỰ CHUYỂN HAY KHÔNG
+                                        # [FIX]: Ki?m tra xem trang C? TH?C S? CHUY?N HAY KH?NG
                                         if "dashboard" not in page.url:
                                             video_element = page.locator('video source, video[src]').first
                                             if video_element.count() > 0:
                                                 ext_url = video_element.get_attribute('src')
-                                            page.goto(DASHBOARD_URL) # Quay lại Dashboard
+                                            page.goto(DASHBOARD_URL) # Quay l?i Dashboard
                                             time.sleep(3)
                                         else:
-                                            print(f"❌ Nút click không chuyển trang. Bỏ qua để tránh lấy nhầm video ngoài Dashboard.")
+                                            print(f"? N?t click kh?ng chuy?n trang. B? qua ?? tr?nh l?y nh?m video ngo?i Dashboard.")
                                     except Exception as e:
-                                        print(f"❌ Lỗi khi vào trang chi tiết cho Job {job_id}: {e}")
+                                        print(f"? L?i khi v?o trang chi ti?t cho Job {job_id}: {e}")
 
-                                # Bước 3: Tải file nếu đã có link (kèm cookies)
+                                # B??c 3: T?i file n?u ?? c? link (k?m cookies)
                                 if ext_url:
                                     if not ext_url.startswith('http'):
                                         ext_url = AIDANCING_ORIGIN + ext_url
@@ -1205,38 +1251,38 @@ def check_finished_orders():
                                                 'resultLink': r2_url,
                                                 'updatedAt': firestore.SERVER_TIMESTAMP
                                             })
-                                            print(f"✅ ĐÃ TRẢ HÀNG CHO ĐƠN {doc.id}")
+                                            print(f"? ?? TR? H?NG CHO ??N {doc.id}")
                                             
-                                            # Gửi thông báo Telegram: Đơn hàng hoàn thành
+                                            # G?i th?ng b?o Telegram: ??n h?ng ho?n th?nh
                                             try:
                                                 order_data = doc.to_dict()
                                                 short_id = doc.id[-6:].upper()
-                                                user_name = order_data.get('userName', 'Khách hàng')
+                                                user_name = order_data.get('userName', 'Kh?ch h?ng')
                                                 user_email = order_data.get('userEmail', 'N/A')
                                                 char_img = order_data.get('characterImageLink', '')
                                                 msg = (
-                                                    f"✅ <b>ĐƠN HÀNG HOÀN THÀNH</b>\n\n"
-                                                    f"🆔 Mã đơn: #{short_id}\n"
-                                                    f"👤 Khách: {user_name}\n"
-                                                    f"📧 Email: {user_email}\n"
+                                                    f"<b>DON HANG HOAN THANH</b>\n\n"
+                                                    f"Ma don: #{short_id}\n"
+                                                    f"Khach: {user_name}\n"
+                                                    f"Email: {user_email}\n"
                                                 )
                                                 if char_img:
-                                                    msg += f"📸 Ảnh đầu vào: <a href=\"{char_img}\">Xem ảnh gốc</a>\n"
-                                                msg += f"📹 Kết quả: <a href=\"{r2_url}\">Xem video kết quả</a>"
+                                                    msg += f"Anh dau vao: <a href=\"{char_img}\">Xem anh goc</a>\n"
+                                                msg += f"Ket qua: <a href=\"{r2_url}\">Xem video</a>"
                                                 send_telegram_message(msg)
                                             except Exception as tele_err:
-                                                print(f"⚠️ Lỗi gửi thông báo Telegram hoàn thành: {tele_err}")
+                                                print(f"?? L?i g?i th?ng b?o Telegram ho?n th?nh: {tele_err}")
 
-                                            # Gửi mail thông báo tự động cho khách hàng
+                                            # G?i mail th?ng b?o t? ??ng cho kh?ch h?ng
                                             try:
                                                 order_data = doc.to_dict()
                                                 send_completion_email(doc.id, order_data, r2_url)
                                             except Exception as mail_err:
-                                                print(f"⚠️ Không gửi được email thông báo: {mail_err}")
+                                                print(f"?? Kh?ng g?i ???c email th?ng b?o: {mail_err}")
                                                 
                                             os.remove(local_vid)
                             except Exception as e:
-                                print(f"⚠️ Lỗi xử lý Job {job_id}: {e}")
+                                print(f"?? L?i x? l? Job {job_id}: {e}")
                             finally:
                                 close_extra_aidancing_tabs(browser, page)
                                 if page.url != DASHBOARD_URL:
@@ -1245,11 +1291,11 @@ def check_finished_orders():
                                         time.sleep(2)
                                     except Exception:
                                         pass
-                        elif any(x in text for x in ["Chưa thành công", "Thất bại", "Failed", "Error"]):
-                            print(f"❌ Job {job_id} THẤT BẠI TRÊN AIDANCING!")
+                        elif any(x in text for x in ["Ch?a th?nh c?ng", "Th?t b?i", "Failed", "Error"]):
+                            print(f"? Job {job_id} TH?T B?I TR?N AIDANCING!")
                             order_data = doc.to_dict()
                             
-                            # Hoàn tiền cho khách
+                            # Ho?n ti?n cho kh?ch
                             cost_coins = order_data.get('costCoins', 0)
                             user_id = order_data.get('userId')
                             if cost_coins > 0 and user_id:
@@ -1257,37 +1303,37 @@ def check_finished_orders():
                                     db.collection('users').document(user_id).update({
                                         'coins': firestore.Increment(cost_coins)
                                     })
-                                    print(f"💰 Đã hoàn lại {cost_coins} coin cho user {user_id}")
+                                    print(f"?? ?? ho?n l?i {cost_coins} coin cho user {user_id}")
                                 except Exception as e:
-                                    print(f"⚠️ Lỗi khi hoàn tiền cho user {user_id}: {e}")
+                                    print(f"?? L?i khi ho?n ti?n cho user {user_id}: {e}")
 
                             db.collection('orders').document(doc.id).update({
                                 'status': 'failed',
-                                'adminNote': 'Ảnh hoặc video quý khách tải lên không hợp lệ, hệ thống đã hoàn lại coin.',
+                                'adminNote': '?nh ho?c video qu? kh?ch t?i l?n kh?ng h?p l?, h? th?ng ?? ho?n l?i coin.',
                                 'updatedAt': firestore.SERVER_TIMESTAMP
                             })
 
-                            # Gửi thông báo Telegram: Đơn hàng thất bại
+                            # G?i th?ng b?o Telegram: ??n h?ng th?t b?i
                             try:
                                 order_data = doc.to_dict()
                                 short_id = doc.id[-6:].upper()
-                                user_name = order_data.get('userName', 'Khách hàng')
+                                user_name = order_data.get('userName', 'Khach hang')
                                 user_email = order_data.get('userEmail', 'N/A')
                                 msg = (
-                                    f"❌ <b>ĐƠN HÀNG THẤT BẠI</b>\n\n"
-                                    f"🆔 Mã đơn: #{short_id}\n"
-                                    f"👤 Khách: {user_name}\n"
-                                    f"📧 Email: {user_email}\n"
-                                    f"📝 Lý do: Ảnh/video tham chiếu không hợp lệ."
+                                    f"<b>DON HANG THAT BAI</b>\n\n"
+                                    f"Ma don: #{short_id}\n"
+                                    f"Khach: {user_name}\n"
+                                    f"Email: {user_email}\n"
+                                    f"Ly do: Anh/video tham chieu khong hop le."
                                 )
                                 send_telegram_message(msg)
                             except Exception as tele_err:
-                                print(f"⚠️ Lỗi gửi thông báo Telegram thất bại: {tele_err}")
+                                print(f"?? L?i g?i th?ng b?o Telegram th?t b?i: {tele_err}")
                         else:
-                            print(f"⏳ Job {job_id} vẫn đang render...")
+                            print(f"? Job {job_id} v?n ?ang render...")
                 browser.close()
     except Exception as e:
-        print(f"❌ Lỗi monitor: {e}")
+        print(f"? L?i monitor: {e}")
 
 def on_pending_orders_snapshot(keys, changes, read_time):
     if not is_bot_enabled():
@@ -1303,11 +1349,11 @@ def on_pending_orders_snapshot(keys, changes, read_time):
                     continue
             if oid not in _pending_order_queue:
                 _pending_order_queue.append(oid)
-                print(f"📋 Xếp hàng nạp đơn: {oid} (còn {len(_pending_order_queue)} trong queue)")
+                print(f"?? X?p h?ng n?p ??n: {oid} (c?n {len(_pending_order_queue)} trong queue)")
 
 
 def _rescan_pending_orders_loop():
-    """Thử lại đơn pending sau khi session Aidancing được sửa (mỗi 5 phút)."""
+    """Th? l?i ??n pending sau khi session Aidancing ???c s?a (m?i 5 ph?t)."""
     while True:
         time.sleep(SESSION_ERROR_BACKOFF_SEC)
         if not is_bot_enabled():
@@ -1326,41 +1372,41 @@ def _rescan_pending_orders_loop():
                             continue
                     if oid not in _pending_order_queue:
                         _pending_order_queue.append(oid)
-                        print(f"🔄 Hàng đợi thử lại đơn pending: {oid}")
+                        print(f"?? H?ng ??i th? l?i ??n pending: {oid}")
         except Exception as e:
-            print(f"⚠️ rescan pending: {e}")
+            print(f"?? rescan pending: {e}")
 
 def start_bot():
     global BOT_NAME
-    parser = argparse.ArgumentParser(description='MotionAI order bot — aidancing.net')
-    parser.add_argument('--name', required=True, help='Tên bot duy nhất (vd: aidancing-vps1, bot-may-nha)')
+    parser = argparse.ArgumentParser(description='MotionAI order bot ? aidancing.net')
+    parser.add_argument('--name', required=True, help='T?n bot duy nh?t (vd: aidancing-vps1, bot-may-nha)')
     parser.add_argument('--mode', choices=['browser', 'api', 'http'], default=None,
-                        help='browser=Playwright; api/http=Pure HTTP (AIDANCING_COOKIE, không Chrome)')
+                        help='browser=Playwright; api/http=Pure HTTP (AIDANCING_COOKIE, kh?ng Chrome)')
     args = parser.parse_args()
     if args.mode:
         os.environ['BOT_MODE'] = args.mode
     BOT_NAME = normalize_bot_name(args.name)
     if not BOT_NAME:
-        print("❌ Tên bot không hợp lệ. Dùng: python bot.py --name aidancing-vps1")
+        print("? T?n bot kh?ng h?p l?. D?ng: python bot.py --name aidancing-vps1")
         sys.exit(1)
 
-    print(f"📡 MotionAI BOT [{BOT_NAME}] (v3.8 - mode={os.environ.get('BOT_MODE', 'browser')}) đang khởi động...")
+    print(f"?? MotionAI BOT [{BOT_NAME}] (v3.8 - mode={os.environ.get('BOT_MODE', 'browser')}) ?ang kh?i ??ng...")
     cdp_url = os.environ.get("BOT_CDP_URL", "").strip()
     if cdp_url:
         if ensure_cdp_available(cdp_url):
-            print(f"✅ Chrome CDP sẵn sàng: {cdp_url}")
+            print(f"? Chrome CDP s?n s?ng: {cdp_url}")
         else:
-            print(f"⚠️  BOT_CDP_URL={cdp_url} nhưng Chrome chưa mở CDP!")
-            print("    → Mở Chrome CDP ở terminal KHÁC trước, giữ chạy, rồi bot mới nối được.")
+            print(f"??  BOT_CDP_URL={cdp_url} nh?ng Chrome ch?a m? CDP!")
+            print("    ? M? Chrome CDP ? terminal KH?C tr??c, gi? ch?y, r?i bot m?i n?i ???c.")
     start_bot_control_listener()
     start_processing_listener()
 
     if use_api_mode():
         try:
             _get_http_client()
-            print("✅ Pure HTTP — AIDANCING_COOKIE (không cần Chrome/CDP)")
+            print("? Pure HTTP ? AIDANCING_COOKIE (kh?ng c?n Chrome/CDP)")
         except ValueError as e:
-            print(f"⚠️  Chưa cấu hình cookie: {e}")
+            print(f"??  Ch?a c?u h?nh cookie: {e}")
 
     def monitor_loop():
         while True:
@@ -1378,7 +1424,7 @@ def start_bot():
 
     db.collection('orders').where(filter=FieldFilter("status", "==", "pending")).on_snapshot(on_pending_orders_snapshot)
 
-    print(f"🟢 [{BOT_NAME}] Đang trực — lắng nghe Firestore (bật/tắt từ Admin)...")
+    print(f"?? [{BOT_NAME}] ?ang tr?c ? l?ng nghe Firestore (b?t/t?t t? Admin)...")
     while True:
         time.sleep(1)
 
