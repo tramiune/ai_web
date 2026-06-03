@@ -1112,6 +1112,8 @@ async function handleUserLoggedIn(user) {
                 if (adminDivider) adminDivider.style.display = 'block';
 
                 if (isSuperAdmin) {
+                    const purgeBtn = document.getElementById('btn-purge-inactive-users');
+                    if (purgeBtn) purgeBtn.style.display = 'inline-flex';
                     const tabUsersEl = document.getElementById('tab-users');
                     if (tabUsersEl) tabUsersEl.style.display = 'block';
                 }
@@ -1126,6 +1128,8 @@ async function handleUserLoggedIn(user) {
                     loadAdminPanel();
                 }
             } else {
+                const purgeBtn = document.getElementById('btn-purge-inactive-users');
+                if (purgeBtn) purgeBtn.style.display = 'none';
                 const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
                 if (adminProfileItem) adminProfileItem.style.display = 'none';
                 const adminDivider = document.getElementById('admin-dropdown-divider');
@@ -1202,6 +1206,8 @@ function handleUserLoggedOut() {
     if (topupPage) topupPage.style.display = 'none';
     const referralPage = document.getElementById('referral-page');
     if (referralPage) referralPage.style.display = 'none';
+    const purgeBtnLogout = document.getElementById('btn-purge-inactive-users');
+    if (purgeBtnLogout) purgeBtnLogout.style.display = 'none';
     const adminProfileItem = document.getElementById('admin-dropdown-item-profile');
     if (adminProfileItem) adminProfileItem.style.display = 'none';
     const adminDivider = document.getElementById('admin-dropdown-divider');
@@ -3172,6 +3178,164 @@ window.deleteUserAdmin = async (userId) => {
         showToast(t('admin.toast_user_deleted'));
     } catch (e) {
         showToast(t('common.error_with_msg', { msg: e.message }));
+    }
+};
+
+const INACTIVE_USER_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+const FIRESTORE_PAGE_SIZE = 400;
+const FIRESTORE_BATCH_DELETE_SIZE = 400;
+
+async function fetchAllFirestoreDocs(collectionName) {
+    const { db, collection, query, orderBy, getDocs, limit, startAfter } = window.firebase;
+    const all = [];
+    let cursor = null;
+    for (;;) {
+        const constraints = [orderBy('createdAt', 'desc'), limit(FIRESTORE_PAGE_SIZE)];
+        if (cursor) constraints.push(startAfter(cursor));
+        const snap = await getDocs(query(collection(db, collectionName), ...constraints));
+        if (snap.empty) break;
+        all.push(...snap.docs);
+        cursor = snap.docs[snap.docs.length - 1];
+        if (snap.size < FIRESTORE_PAGE_SIZE) break;
+    }
+    return all;
+}
+
+async function fetchAllFirestoreDocsSimple(collectionName) {
+    const { db, collection, getDocs } = window.firebase;
+    const snap = await getDocs(collection(db, collectionName));
+    return snap.docs;
+}
+
+function collectUserIdsFromDocs(docs) {
+    const ids = new Set();
+    for (const d of docs) {
+        const uid = d.data()?.userId;
+        if (uid) ids.add(uid);
+    }
+    return ids;
+}
+
+function buildReferralProtectedUserIds(userDocs, referralEarningDocs, referralCodeDocs) {
+    const ids = new Set();
+    for (const d of userDocs) {
+        const data = d.data() || {};
+        if (data.referredBy) {
+            ids.add(d.id);
+            ids.add(data.referredBy);
+        }
+        if (data.referralCode) ids.add(d.id);
+    }
+    for (const d of referralEarningDocs) {
+        const data = d.data() || {};
+        if (data.referrerId) ids.add(data.referrerId);
+        if (data.referredUserId) ids.add(data.referredUserId);
+    }
+    for (const d of referralCodeDocs) {
+        const uid = d.data()?.uid;
+        if (uid) ids.add(uid);
+    }
+    return ids;
+}
+
+function isInactiveGhostUser(userData, userId, cutoffMs, orderUserIds, topupUserIds, referralUserIds, selfUid) {
+    if (!userData || userId === selfUid) return false;
+    const role = userData.role || 'user';
+    if (role === 'admin' || role === 'super-admin') return false;
+    const created = safeToDate(userData.createdAt);
+    if (!created || created.getTime() > cutoffMs) return false;
+    if (orderUserIds.has(userId) || topupUserIds.has(userId)) return false;
+    if (referralUserIds.has(userId)) return false;
+    return true;
+}
+
+async function deleteUsersInBatches(userIds) {
+    const { db, doc, writeBatch } = window.firebase;
+    let deleted = 0;
+    for (let i = 0; i < userIds.length; i += FIRESTORE_BATCH_DELETE_SIZE) {
+        const chunk = userIds.slice(i, i + FIRESTORE_BATCH_DELETE_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach((uid) => batch.delete(doc(db, 'users', uid)));
+        await batch.commit();
+        deleted += chunk.length;
+    }
+    return deleted;
+}
+
+window.purgeInactiveUsers = async () => {
+    if (!window.__isSuperAdmin) {
+        return showToast(t('admin.purge_inactive_super_only'));
+    }
+
+    const btn = document.getElementById('btn-purge-inactive-users');
+    if (btn) btn.disabled = true;
+    showToast(t('admin.purge_inactive_scanning'));
+
+    try {
+        const cutoffMs = Date.now() - INACTIVE_USER_MIN_AGE_MS;
+        const selfUid = window.currentUser?.uid || '';
+
+        const [userDocs, orderDocs, topupDocs, referralEarningDocs, referralCodeDocs] = await Promise.all([
+            fetchAllFirestoreDocs('users'),
+            fetchAllFirestoreDocs('orders'),
+            fetchAllFirestoreDocs('topups'),
+            fetchAllFirestoreDocs('referralEarnings'),
+            fetchAllFirestoreDocsSimple('referralCodes')
+        ]);
+
+        const orderUserIds = collectUserIdsFromDocs(orderDocs);
+        const topupUserIds = collectUserIdsFromDocs(topupDocs);
+        const referralUserIds = buildReferralProtectedUserIds(userDocs, referralEarningDocs, referralCodeDocs);
+
+        const toDelete = [];
+        for (const d of userDocs) {
+            if (isInactiveGhostUser(d.data(), d.id, cutoffMs, orderUserIds, topupUserIds, referralUserIds, selfUid)) {
+                toDelete.push({ id: d.id, email: d.data()?.email || '', displayName: d.data()?.displayName || '' });
+            }
+        }
+
+        if (toDelete.length === 0) {
+            showToast(t('admin.purge_inactive_none'));
+            return;
+        }
+
+        const previewLines = toDelete.slice(0, 8).map((u) =>
+            `• ${escapeHTML(u.displayName || t('common.guest'))} — ${escapeHTML(u.email || u.id)}`
+        ).join('<br>');
+        const moreNote = toDelete.length > 8
+            ? `<br><i>…${t('admin.purge_inactive_and_more', { count: toDelete.length - 8 })}</i>`
+            : '';
+
+        window.niceConfirm({
+            title: t('admin.purge_inactive_confirm_title'),
+            message: t('admin.purge_inactive_confirm_msg', { count: toDelete.length }) +
+                `<br><br><div style="text-align:left;font-size:0.85rem;opacity:0.9;max-height:180px;overflow:auto;">${previewLines}${moreNote}</div>`,
+            icon: '🧹',
+            onConfirm: async () => {
+                const btn2 = document.getElementById('btn-purge-inactive-users');
+                if (btn2) btn2.disabled = true;
+                showToast(t('admin.purge_inactive_deleting', { count: toDelete.length }));
+                try {
+                    const deleted = await deleteUsersInBatches(toDelete.map((u) => u.id));
+                    FB_CACHE.adminUsers = (FB_CACHE.adminUsers || []).filter((u) => !toDelete.some((x) => x.id === u.id));
+                    if (FB_CACHE.adminUsersFull) {
+                        FB_CACHE.adminUsersFull = FB_CACHE.adminUsersFull.filter((u) => !toDelete.some((x) => x.id === u.id));
+                    }
+                    renderAdminUsers();
+                    showToast(t('admin.purge_inactive_done', { count: deleted }));
+                } catch (e) {
+                    console.error('purgeInactiveUsers:', e);
+                    showToast(t('common.error_with_msg', { msg: e.message }));
+                } finally {
+                    if (btn2) btn2.disabled = false;
+                }
+            }
+        });
+    } catch (e) {
+        console.error('purgeInactiveUsers scan:', e);
+        showToast(t('common.error_with_msg', { msg: e.message }));
+    } finally {
+        if (btn) btn.disabled = false;
     }
 };
 
