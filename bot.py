@@ -49,7 +49,6 @@ _submitting_orders_lock = threading.Lock()
 MIN_RENDER_SEC = int(os.environ.get("BOT_MIN_RENDER_SEC", "600"))
 _processing_cache = {}
 _processing_cache_lock = threading.Lock()
-HEARTBEAT_SEC = int(os.environ.get("BOT_HEARTBEAT_SEC", "60"))
 
 
 def _pop_processing_cache(order_id):
@@ -515,34 +514,15 @@ def ensure_bot_registered():
             'enabled': False,
             'hostname': socket.gethostname(),
             'createdAt': now,
-            'lastSeenAt': now,
             'startedAt': now,
         })
         print(f"?? Bot m?i ??ng k? tr?n Firestore: {BOT_NAME} (m?c ??nh T?T ? b?t tr?n Admin)")
     else:
         ref.set({
             'name': BOT_NAME,
-            'lastSeenAt': now,
             'startedAt': now,
             'hostname': socket.gethostname(),
         }, merge=True)
-
-def bot_heartbeat_loop():
-    while True:
-        try:
-            if BOT_NAME:
-                ref = db.collection('bots').document(BOT_NAME)
-                try:
-                    ref.update({'lastSeenAt': firestore.SERVER_TIMESTAMP})
-                except Exception as e:
-                    # Doc b? admin x?a ? ??ng k? l?i ??y ?? (c?ng t?n = c?ng 1 bot)
-                    if 'NOT_FOUND' in str(e) or 'No document to update' in str(e):
-                        ensure_bot_registered()
-                    else:
-                        raise
-        except Exception as e:
-            print(f"?? Heartbeat l?i: {e}")
-        time.sleep(HEARTBEAT_SEC)
 
 def on_bot_config_snapshot(keys, changes, read_time):
     # Document watch callback: (sorted_keys, DocumentChange[], read_time) ? not a DocumentSnapshot.
@@ -570,7 +550,6 @@ def start_bot_control_listener():
         print("??  Bot ?ang T?T. V?o Admin ? Bots ?? b?t.")
 
     db.collection('bots').document(BOT_NAME).on_snapshot(on_bot_config_snapshot)
-    threading.Thread(target=bot_heartbeat_loop, daemon=True).start()
 
 def send_telegram_message(text):
     try:
