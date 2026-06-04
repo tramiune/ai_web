@@ -10,7 +10,8 @@
 ## Bot VPS `.env`
 
 ```env
-XIAOYANG_API_KEY=xy_...
+XIAOYANG_API_KEYS=xy_key1,xy_key2
+# Bot tạm dùng key đầu; chia đơn theo credit — sau
 XIAOYANG_DIRECT_WORKER_URL=https://xiaoyang-direct-media.traderfinn0312.workers.dev
 XIAOYANG_OPTION_KEY=default
 BOT_MIN_RENDER_SEC=300

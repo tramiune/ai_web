@@ -15,7 +15,7 @@ merge_env() {
     echo "${key}=${val}" >> "$ENV_FILE"
   fi
 }
-merge_env XIAOYANG_API_KEY xy_ko9hMsOmczIfQgBeO6zv5Z9QqzR_QnMPHwOzFNmhmz8
+merge_env XIAOYANG_API_KEYS "xy_ko9hMsOmczIfQgBeO6zv5Z9QqzR_QnMPHwOzFNmhmz8,xy_YArPW-t5vz1aZzPlBFddH8i1Lu9C8Y5rJeSN5KUqbJ0"
 merge_env XIAOYANG_DIRECT_WORKER_URL https://xiaoyang-direct-media.traderfinn0312.workers.dev
 merge_env XIAOYANG_OPTION_KEY default
 merge_env XIAOYANG_MOTION_ORIENTATION video

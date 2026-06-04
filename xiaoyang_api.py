@@ -31,21 +31,38 @@ class XiaoyangApiError(RuntimeError):
     """Lỗi HTTP / business từ API (402 hết credit, 400 tham số, ...)."""
 
 
-def load_api_key() -> str:
+def _split_api_keys(raw: str) -> list[str]:
+    return [k.strip() for k in (raw or "").split(",") if k.strip()]
+
+
+def load_api_keys() -> list[str]:
+    """Danh sách key — XIAOYANG_API_KEYS (ưu tiên) hoặc XIAOYANG_API_KEY đơn."""
     env_file = Path(__file__).resolve().parent / ".env"
+    keys_raw = os.environ.get("XIAOYANG_API_KEYS", "").strip()
+    single = os.environ.get("XIAOYANG_API_KEY", "").strip()
     if env_file.is_file():
         for line in env_file.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            if line.startswith("XIAOYANG_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    key = os.environ.get("XIAOYANG_API_KEY", "").strip()
-    if key:
-        return key
+            if line.startswith("XIAOYANG_API_KEYS="):
+                keys_raw = line.split("=", 1)[1].strip().strip('"').strip("'")
+            elif line.startswith("XIAOYANG_API_KEY=") and not single:
+                single = line.split("=", 1)[1].strip().strip('"').strip("'")
+    keys = _split_api_keys(keys_raw)
+    if keys:
+        return keys
+    if single:
+        return [single]
     raise ValueError(
-        "Thiếu XIAOYANG_API_KEY. Tạo key tại https://xiaoyang.online/api rồi ghi vào .env"
+        "Thiếu XIAOYANG_API_KEYS hoặc XIAOYANG_API_KEY. "
+        "Tạo key tại https://xiaoyang.online/api rồi ghi vào .env"
     )
+
+
+def load_api_key() -> str:
+    """Key mặc định (key đầu) — bot routing multi-key sẽ dùng load_api_keys()."""
+    return load_api_keys()[0]
 
 
 class XiaoyangApiClient:
