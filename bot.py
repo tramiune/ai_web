@@ -19,7 +19,12 @@ from project_env import get_env, load_project_env
 load_project_env()
 
 from aidancing_api import AidancingApiClient, SessionExpiredError
-from xiaoyang_api import XiaoyangApiClient, XiaoyangAuthError, XiaoyangApiError
+from xiaoyang_api import (
+    XiaoyangApiClient,
+    XiaoyangAuthError,
+    XiaoyangApiError,
+    load_api_keys,
+)
 from xiaoyang_direct import DirectMediaError
 from xiaoyang_media import MediaValidationError
 
@@ -68,8 +73,11 @@ _active_render_provider = RENDER_PROVIDER_XIAOYANG
 _active_render_provider_lock = threading.Lock()
 _processing_cache = {}
 _processing_cache_lock = threading.Lock()
-_xy_http_client = None
-_xy_http_client_lock = threading.Lock()
+_xy_clients = {}
+_xy_clients_lock = threading.Lock()
+_xy_credits_cache = {}
+_xy_credits_cache_lock = threading.Lock()
+XY_CREDITS_CACHE_TTL = int(os.environ.get("XIAOYANG_CREDITS_CACHE_SEC", "120"))
 _http_client = None
 _http_client_lock = threading.Lock()
 
@@ -127,18 +135,105 @@ def _order_render_provider(order_data: dict) -> str:
     return RENDER_PROVIDER_AIDANCING
 
 
-def _get_xy_http_client():
-    global _xy_http_client
-    with _xy_http_client_lock:
-        if _xy_http_client is None:
-            _xy_http_client = XiaoyangApiClient()
-        return _xy_http_client
+def _order_xy_key_index(order_data: dict) -> int:
+    if not order_data:
+        return 0
+    raw = order_data.get("xiaoyangKeyIndex")
+    if raw is not None:
+        try:
+            i = int(raw)
+            if i >= 0:
+                return i
+        except (TypeError, ValueError):
+            pass
+    return 0
 
 
-def _reset_xy_http_client():
-    global _xy_http_client
-    with _xy_http_client_lock:
-        _xy_http_client = None
+def _xy_credit_required(model_id: str) -> int:
+    if str(model_id or "").strip() in AIDANCING_TURBO_MODEL_IDS:
+        return int(get_env("XIAOYANG_MIN_CREDITS_TURBO", "220"))
+    return int(get_env("XIAOYANG_MIN_CREDITS_FAST", "80"))
+
+
+def _count_xy_active_per_key() -> dict[int, int]:
+    counts: dict[int, int] = {}
+    with _processing_cache_lock:
+        for doc in _processing_cache.values():
+            d = doc.to_dict() or {}
+            if _order_render_provider(d) != RENDER_PROVIDER_XIAOYANG:
+                continue
+            if not d.get("xiaoyangTaskId"):
+                continue
+            ki = _order_xy_key_index(d)
+            counts[ki] = counts.get(ki, 0) + 1
+    return counts
+
+
+def _invalidate_xy_key(key_index: int):
+    with _xy_clients_lock:
+        _xy_clients.pop(key_index, None)
+    with _xy_credits_cache_lock:
+        _xy_credits_cache.pop(key_index, None)
+
+
+def _get_xy_client(key_index: int) -> XiaoyangApiClient:
+    keys = load_api_keys()
+    if not keys:
+        raise ValueError("Thiếu XIAOYANG_API_KEYS")
+    if key_index < 0 or key_index >= len(keys):
+        key_index = 0
+    with _xy_clients_lock:
+        client = _xy_clients.get(key_index)
+        if client is None:
+            client = XiaoyangApiClient(api_key=keys[key_index])
+            _xy_clients[key_index] = client
+        return client
+
+
+def _xy_key_credits(key_index: int, *, force: bool = False) -> tuple[int, str]:
+    now = time.time()
+    if not force:
+        with _xy_credits_cache_lock:
+            cached = _xy_credits_cache.get(key_index)
+            if cached and now - cached[2] < XY_CREDITS_CACHE_TTL:
+                return cached[0], cached[1]
+    me = _get_xy_client(key_index).me()
+    credits = int(me.get("credits") or 0)
+    email = str(me.get("email") or "?")
+    with _xy_credits_cache_lock:
+        _xy_credits_cache[key_index] = (credits, email, now)
+    return credits, email
+
+
+def _pick_xiaoyang_key_index(order_data: dict) -> int:
+    """Chọn key: đủ credit cho gói + ít đơn XY processing nhất (tie → credit cao hơn)."""
+    keys = load_api_keys()
+    if len(keys) <= 1:
+        return 0
+    model_id = str(order_data.get("modelId") or "").strip()
+    required = _xy_credit_required(model_id)
+    active = _count_xy_active_per_key()
+    candidates = []
+    for i in range(len(keys)):
+        try:
+            credits, email = _xy_key_credits(i)
+        except Exception as e:
+            print(f"⚠️ XY key #{i} không đọc được credit: {e}")
+            continue
+        if credits < required:
+            continue
+        candidates.append((active.get(i, 0), -credits, i, email, credits))
+    if not candidates:
+        raise XiaoyangApiError(
+            f"Không có API key XY đủ credit (cần ≥{required}, modelId={model_id or 'fast'})"
+        )
+    candidates.sort()
+    load, _, idx, email, credits = candidates[0]
+    print(
+        f"🔑 XY key #{idx} ({email}, {credits} CR, {load} đơn đang chạy) "
+        f"— trong {len(keys)} key"
+    )
+    return idx
 
 
 def _get_http_client():
@@ -254,18 +349,20 @@ def _fail_order_processing(doc, order_data, err_detail, system_note, context: st
 
 
 def _http_poll_xiaoyang_orders(orders_to_check):
-    api = _get_xy_http_client()
     for doc in orders_to_check:
-        task_id = str((doc.to_dict() or {}).get("xiaoyangTaskId") or "").strip()
+        d = doc.to_dict() or {}
+        task_id = str(d.get("xiaoyangTaskId") or "").strip()
         if not task_id:
             continue
-        print(f"🧐 XiaoYang — task {task_id} (đơn {doc.id})...")
+        key_idx = _order_xy_key_index(d)
+        api = _get_xy_client(key_idx)
+        print(f"🧐 XiaoYang key#{key_idx} — task {task_id} (đơn {doc.id})...")
         try:
             t = api.get_task(task_id)
         except (XiaoyangAuthError, XiaoyangApiError) as e:
             print(f"❌ Poll XiaoYang {task_id}: {e}")
             if "401" in str(e) or "403" in str(e):
-                _reset_xy_http_client()
+                _invalidate_xy_key(key_idx)
             continue
         st = (t.get("status") or "").upper()
         err = t.get("error_message")
@@ -1140,7 +1237,13 @@ def check_finished_orders_api():
             except Exception as e:
                 print(f"❌ Lỗi monitor XiaoYang HTTP: {e}")
 
-def _mark_order_processing(doc_ref, job_id, *, provider=RENDER_PROVIDER_AIDANCING):
+def _mark_order_processing(
+    doc_ref,
+    job_id,
+    *,
+    provider=RENDER_PROVIDER_AIDANCING,
+    xiaoyang_key_index=None,
+):
     """Chỉ chuyển processing sau khi engine render đã nhận job."""
     payload = {
         'status': 'processing',
@@ -1150,6 +1253,8 @@ def _mark_order_processing(doc_ref, job_id, *, provider=RENDER_PROVIDER_AIDANCIN
     }
     if provider == RENDER_PROVIDER_XIAOYANG:
         payload['xiaoyangTaskId'] = str(job_id)
+        if xiaoyang_key_index is not None:
+            payload['xiaoyangKeyIndex'] = int(xiaoyang_key_index)
     else:
         payload['aidancingJobId'] = str(job_id)
     doc_ref.update(payload)
@@ -1199,7 +1304,8 @@ def submit_to_xiaoyang(order_id):
                 return
 
             try:
-                api = _get_xy_http_client()
+                key_idx = _pick_xiaoyang_key_index(data)
+                api = _get_xy_client(key_idx)
                 modal, option = _xiaoyang_modal_for_order(data)
                 prompt = (data.get("prompt") or get_env(
                     "XIAOYANG_PROMPT", "Follow the reference motion naturally"
@@ -1225,8 +1331,13 @@ def submit_to_xiaoyang(order_id):
                 task_id = resp.get("task_id")
                 if not task_id:
                     raise XiaoyangApiError(f"Không có task_id: {resp}")
-                print(f"🆔 [XiaoYang] task: {task_id} ({resp.get('status')})")
-                _mark_order_processing(doc_ref, task_id, provider=RENDER_PROVIDER_XIAOYANG)
+                print(f"🆔 [XiaoYang] key#{key_idx} task: {task_id} ({resp.get('status')})")
+                _mark_order_processing(
+                    doc_ref,
+                    task_id,
+                    provider=RENDER_PROVIDER_XIAOYANG,
+                    xiaoyang_key_index=key_idx,
+                )
                 _session_error_backoff.pop(order_id, None)
                 print(f"✅ Đơn {order_id} → processing (XiaoYang)")
                 try:
@@ -1243,7 +1354,10 @@ def submit_to_xiaoyang(order_id):
                 print(f"❌ Nạp XiaoYang thất bại {order_id}: {e}")
                 _session_error_backoff[order_id] = time.time() + SESSION_ERROR_BACKOFF_SEC
                 if isinstance(e, XiaoyangAuthError):
-                    _reset_xy_http_client()
+                    try:
+                        _invalidate_xy_key(key_idx)
+                    except NameError:
+                        pass
                 user_note = USER_NOTE_FILES_INVALID if isinstance(e, MediaValidationError) else USER_NOTE_SUBMIT_FAILED
                 _fail_order_processing(doc, data, str(e), user_note, "submit xiaoyang")
     finally:
@@ -1712,8 +1826,11 @@ def start_bot():
     start_processing_listener()
 
     try:
-        me = _get_xy_http_client().me()
-        print(f"✅ XiaoYang API — {me.get('email', '?')} | credits: {me.get('credits', '?')}")
+        keys = load_api_keys()
+        print(f"✅ XiaoYang: {len(keys)} API key — phân chia credit + tải đơn")
+        for i in range(len(keys)):
+            cr, em = _xy_key_credits(i, force=True)
+            print(f"   #{i} {em} | {cr} credits")
         from xiaoyang_direct import direct_worker_base
         dw = direct_worker_base()
         print(f"✅ XiaoYang direct worker: {dw or '(chưa cấu hình)'}")

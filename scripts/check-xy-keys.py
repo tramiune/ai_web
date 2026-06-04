@@ -37,7 +37,8 @@ def main():
             print(f"{i:<3} {mask(key):<18} {email:<28} {cr:>8}  {ok_fast:>4}  {ok_turbo:>5}")
         except Exception as e:
             print(f"{i:<3} {mask(key):<18} ERROR: {e}")
-    print("\nBot hiện chỉ dùng key #0 cho đơn mới (chưa chia multi-key).")
+    print("\nBot phân chia đơn XY mới: ít queue + đủ credit (Turbo/Fast).")
+    print("Thêm key vào XIAOYANG_API_KEYS rồi restart bot để nhận key mới.")
 
 
 if __name__ == "__main__":

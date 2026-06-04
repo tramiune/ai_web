@@ -10,8 +10,9 @@
 ## Bot VPS `.env`
 
 ```env
-XIAOYANG_API_KEYS=xy_key1,xy_key2
-# Bot tạm dùng key đầu; chia đơn theo credit — sau
+XIAOYANG_API_KEYS=xy_key1,xy_key2,xy_key3
+# Bot chia đơn mới: đủ credit (Fast/Turbo) + key ít đơn processing nhất
+# Thêm key → append vào chuỗi trên → restart bot
 XIAOYANG_DIRECT_WORKER_URL=https://xiaoyang-direct-media.traderfinn0312.workers.dev
 XIAOYANG_OPTION_KEY=default
 BOT_MIN_RENDER_SEC=300
