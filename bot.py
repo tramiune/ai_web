@@ -18,7 +18,7 @@ from project_env import get_env, load_project_env
 
 load_project_env()
 
-from aidancing_api import AidancingApiClient
+from aidancing_api import AidancingApiClient, SessionExpiredError
 from xiaoyang_api import XiaoyangApiClient, XiaoyangAuthError, XiaoyangApiError
 from xiaoyang_direct import DirectMediaError
 from xiaoyang_media import MediaValidationError
@@ -70,6 +70,8 @@ _processing_cache = {}
 _processing_cache_lock = threading.Lock()
 _xy_http_client = None
 _xy_http_client_lock = threading.Lock()
+_http_client = None
+_http_client_lock = threading.Lock()
 
 
 def _pop_processing_cache(order_id):
@@ -137,6 +139,58 @@ def _reset_xy_http_client():
     global _xy_http_client
     with _xy_http_client_lock:
         _xy_http_client = None
+
+
+def _get_http_client():
+    global _http_client
+    with _http_client_lock:
+        if _http_client is None:
+            _http_client = AidancingApiClient()
+        return _http_client
+
+
+def _reset_http_client():
+    global _http_client
+    with _http_client_lock:
+        _http_client = None
+
+
+def _http_create_job(model_id, char_path, vid_path):
+    api = _get_http_client()
+    return api.create_job(model_id, char_path, vid_path)
+
+
+def _http_poll_orders(orders_to_check):
+    api = _get_http_client()
+    job_ids = [str(doc.to_dict().get('aidancingJobId')) for doc in orders_to_check]
+    jobs_map = api.find_jobs_by_ids(job_ids)
+    for doc in orders_to_check:
+        job_id = str(doc.to_dict().get('aidancingJobId'))
+        print(f"🧐 API — Job {job_id}...")
+        job = jobs_map.get(int(job_id))
+        if not job:
+            print(f"❌ Không thấy job {job_id} trong API (3 trang đầu)")
+            continue
+        status = (job.get('status') or '').upper()
+        print(f"   status={status}, outputFileId={job.get('outputFileId')}")
+        if status == 'COMPLETED' and job.get('outputFileId'):
+            if _skip_if_order_done(doc.id, "đã completed trên Firestore"):
+                continue
+            print(f"🎉 Job {job_id} HOÀN TẤT — tải file {job['outputFileId']}...")
+            try:
+                local_vid = api.download_file(job['outputFileId'], f"res_{doc.id}.mp4")
+                _complete_order_with_video(doc, local_vid)
+            except Exception as e:
+                print(f"⚠️ Lỗi tải/hoàn đơn {doc.id}: {e}")
+        elif status in ('FAILED', 'ERROR', 'CANCELLED'):
+            print(f"❌ Job {job_id} thất bại trên aidancing ({status})")
+            order_data = doc.to_dict()
+            err_detail = f'Aidancing job {job_id} {status}: {job.get("errorMessage") or ""}'
+            _fail_order_processing(
+                doc, order_data, err_detail, USER_NOTE_ORDER_FAILED, 'render aidancing'
+            )
+        else:
+            print(f"⏳ Job {job_id} vẫn {status}")
 
 
 def _normalize_render_provider(value, default=RENDER_PROVIDER_XIAOYANG):
@@ -333,44 +387,6 @@ def _persistent_api():
 
 def _reset_persistent_api():
     run_playwright(_api_pool.reset)
-
-
-def _pw_create_job(model_id, char_path, vid_path):
-    api = _api_pool.get()
-    return api.create_job(model_id, char_path, vid_path)
-
-
-def _pw_poll_orders(orders_to_check):
-    api = _api_pool.get()
-    job_ids = [str(doc.to_dict().get('aidancingJobId')) for doc in orders_to_check]
-    jobs_map = api.find_jobs_by_ids(job_ids)
-    for doc in orders_to_check:
-        job_id = str(doc.to_dict().get('aidancingJobId'))
-        print(f"🧐 API — Job {job_id}...")
-        job = jobs_map.get(int(job_id))
-        if not job:
-            print(f"❌ Không thấy job {job_id} trong API (3 trang đầu)")
-            continue
-        status = (job.get('status') or '').upper()
-        print(f"   status={status}, outputFileId={job.get('outputFileId')}")
-        if status == 'COMPLETED' and job.get('outputFileId'):
-            if _skip_if_order_done(doc.id, "đã completed trên Firestore"):
-                continue
-            print(f"🎉 Job {job_id} HOÀN TẤT — tải file {job['outputFileId']}...")
-            try:
-                local_vid = api.download_file(job['outputFileId'], f"res_{doc.id}.mp4")
-                _complete_order_with_video(doc, local_vid)
-            except Exception as e:
-                print(f"⚠️ Lỗi tải/hoàn đơn {doc.id}: {e}")
-        elif status in ('FAILED', 'ERROR', 'CANCELLED'):
-            print(f"❌ Job {job_id} thất bại trên aidancing ({status})")
-            order_data = doc.to_dict()
-            err_detail = f'Aidancing job {job_id} {status}: {job.get("errorMessage") or ""}'
-            _fail_order_processing(
-                doc, order_data, err_detail, USER_NOTE_ORDER_FAILED, 'render aidancing'
-            )
-        else:
-            print(f"⏳ Job {job_id} vẫn {status}")
 
 
 def _processing_monitor_state():
@@ -1052,7 +1068,9 @@ def send_completion_email(order_id, order_data, result_link):
         print(f"❌ Lỗi kết nối khi gửi email thông báo qua EmailJS: {e}")
 
 def use_api_mode():
-    return os.environ.get("BOT_MODE", "browser").strip().lower() == "api"
+    """Pure HTTP — AIDANCING_COOKIE + XiaoYang API, không cần Chrome/CDP."""
+    mode = os.environ.get("BOT_MODE", "browser").strip().lower()
+    return mode in ("api", "http")
 
 def _complete_order_with_video(doc, local_vid):
     """Upload R2 + cập nhật Firestore + thông báo."""
@@ -1093,36 +1111,34 @@ def _complete_order_with_video(doc, local_vid):
     return True
 
 def check_finished_orders_api():
-    """Monitor Aidancing (CDP) + XiaoYang (HTTP)."""
-    if not is_bot_enabled():
+    """Monitor Aidancing + XiaoYang — Pure HTTP."""
+    if not is_bot_enabled() or browser_lock.locked():
         return
     ad_orders, xy_orders, _ = _processing_monitor_state()
     if not ad_orders and not xy_orders:
         return
-    if browser_lock.locked() and ad_orders:
-        return
 
     print(
-        f"\n🔍 [MONITOR/API] Poll Aidancing={len(ad_orders)} XiaoYang={len(xy_orders)} "
+        f"\n🔍 [MONITOR/HTTP] Poll Aidancing={len(ad_orders)} XiaoYang={len(xy_orders)} "
         f"(sau {MIN_RENDER_SEC // 60}p từ submittedAt)..."
     )
-    if ad_orders:
-        with browser_lock:
+    with browser_lock:
+        if ad_orders:
             try:
-                run_playwright(_pw_poll_orders, ad_orders)
+                _http_poll_orders(ad_orders)
+            except SessionExpiredError as e:
+                print(f"❌ Session hết hạn: {e}")
+                _reset_http_client()
             except Exception as e:
                 err = str(e)
-                print(f"❌ Lỗi monitor API: {e}")
-                if any(x in err for x in ('ECONNREFUSED', 'Chrome CDP', 'connect_over_cdp', 'Target closed', 'different thread')):
-                    try:
-                        run_playwright(_api_pool.reset)
-                    except Exception:
-                        pass
-    if xy_orders:
-        try:
-            _http_poll_xiaoyang_orders(xy_orders)
-        except Exception as e:
-            print(f"❌ Lỗi monitor XiaoYang HTTP: {e}")
+                print(f"❌ Lỗi monitor Aidancing HTTP: {e}")
+                if any(x in err.lower() for x in ("401", "403", "session expired", "aidancing_cookie")):
+                    _reset_http_client()
+        if xy_orders:
+            try:
+                _http_poll_xiaoyang_orders(xy_orders)
+            except Exception as e:
+                print(f"❌ Lỗi monitor XiaoYang HTTP: {e}")
 
 def _mark_order_processing(doc_ref, job_id, *, provider=RENDER_PROVIDER_AIDANCING):
     """Chỉ chuyển processing sau khi engine render đã nhận job."""
@@ -1313,32 +1329,32 @@ def submit_to_aidancing(order_id):
             if use_api_mode():
                 try:
                     model_id = data.get('modelId', '124')
-                    print(f"🚀 [API] Nạp đơn model {model_id}...")
-                    job_id = run_playwright(_pw_create_job, model_id, char_path, vid_path)
-                    print(f"🆔 [API] Job mới: {job_id}")
-                    _mark_order_processing(doc_ref, job_id)
+                    print(f"🚀 [HTTP] Nạp đơn model {model_id}...")
+                    job_id = _http_create_job(model_id, char_path, vid_path)
+                    print(f"🆔 [HTTP] Job mới: {job_id}")
+                    _mark_order_processing(doc_ref, job_id, provider=RENDER_PROVIDER_AIDANCING)
                     _session_error_backoff.pop(order_id, None)
                     print(f"✅ Đơn {order_id} → processing (aidancing đã nhận job)")
                     try:
                         short_id = order_id[-6:].upper()
-                        msg = (
+                        send_telegram_message(
                             f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b>\n\n"
                             f"🆔 Mã đơn: #{short_id}\n"
                             f"🤖 Job ID aidancing: <code>{job_id}</code>\n"
-                            f"⏳ Đang render (API mode)..."
+                            f"⏳ Đang render (HTTP mode)..."
                         )
-                        send_telegram_message(msg)
                     except Exception:
                         pass
+                except SessionExpiredError as e:
+                    print(f"❌ Session hết hạn: {e}")
+                    _reset_http_client()
+                    apply_bot_error_update(doc_ref, order_id, data, str(e), 'nạp HTTP')
                 except Exception as e:
-                    print(f"❌ Lỗi nạp API: {e}")
+                    print(f"❌ Lỗi nạp HTTP: {e}")
                     err = str(e)
-                    if any(x in err for x in ('ECONNREFUSED', 'Chrome CDP chưa chạy', 'connect_over_cdp', 'Target closed', 'different thread')):
-                        try:
-                            run_playwright(_api_pool.reset)
-                        except Exception:
-                            pass
-                    apply_bot_error_update(doc_ref, order_id, data, err, 'nạp API')
+                    if any(x in err.lower() for x in ('401', '403', 'session expired', 'aidancing_cookie')):
+                        _reset_http_client()
+                    apply_bot_error_update(doc_ref, order_id, data, err, 'nạp HTTP')
                 finally:
                     if char_path and os.path.exists(char_path):
                         os.remove(char_path)
@@ -1431,13 +1447,6 @@ def submit_to_aidancing(order_id):
 
 # --- PHA 2: RÌNH KẾT QUẢ ---
 def check_finished_orders():
-    ad_orders, xy_orders, _ = _processing_monitor_state()
-    if xy_orders and is_bot_enabled() and not browser_lock.locked():
-        try:
-            _http_poll_xiaoyang_orders(xy_orders)
-        except Exception as e:
-            print(f"❌ Lỗi monitor XiaoYang: {e}")
-
     if use_api_mode():
         try:
             check_finished_orders_api()
@@ -1451,10 +1460,11 @@ def check_finished_orders():
         if browser_lock.locked():
             return
 
-        orders_to_check = ad_orders
-        if not orders_to_check:
+        ad_orders, _, _ = _processing_monitor_state()
+        if not ad_orders:
             return
 
+        orders_to_check = ad_orders
         print(f"\n🔍 [MONITOR] Đang rình kết quả Aidancing cho {len(orders_to_check)} đơn đủ {MIN_RENDER_SEC // 60}p...")
         with browser_lock:
             with sync_playwright() as p:
@@ -1679,8 +1689,8 @@ def start_bot():
     global BOT_NAME
     parser = argparse.ArgumentParser(description='MotionAI order bot — aidancing.net')
     parser.add_argument('--name', required=True, help='Tên bot duy nhất (vd: aidancing-vps1, bot-may-nha)')
-    parser.add_argument('--mode', choices=['browser', 'api'], default=None,
-                        help='browser=scrape dashboard (mặc định), api=gọi /api/proxy/jobs')
+    parser.add_argument('--mode', choices=['browser', 'api', 'http'], default=None,
+                        help='browser=Playwright; api/http=Pure HTTP (cookie + XY, không Chrome)')
     args = parser.parse_args()
     if args.mode:
         os.environ['BOT_MODE'] = args.mode
@@ -1711,8 +1721,11 @@ def start_bot():
         print(f"⚠️  XiaoYang API: {e}")
 
     if use_api_mode():
-        _ensure_playwright_worker()
-        threading.Thread(target=_warm_api_session_loop, daemon=True).start()
+        try:
+            _get_http_client()
+            print("✅ Pure HTTP Aidancing — AIDANCING_COOKIE (không cần Chrome/CDP)")
+        except ValueError as e:
+            print(f"⚠️  Chưa cấu hình cookie Aidancing: {e}")
 
     def monitor_loop():
         while True:
