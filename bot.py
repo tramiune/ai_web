@@ -236,6 +236,15 @@ def _pick_xiaoyang_key_index(order_data: dict) -> int:
     return idx
 
 
+def _xy_account_label(key_index: int) -> str:
+    """Nhãn nick XY cho Telegram admin (email + slot key)."""
+    try:
+        credits, email = _xy_key_credits(key_index)
+        return f"{email} (key #{key_index}, {credits} CR)"
+    except Exception:
+        return f"key #{key_index}"
+
+
 def _get_http_client():
     global _http_client
     with _http_client_lock:
@@ -1345,6 +1354,7 @@ def submit_to_xiaoyang(order_id):
                     send_telegram_message(
                         f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b> (XiaoYang)\n\n"
                         f"🆔 Mã đơn: #{short_id}\n"
+                        f"👤 Nick XY: {_xy_account_label(key_idx)}\n"
                         f"🤖 Task: <code>{task_id}</code>\n"
                         f"⏳ Poll sau {MIN_RENDER_SEC // 60} phút..."
                     )
