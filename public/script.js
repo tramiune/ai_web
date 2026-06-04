@@ -2454,6 +2454,17 @@ function loadMyOrders() {
     }));
 }
 
+/** Ghi chú đơn hiển thị cho khách — không lộ engine render. */
+function userFacingOrderNote(order) {
+    const raw = (order && order.systemNote) || '';
+    if (!raw) return '';
+    return raw
+        .replace(/\bXiaoYang\b/gi, 'hệ thống')
+        .replace(/\bAidancing\b/gi, 'hệ thống')
+        .replace(/\baidancing\.net\b/gi, 'hệ thống')
+        .replace(/\bxiaoyang\.online\b/gi, 'hệ thống');
+}
+
 function renderMyOrders() {
     const grid = document.getElementById('my-orders-grid');
     const countText = document.getElementById('orders-count-text');
@@ -2513,7 +2524,7 @@ function renderMyOrders() {
                         </div>
                         <div class="order-type-text">${d.serviceLabel || ''}</div>
                         ${delayNote}
-                        ${(d.systemNote || d.adminNote) ? `<div class="order-system-note">💬 ${d.systemNote || d.adminNote}</div>` : ''}
+                        ${userFacingOrderNote(d) ? `<div class="order-system-note">💬 ${escapeHTML(userFacingOrderNote(d))}</div>` : ''}
                         <div class="order-footer">
                             <div class="order-cost-tag">
                                 <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none">
@@ -2841,8 +2852,93 @@ function scheduleRenderAdminBots() {
     }, 400);
 }
 
+const RENDER_PROVIDER_BOT_ID = 'motionai_vps_bot';
+
+let adminActiveRenderProvider = 'xiaoyang';
+
+function normalizeRenderProvider(value) {
+    const p = (value || 'xiaoyang').toString().trim().toLowerCase();
+    return ['aidancing', 'xiaoyang'].includes(p) ? p : 'xiaoyang';
+}
+
+function subscribeAdminRenderProvider() {
+    if (!window.__isAdmin) return;
+    if (fbHas('adminRenderProvider')) {
+        renderAdminRenderProviderUI();
+        return;
+    }
+    const { db, doc, onSnapshot } = window.firebase;
+    fbSub('adminRenderProvider', onSnapshot(doc(db, 'bots', RENDER_PROVIDER_BOT_ID), (snap) => {
+        const d = snap.exists() ? snap.data() : {};
+        adminActiveRenderProvider = normalizeRenderProvider(
+            d.activeRenderProvider || d.activeProvider
+        );
+        renderAdminRenderProviderUI();
+    }, (err) => {
+        console.error('Admin render provider error:', err);
+    }));
+}
+
+function renderAdminRenderProviderUI() {
+    const activeEl = document.getElementById('admin-render-provider-active');
+    const queueEl = document.getElementById('admin-render-provider-queue');
+    const btnAd = document.getElementById('admin-rp-aidancing');
+    const btnXy = document.getElementById('admin-rp-xiaoyang');
+    const p = adminActiveRenderProvider;
+    if (activeEl) {
+        activeEl.textContent = p === 'xiaoyang'
+            ? t('admin.render_provider_active_xy')
+            : t('admin.render_provider_active_ad');
+        activeEl.style.color = p === 'xiaoyang' ? '#a78bfa' : '#4ade80';
+    }
+    if (btnAd) btnAd.style.outline = p === 'aidancing' ? '2px solid #4ade80' : '';
+    if (btnXy) btnXy.style.outline = p === 'xiaoyang' ? '2px solid #a78bfa' : '';
+    if (queueEl) {
+        refreshRenderProviderQueueHint(queueEl);
+    }
+}
+
+async function refreshRenderProviderQueueHint(el) {
+    if (!window.__isAdmin || !el) return;
+    try {
+        const { db, collection, query, where, getDocs } = window.firebase;
+        const snap = await getDocs(query(collection(db, 'orders'), where('status', '==', 'processing')));
+        let ad = 0;
+        let xy = 0;
+        snap.forEach(d => {
+            const x = d.data();
+            const rp = x.renderProvider || (x.xiaoyangTaskId ? 'xiaoyang' : 'aidancing');
+            if (rp === 'xiaoyang') xy++;
+            else ad++;
+        });
+        el.textContent = t('admin.render_provider_processing', { ad, xy });
+    } catch (e) {
+        el.textContent = '';
+    }
+}
+
+window.setRenderProvider = async (provider) => {
+    if (!window.__isAdmin) return;
+    provider = normalizeRenderProvider(provider);
+    const { db, doc, updateDoc, serverTimestamp } = window.firebase;
+    try {
+        await updateDoc(doc(db, 'bots', RENDER_PROVIDER_BOT_ID), {
+            activeRenderProvider: provider,
+            updatedAt: serverTimestamp(),
+            updatedBy: currentUser?.email || ''
+        });
+        showToast(provider === 'xiaoyang'
+            ? t('admin.render_provider_toast_xy')
+            : t('admin.render_provider_toast_ad'));
+    } catch (e) {
+        showToast(t('common.error_with_msg', { msg: e.message }));
+    }
+};
+
 function subscribeAdminBots() {
     if (!window.__isAdmin) return;
+
+    subscribeAdminRenderProvider();
 
     if (fbHas('adminBots')) {
         renderAdminBots();
@@ -3677,6 +3773,7 @@ function refreshActiveAdminSubscription() {
         fbUnsub('adminUsers');
         fbUnsub('adminReferrals');
         fbUnsub('adminBots');
+        fbUnsub('adminRenderProvider');
         return;
     }
 
@@ -3685,24 +3782,28 @@ function refreshActiveAdminSubscription() {
         fbUnsub('adminUsers');
         fbUnsub('adminReferrals');
         fbUnsub('adminBots');
+        fbUnsub('adminRenderProvider');
         subscribeAdminOrders();
     } else if (adminActiveTab === 'topups') {
         fbUnsub('adminOrders');
         fbUnsub('adminUsers');
         fbUnsub('adminReferrals');
         fbUnsub('adminBots');
+        fbUnsub('adminRenderProvider');
         subscribeAdminTopups();
     } else if (adminActiveTab === 'users') {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
         fbUnsub('adminReferrals');
         fbUnsub('adminBots');
+        fbUnsub('adminRenderProvider');
         subscribeAdminUsers();
     } else if (adminActiveTab === 'referrals') {
         fbUnsub('adminOrders');
         fbUnsub('adminTopups');
         fbUnsub('adminUsers');
         fbUnsub('adminBots');
+        fbUnsub('adminRenderProvider');
         subscribeAdminReferrals();
     } else if (adminActiveTab === 'bots') {
         fbUnsub('adminOrders');
