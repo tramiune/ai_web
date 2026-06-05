@@ -13,12 +13,12 @@ from datetime import datetime, timezone
 from firebase_admin import credentials, firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 from playwright.sync_api import sync_playwright
-
 from project_env import get_env, load_project_env
 
 load_project_env()
 
 from aidancing_api import AidancingApiClient, SessionExpiredError
+import xiaoyang_motion as xy_motion
 from xiaoyang_api import (
     XiaoyangApiClient,
     XiaoyangAuthError,
@@ -613,7 +613,14 @@ def _pending_order_worker():
             if _pending_order_queue:
                 order_id = _pending_order_queue.pop(0)
         if order_id:
-            submit_order(order_id)
+            try:
+                if xy_motion.enabled_for_bot(BOT_NAME):
+                    xy_motion.submit_order(order_id)
+                else:
+                    submit_order(order_id)
+            except Exception as e:
+                print(f"❌ Lỗi nạp đơn {order_id}: {e}")
+                _session_error_backoff[order_id] = time.time() + SESSION_ERROR_BACKOFF_SEC
         else:
             time.sleep(0.5)
 
@@ -869,7 +876,10 @@ def on_bot_config_snapshot(keys, changes, read_time):
         status = "🟢 BẬT — bot đang xử lý đơn" if enabled else "🔴 TẮT — bot không làm gì"
         print(f"\n[{BOT_NAME}] Admin đổi trạng thái: {status}\n")
     if data:
-        _apply_render_provider(_render_provider_from_bot_data(data), source="admin")
+        if xy_motion.enabled_for_bot(BOT_NAME):
+            xy_motion.apply_render_provider_from_bot_data(data, source="admin")
+        else:
+            _apply_render_provider(_render_provider_from_bot_data(data), source="admin")
 
 def start_bot_control_listener():
     ensure_bot_registered()
@@ -1242,9 +1252,12 @@ def check_finished_orders_api():
                     _reset_http_client()
         if xy_orders:
             try:
-                _http_poll_xiaoyang_orders(xy_orders)
+                if xy_motion.enabled_for_bot(BOT_NAME):
+                    xy_motion.poll_xiaoyang_orders(xy_orders)
+                else:
+                    _http_poll_xiaoyang_orders(xy_orders)
             except Exception as e:
-                print(f"❌ Lỗi monitor XiaoYang HTTP: {e}")
+                print(f"❌ Lỗi monitor XiaoYang: {e}")
 
 def _mark_order_processing(
     doc_ref,
@@ -1375,7 +1388,7 @@ def submit_to_xiaoyang(order_id):
             _submitting_orders.discard(order_id)
 
 
-def submit_to_aidancing(order_id):
+def submit_to_aidancing(order_id, fallback_reason=None):
     if not is_bot_enabled():
         print(f"⏸️ [{BOT_NAME}] Bot TẮT — bỏ qua nạp đơn {order_id}")
         return
@@ -1396,7 +1409,8 @@ def submit_to_aidancing(order_id):
             if data.get('status') != 'pending':
                 return
 
-            print(f"\n⚡ [NẠP ĐƠN] {order_id}... (giữ pending cho đến khi aidancing OK)")
+            fb = f" [fallback: {fallback_reason}]" if fallback_reason else ""
+            print(f"\n⚡ [NẠP ĐƠN / Aidancing]{fb} {order_id}... (giữ pending cho đến khi aidancing OK)")
 
             char_path = None
             vid_path = None
@@ -1785,29 +1799,35 @@ def on_pending_orders_snapshot(keys, changes, read_time):
                 print(f"📋 Xếp hàng nạp đơn: {oid} (còn {len(_pending_order_queue)} trong queue)")
 
 
+def _enqueue_pending_rescan():
+    """Đưa đơn pending vào queue (khởi động bot hoặc retry sau lỗi mạng)."""
+    if not is_bot_enabled():
+        return
+    _ensure_pending_worker()
+    try:
+        docs = db.collection('orders').where(
+            filter=FieldFilter("status", "==", "pending")
+        ).limit(20).stream()
+        with _pending_queue_lock:
+            for doc in docs:
+                oid = doc.id
+                if _pending_submit_backoff_active(oid):
+                    continue
+                with _submitting_orders_lock:
+                    if oid in _submitting_orders:
+                        continue
+                if oid not in _pending_order_queue:
+                    _pending_order_queue.append(oid)
+                    print(f"🔄 Hàng đợi thử lại đơn pending: {oid}")
+    except Exception as e:
+        print(f"⚠️ rescan pending: {e}")
+
+
 def _rescan_pending_orders_loop():
     """Thử lại đơn pending sau khi session Aidancing được sửa (mỗi 5 phút)."""
     while True:
         time.sleep(SESSION_ERROR_BACKOFF_SEC)
-        if not is_bot_enabled():
-            continue
-        try:
-            docs = db.collection('orders').where(
-                filter=FieldFilter("status", "==", "pending")
-            ).limit(20).stream()
-            with _pending_queue_lock:
-                for doc in docs:
-                    oid = doc.id
-                    if _pending_submit_backoff_active(oid):
-                        continue
-                    with _submitting_orders_lock:
-                        if oid in _submitting_orders:
-                            continue
-                    if oid not in _pending_order_queue:
-                        _pending_order_queue.append(oid)
-                        print(f"🔄 Hàng đợi thử lại đơn pending: {oid}")
-        except Exception as e:
-            print(f"⚠️ rescan pending: {e}")
+        _enqueue_pending_rescan()
 
 def start_bot():
     global BOT_NAME
@@ -1831,21 +1851,47 @@ def start_bot():
         else:
             print(f"⚠️  BOT_CDP_URL={cdp_url} nhưng Chrome chưa mở CDP!")
             print("    → Mở Chrome CDP ở terminal KHÁC trước, giữ chạy, rồi bot mới nối được.")
+    if xy_motion.enabled_for_bot(BOT_NAME):
+        xy_motion.wire(
+            db=db,
+            bot_name=BOT_NAME,
+            print=print,
+            processing_cache=_processing_cache,
+            processing_cache_lock=_processing_cache_lock,
+            is_bot_enabled=is_bot_enabled,
+            pending_submit_backoff_active=_pending_submit_backoff_active,
+            submitting_orders_lock=_submitting_orders_lock,
+            submitting_orders=_submitting_orders,
+            browser_lock=browser_lock,
+            download_file=download_file,
+            session_error_backoff=_session_error_backoff,
+            send_telegram_message=send_telegram_message,
+            notify_internal_error_telegram=notify_internal_error_telegram,
+            submit_to_aidancing=submit_to_aidancing,
+            complete_order_with_video=_complete_order_with_video,
+            min_render_sec=MIN_RENDER_SEC,
+            skip_if_order_done=_skip_if_order_done,
+        )
+
     start_bot_control_listener()
-    start_render_provider_listener()
+    if xy_motion.enabled_for_bot(BOT_NAME):
+        xy_motion.start_render_provider_listener()
+    else:
+        start_render_provider_listener()
     start_processing_listener()
 
-    try:
-        keys = load_api_keys()
-        print(f"✅ XiaoYang: {len(keys)} API key — phân chia credit + tải đơn")
-        for i in range(len(keys)):
-            cr, em = _xy_key_credits(i, force=True)
-            print(f"   #{i} {em} | {cr} credits")
-        from xiaoyang_direct import direct_worker_base
-        dw = direct_worker_base()
-        print(f"✅ XiaoYang direct worker: {dw or '(chưa cấu hình)'}")
-    except Exception as e:
-        print(f"⚠️  XiaoYang API: {e}")
+    if not xy_motion.enabled_for_bot(BOT_NAME):
+        try:
+            keys = load_api_keys()
+            print(f"✅ XiaoYang: {len(keys)} API key — phân chia credit + tải đơn")
+            for i in range(len(keys)):
+                cr, em = _xy_key_credits(i, force=True)
+                print(f"   #{i} {em} | {cr} credits")
+            from xiaoyang_direct import direct_worker_base
+            dw = direct_worker_base()
+            print(f"✅ XiaoYang direct worker: {dw or '(chưa cấu hình)'}")
+        except Exception as e:
+            print(f"⚠️  XiaoYang API: {e}")
 
     if use_api_mode():
         try:
@@ -1853,6 +1899,8 @@ def start_bot():
             print("✅ Pure HTTP Aidancing — AIDANCING_COOKIE (không cần Chrome/CDP)")
         except ValueError as e:
             print(f"⚠️  Chưa cấu hình cookie Aidancing: {e}")
+        if xy_motion.enabled_for_bot(BOT_NAME):
+            xy_motion.log_accounts_on_startup()
 
     def monitor_loop():
         while True:
@@ -1869,6 +1917,7 @@ def start_bot():
     threading.Thread(target=_rescan_pending_orders_loop, daemon=True).start()
 
     db.collection('orders').where(filter=FieldFilter("status", "==", "pending")).on_snapshot(on_pending_orders_snapshot)
+    _enqueue_pending_rescan()
 
     print(f"🟢 [{BOT_NAME}] Đang trực — lắng nghe Firestore (bật/tắt từ Admin)...")
     while True:
