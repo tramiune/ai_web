@@ -423,6 +423,7 @@ export function applyTranslations() {
     }
     renderShowcase();
     renderServicePackages();
+    updateFirstOrderUI();
 }
 
 window.toggleLangMenu = (e) => {
@@ -1917,11 +1918,10 @@ function updateFirstOrderUI() {
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
             if (summaryEl) {
-                summaryEl.innerText = t(`modals.model_${modelKey}_desc`);
+                summaryEl.innerText = t('modals.promo_1coin_topup_note');
                 summaryEl.style.color = '';
             }
         } else {
-            // Regular pricing
             if (localizedModel(modelKey)) {
                 costEl.innerText = localizedModel(modelKey).cost;
             }
