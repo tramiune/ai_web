@@ -1,4 +1,5 @@
 import { onRequestPost as onCassoRequestPost } from './functions/api/casso-webhook.js';
+import { onRequestPost as onTikTokVideoPost } from './functions/api/tiktok-video.js';
 import {
   onConfigRequest as onPaypalConfigRequest,
   onCreateOrderRequest as onPaypalCreateOrderRequest,
@@ -47,6 +48,14 @@ export default {
     // Server-to-server webhook from PayPal (PAYMENT.CAPTURE.COMPLETED etc.).
     if (url.pathname === '/api/paypal-webhook' && method === 'POST') {
       return onPaypalWebhookRequest({ request, env, context });
+    }
+
+    // TikTok link → video file (for order form reference video).
+    if (url.pathname === '/api/tiktok-video') {
+      if (method === 'OPTIONS' || method === 'POST') {
+        return onTikTokVideoPost({ request, env, context });
+      }
+      return new Response('Method Not Allowed', { status: 405 });
     }
 
     // Geo hint for auto language: tier mapping via lang-config.js on frontend.
