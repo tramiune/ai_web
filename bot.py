@@ -62,11 +62,20 @@ _submitting_orders_lock = threading.Lock()
 MIN_RENDER_SEC = int(os.environ.get("BOT_MIN_RENDER_SEC", "600"))
 RENDER_PROVIDER_AIDANCING = "aidancing"
 RENDER_PROVIDER_XIAOYANG = "xiaoyang"
+RENDER_PROVIDER_VIDEOAIEASY = "videoaieasy"
+_RENDER_PROVIDERS = (
+    RENDER_PROVIDER_AIDANCING,
+    RENDER_PROVIDER_XIAOYANG,
+    RENDER_PROVIDER_VIDEOAIEASY,
+)
 AIDANCING_TURBO_MODEL_IDS = frozenset({"117"})
 AIDANCING_FAST_MODEL_IDS = frozenset({"124", "125"})
 XIAOYANG_MODAL_STANDARD = "motion_v26"
 XIAOYANG_MODAL_TURBO = "motion_v30"
-USER_NOTE_ORDER_FAILED = "Đơn hàng xử lý không thành công, hệ thống đã hoàn lại coin."
+USER_NOTE_ORDER_FAILED = (
+    "Ảnh hoặc video có thể nhạy cảm, không vượt qua khâu kiểm duyệt. "
+    "Nếu bạn tin đây là nhầm lẫn thì vui lòng thử lại. Hệ thống đã hoàn lại coin."
+)
 USER_NOTE_SUBMIT_FAILED = "Không thể gửi đơn lên hệ thống xử lý, đã hoàn lại coin."
 USER_NOTE_FILES_INVALID = "Ảnh hoặc video quý khách tải lên không hợp lệ, hệ thống đã hoàn lại coin."
 _active_render_provider = RENDER_PROVIDER_XIAOYANG
@@ -128,8 +137,10 @@ def _order_render_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
     rp = (order_data.get("renderProvider") or "").strip().lower()
-    if rp in (RENDER_PROVIDER_AIDANCING, RENDER_PROVIDER_XIAOYANG):
+    if rp in _RENDER_PROVIDERS:
         return rp
+    if order_data.get("videoaieasyJobId"):
+        return RENDER_PROVIDER_VIDEOAIEASY
     if order_data.get("xiaoyangTaskId"):
         return RENDER_PROVIDER_XIAOYANG
     return RENDER_PROVIDER_AIDANCING
@@ -299,7 +310,7 @@ def _http_poll_orders(orders_to_check):
 
 def _normalize_render_provider(value, default=RENDER_PROVIDER_XIAOYANG):
     p = (value or default).strip().lower()
-    if p not in (RENDER_PROVIDER_AIDANCING, RENDER_PROVIDER_XIAOYANG):
+    if p not in _RENDER_PROVIDERS:
         return default
     return p
 
@@ -500,6 +511,7 @@ def _processing_monitor_state():
     now = datetime.now(timezone.utc)
     ad_eligible = []
     xy_eligible = []
+    vae_eligible = []
     with _processing_cache_lock:
         stale_ids = []
         for oid, doc in _processing_cache.items():
@@ -520,11 +532,14 @@ def _processing_monitor_state():
             if rp == RENDER_PROVIDER_XIAOYANG:
                 if d.get("xiaoyangTaskId"):
                     xy_eligible.append(doc)
+            elif rp == RENDER_PROVIDER_VIDEOAIEASY:
+                if d.get("videoaieasyJobId"):
+                    vae_eligible.append(doc)
             else:
                 job_id = d.get("aidancingJobId")
                 if job_id and job_id != "MANUAL":
                     ad_eligible.append(doc)
-    return ad_eligible, xy_eligible, processing_count
+    return ad_eligible, xy_eligible, vae_eligible, processing_count
 
 
 def on_processing_orders_snapshot(keys, changes, read_time):
@@ -1230,13 +1245,13 @@ def check_finished_orders_api():
     """Monitor Aidancing + XiaoYang — Pure HTTP."""
     if not is_bot_enabled() or browser_lock.locked():
         return
-    ad_orders, xy_orders, _ = _processing_monitor_state()
-    if not ad_orders and not xy_orders:
+    ad_orders, xy_orders, vae_orders, _ = _processing_monitor_state()
+    if not ad_orders and not xy_orders and not vae_orders:
         return
 
     print(
         f"\n🔍 [MONITOR/HTTP] Poll Aidancing={len(ad_orders)} XiaoYang={len(xy_orders)} "
-        f"(sau {MIN_RENDER_SEC // 60}p từ submittedAt)..."
+        f"VideoAiEasy={len(vae_orders)} (sau {MIN_RENDER_SEC // 60}p từ submittedAt)..."
     )
     with browser_lock:
         if ad_orders:
@@ -1258,6 +1273,11 @@ def check_finished_orders_api():
                     _http_poll_xiaoyang_orders(xy_orders)
             except Exception as e:
                 print(f"❌ Lỗi monitor XiaoYang: {e}")
+        if vae_orders and xy_motion.enabled_for_bot(BOT_NAME):
+            try:
+                xy_motion.poll_videoaieasy_orders(vae_orders)
+            except Exception as e:
+                print(f"❌ Lỗi monitor VideoAiEasy: {e}")
 
 def _mark_order_processing(
     doc_ref,
@@ -1598,7 +1618,7 @@ def check_finished_orders():
         if browser_lock.locked():
             return
 
-        ad_orders, _, _ = _processing_monitor_state()
+        ad_orders, _, _, _ = _processing_monitor_state()
         if not ad_orders:
             return
 
@@ -1756,7 +1776,8 @@ def check_finished_orders():
 
                             db.collection('orders').document(doc.id).update({
                                 'status': 'failed',
-                                'adminNote': 'Ảnh hoặc video quý khách tải lên không hợp lệ, hệ thống đã hoàn lại coin.',
+                                'adminNote': firestore.DELETE_FIELD,
+                                'systemNote': USER_NOTE_ORDER_FAILED,
                                 'updatedAt': firestore.SERVER_TIMESTAMP
                             })
 
@@ -1904,11 +1925,13 @@ def start_bot():
 
     def monitor_loop():
         while True:
-            ad_eligible, xy_eligible, processing = _processing_monitor_state()
+            ad_eligible, xy_eligible, vae_eligible, processing = _processing_monitor_state()
             if is_bot_enabled():
                 check_finished_orders()
             if use_api_mode():
-                sleep_sec = _monitor_sleep_seconds(len(ad_eligible) + len(xy_eligible), processing)
+                sleep_sec = _monitor_sleep_seconds(
+                    len(ad_eligible) + len(xy_eligible) + len(vae_eligible), processing
+                )
             else:
                 sleep_sec = 60 if processing else int(os.environ.get("BOT_POLL_IDLE_SEC", "300"))
             time.sleep(sleep_sec)
