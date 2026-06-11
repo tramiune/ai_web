@@ -1041,7 +1041,10 @@ def alert_low_aidancing_balance(balance, extra=''):
     )
     send_telegram_message(msg)
 
-def download_file(url, filename, cookies=None, referer=None, retries=2):
+def download_file(url, filename, cookies=None, referer=None, retries=3):
+    from xiaoyang_media import normalize_public_media_url
+
+    url = normalize_public_media_url(url)
     print(f"📥 Tải file (requests): {filename}...")
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -1051,19 +1054,28 @@ def download_file(url, filename, cookies=None, referer=None, retries=2):
     last_err = None
     for attempt in range(1, retries + 1):
         try:
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=120)
-            if response.status_code in (503, 502, 429) and attempt < retries:
-                wait = 5 * attempt
-                print(f"⚠️ HTTP {response.status_code} — thử lại {attempt}/{retries} sau {wait}s...")
-                time.sleep(wait)
-                continue
-            response.raise_for_status()
-            with open(filename, 'wb') as f:
-                f.write(response.content)
+            with requests.get(
+                url,
+                headers=headers,
+                cookies=cookies,
+                timeout=(30, 300),
+                stream=True,
+            ) as response:
+                if response.status_code in (503, 502, 429) and attempt < retries:
+                    wait = 5 * attempt
+                    print(f"⚠️ HTTP {response.status_code} — thử lại {attempt}/{retries} sau {wait}s...")
+                    time.sleep(wait)
+                    continue
+                response.raise_for_status()
+                with open(filename, 'wb') as f:
+                    for chunk in response.iter_content(256 * 1024):
+                        if chunk:
+                            f.write(chunk)
             return os.path.abspath(filename)
         except Exception as e:
             last_err = e
             if attempt < retries:
+                print(f"🔄 Thử tải file lần {attempt + 1}...")
                 time.sleep(3 * attempt)
     print(f"❌ Lỗi tải file: {last_err}")
     return None

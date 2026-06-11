@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "motionai-upload-api",
+  "main": "index.js",
+  "compatibility_date": "2026-05-06",
+  "observability": {
+    "enabled": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "MY_R2_BUCKET",
+      "bucket_name": "ai-web"
+    }
+  ]
+}
