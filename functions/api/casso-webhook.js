@@ -258,6 +258,7 @@ async function notifyTelegram(text) {
 
 // --- Affiliate / Referral Commission ---
 const REFERRAL_COMMISSION_RATE = 0.10;
+const KALING_PROJECT_ID = 'ar-drawing-c167d';
 
 function computeCommissionAmount(baseAmount, currency) {
   if (!baseAmount || baseAmount <= 0) return 0;
@@ -280,8 +281,17 @@ function formatMoneyForTelegram(amount, currency) {
   return `${Math.round(amount).toLocaleString('vi-VN')}đ`;
 }
 
+async function isReferrerOnAllowlist(token, projectId, referrerEmail) {
+  const key = (referrerEmail || '').trim().toLowerCase();
+  if (!key) return false;
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/referralAllowlist/${encodeURIComponent(key)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  return res.ok;
+}
+
 /**
- * Pay 10% referral commission in coins to the referrer of `referredUserId`.
+ * Pay 10% referral commission to the referrer of `referredUserId`.
+ * Kaling: money ledger only (no coin credit). Motion/Nhay: coins + money record.
  * Idempotent: uses topupId as the referralEarnings doc ID and aborts if it already exists.
  */
 async function payReferralCommission(token, projectId, params) {
@@ -291,11 +301,18 @@ async function payReferralCommission(token, projectId, params) {
   } = params;
   if (!topupId || !referredUserId || !baseCoins || baseCoins <= 0) return;
 
-  const commissionCoins = Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
-  if (commissionCoins <= 0) return;
-
+  const moneyOnly = projectId === KALING_PROJECT_ID;
   const cur = (currency || 'VND').toUpperCase();
-  const commissionAmount = computeCommissionAmount(baseAmount, cur);
+  const effectiveBaseAmount = (baseAmount && baseAmount > 0)
+    ? baseAmount
+    : (cur === 'VND' ? baseCoins * 1000 : 0);
+  const commissionAmount = computeCommissionAmount(effectiveBaseAmount, cur);
+  const commissionCoins = moneyOnly ? 0 : Math.floor(baseCoins * REFERRAL_COMMISSION_RATE);
+  if (moneyOnly) {
+    if (commissionAmount <= 0) return;
+  } else if (commissionCoins <= 0) {
+    return;
+  }
 
   const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
   const authHeader = { "Authorization": `Bearer ${token}` };
@@ -317,6 +334,13 @@ async function payReferralCommission(token, projectId, params) {
     || referrerData.fields?.email?.stringValue?.split('@')[0]
     || 'N/A';
   const referrerEmail = referrerData.fields?.email?.stringValue || '';
+  if (moneyOnly) {
+    const allowlisted = await isReferrerOnAllowlist(token, projectId, referrerEmail);
+    if (!allowlisted) {
+      console.log(`[Referral] Referrer ${referrerEmail || referredBy} not on allowlist — skip commission`);
+      return;
+    }
+  }
 
   const earningsFields = {
     referrerId: { stringValue: referredBy },
@@ -331,11 +355,11 @@ async function payReferralCommission(token, projectId, params) {
     commissionRate: { doubleValue: REFERRAL_COMMISSION_RATE },
     gateway: { stringValue: gateway || 'unknown' },
     currency: { stringValue: cur },
-    payoutStatus: { stringValue: 'credited' },
+    payoutStatus: { stringValue: moneyOnly ? 'recorded' : 'credited' },
     createdAt: { timestampValue: new Date().toISOString() }
   };
-  if (baseAmount && baseAmount > 0) {
-    earningsFields.baseAmount = firestoreAmountField(baseAmount, cur);
+  if (effectiveBaseAmount > 0) {
+    earningsFields.baseAmount = firestoreAmountField(effectiveBaseAmount, cur);
   }
   if (commissionAmount > 0) {
     earningsFields.commissionAmount = firestoreAmountField(commissionAmount, cur);
@@ -359,36 +383,39 @@ async function payReferralCommission(token, projectId, params) {
     throw new Error(`Create referralEarnings failed (${createRes.status}): ${txt}`);
   }
 
-  const currentCoins = parseInt(referrerData.fields?.coins?.integerValue || 0);
-
-  const patchRes = await fetch(`${baseUrl}/users/${referredBy}?updateMask.fieldPaths=coins&updateMask.fieldPaths=updatedAt`, {
-    method: "PATCH",
-    headers: { ...authHeader, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fields: {
-        coins: { integerValue: currentCoins + commissionCoins },
-        updatedAt: { timestampValue: new Date().toISOString() }
-      }
-    })
-  });
-  if (!patchRes.ok) {
-    const txt = await patchRes.text();
-    throw new Error(`Credit referrer coins failed (${patchRes.status}): ${txt}`);
+  if (!moneyOnly) {
+    const currentCoins = parseInt(referrerData.fields?.coins?.integerValue || 0);
+    const patchRes = await fetch(`${baseUrl}/users/${referredBy}?updateMask.fieldPaths=coins&updateMask.fieldPaths=updatedAt`, {
+      method: "PATCH",
+      headers: { ...authHeader, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fields: {
+          coins: { integerValue: currentCoins + commissionCoins },
+          updatedAt: { timestampValue: new Date().toISOString() }
+        }
+      })
+    });
+    if (!patchRes.ok) {
+      const txt = await patchRes.text();
+      throw new Error(`Credit referrer coins failed (${patchRes.status}): ${txt}`);
+    }
+    console.log(`[Referral] Paid ${commissionCoins} coin + ${commissionAmount} ${cur} commission to ${referredBy} for topup ${topupId} (gateway=${gateway})`);
+  } else {
+    console.log(`[Referral] Recorded ${commissionAmount} ${cur} commission for ${referredBy} (topup ${topupId}, gateway=${gateway})`);
   }
-
-  console.log(`[Referral] Paid ${commissionCoins} coin + ${commissionAmount} ${cur} commission to ${referredBy} for topup ${topupId} (gateway=${gateway})`);
 
   try {
     const moneyLine = commissionAmount > 0
-      ? `💵 Hoa hồng tiền: ${formatMoneyForTelegram(commissionAmount, cur)}\n`
+      ? `💵 Hoa hồng${moneyOnly ? '' : ' tiền'}: ${formatMoneyForTelegram(commissionAmount, cur)}\n`
       : '';
+    const coinLine = moneyOnly ? '' : `🪙 Hoa hồng Coin: +${commissionCoins} Coin\n`;
     await notifyTelegram(
       `🎁 *HOA HỒNG GIỚI THIỆU \\(${gateway}\\)*\n\n` +
       `👤 Người giới thiệu: ${referrerName}\n` +
       `📧 Email: ${referrerEmail}\n` +
       moneyLine +
-      `🪙 Hoa hồng Coin: +${commissionCoins} Coin\n` +
-      `🛒 Người được mời nạp: ${referredUserName || 'N/A'} (${formatMoneyForTelegram(baseAmount, cur) || baseCoins + ' Coin'})\n` +
+      coinLine +
+      `🛒 Người được mời nạp: ${referredUserName || 'N/A'} (${formatMoneyForTelegram(effectiveBaseAmount, cur) || baseCoins + ' Coin'})\n` +
       `🔑 Topup ID: ${topupId}`
     );
   } catch (e) { /* swallow */ }
