@@ -42,11 +42,11 @@ XIAOYANG_MODAL_STANDARD = "motion_v26"
 XIAOYANG_MODAL_TURBO = "motion_v30"
 XIAOYANG_MAX_CONCURRENT_PER_ACCOUNT = int(get_env("XIAOYANG_MAX_CONCURRENT", "4"))
 
-USER_NOTE_ORDER_FAILED = (
-    "Ảnh hoặc video có thể nhạy cảm, không vượt qua khâu kiểm duyệt. "
-    "Nếu bạn tin đây là nhầm lẫn thì vui lòng thử lại. Hệ thống đã hoàn lại coin."
+from user_order_notes import (
+    USER_NOTE_FILES_MISSING,
+    USER_NOTE_ORDER_FAILED,
+    user_note_for_videoaieasy_failure,
 )
-USER_NOTE_FILES_MISSING = "Ảnh hoặc video quý khách tải lên không tồn tại, hệ thống đã hoàn lại coin."
 
 _g: dict = {}
 _active_render_provider = RENDER_PROVIDER_XIAOYANG
@@ -419,19 +419,21 @@ def _order_render_provider(order_data: dict) -> str:
     return RENDER_PROVIDER_AIDANCING
 
 
-def split_monitor_state(processing_cache: dict, min_render_sec: int):
+def split_monitor_state(processing_cache: dict, min_render_sec: int, *, vae_min_render_sec: int | None = None):
     now = datetime.now(timezone.utc)
     ad_eligible = []
     xy_eligible = []
     vae_eligible = []
+    vae_wait = vae_min_render_sec if vae_min_render_sec is not None else min_render_sec
     for doc in processing_cache.values():
         d = doc.to_dict() or {}
         if d.get("status") != "processing":
             continue
-        submitted_at = d.get("submittedAt")
-        if submitted_at and (now - submitted_at).total_seconds() <= min_render_sec:
-            continue
         rp = _order_render_provider(d)
+        wait_sec = vae_wait if rp == RENDER_PROVIDER_VIDEOAIEASY else min_render_sec
+        submitted_at = d.get("submittedAt")
+        if submitted_at and (now - submitted_at).total_seconds() <= wait_sec:
+            continue
         if rp == RENDER_PROVIDER_XIAOYANG and d.get("xiaoyangTaskId"):
             xy_eligible.append(doc)
         elif rp == RENDER_PROVIDER_VIDEOAIEASY and d.get("videoaieasyJobId"):
@@ -707,7 +709,8 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                         f"🆔 Mã đơn: #{short_id}\n"
                         f"📧 Nick: {nick_label}\n"
                         f"🤖 Job: <code>{job_id}</code>\n"
-                        f"⏳ Poll sau {_g['min_render_sec'] // 60} phút..."
+                        f"⏳ Poll sau {_g.get('vae_min_render_sec', _g['min_render_sec']) // 60} phút, mỗi "
+                        f"{int(get_env('VIDEOAIEASY_POLL_INTERVAL_SEC', '60'))}s..."
                     )
                 except Exception:
                     pass
@@ -844,15 +847,16 @@ def poll_videoaieasy_orders(orders_to_check):
         nick = order_data.get("videoaieasyAccountEmail") or account_id
         print(f"🧐 VideoAiEasy — job {job_id} (đơn {doc.id}, {nick})...")
         api = None
+        job = None
         try:
             api = _get_vae_web_client(account_id or "default")
             acc = _videoaieasy_account_lookup(account_id)
             if acc:
                 _ensure_vae_web_session(api, acc["email"], acc["password"])
             job = api.get_job(job_id)
-        except (VideoAiEasyAuthError, VideoAiEasyError) as e:
+        except VideoAiEasyAuthError as e:
             print(f"❌ Poll VideoAiEasy {job_id}: {e}")
-            if isinstance(e, VideoAiEasyAuthError) and account_id:
+            if account_id:
                 _reset_vae_web_client(account_id)
             # Job có thể đã done nhưng GET /jobs/{id} lỗi tạm — thử tải trực tiếp
             if api and ("500" in str(e) or "404" in str(e)):
@@ -863,6 +867,40 @@ def poll_videoaieasy_orders(orders_to_check):
                     continue
                 except Exception as dl_err:
                     print(f"⚠️ Download trực tiếp {job_id} thất bại: {dl_err}")
+            acc = _videoaieasy_account_lookup(account_id)
+            if acc:
+                try:
+                    api = _get_vae_web_client(account_id)
+                    _ensure_vae_web_session(api, acc["email"], acc["password"])
+                    job = api.get_job(job_id)
+                    print(f"🔑 Poll VideoAiEasy {job_id} OK sau login lại ({nick})")
+                except (VideoAiEasyAuthError, VideoAiEasyError) as e2:
+                    print(f"❌ Poll VideoAiEasy {job_id} vẫn lỗi sau login: {e2}")
+                    continue
+            else:
+                continue
+        except VideoAiEasyError as e:
+            print(f"❌ Poll VideoAiEasy {job_id}: {e}")
+            continue
+        except Exception as e:
+            err = str(e)
+            if "padding" in err.lower() or "cookie" in err.lower():
+                print(f"❌ Poll VideoAiEasy {job_id}: session lỗi ({e})")
+                if account_id:
+                    _reset_vae_web_client(account_id)
+                acc = _videoaieasy_account_lookup(account_id)
+                if acc:
+                    try:
+                        api = _get_vae_web_client(account_id)
+                        _ensure_vae_web_session(api, acc["email"], acc["password"])
+                        job = api.get_job(job_id)
+                        print(f"🔑 Poll VideoAiEasy {job_id} OK sau login lại ({nick})")
+                    except Exception as e2:
+                        print(f"❌ Poll VideoAiEasy {job_id} vẫn lỗi sau login: {e2}")
+                continue
+            print(f"❌ Poll VideoAiEasy {job_id}: {e}")
+            continue
+        if job is None:
             continue
         status = (job.get("status") or "").lower()
         err = job.get("error_message")
@@ -880,7 +918,7 @@ def poll_videoaieasy_orders(orders_to_check):
             _fail_order_processing(
                 doc, order_data,
                 f"VideoAiEasy job {job_id} {status}: {err or ''}",
-                USER_NOTE_ORDER_FAILED,
+                user_note_for_videoaieasy_failure(err),
                 "render videoaieasy",
             )
         else:
