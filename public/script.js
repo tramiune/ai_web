@@ -202,8 +202,7 @@ function gatewayLabel(gateway) {
 }
 
 const MODELS = {
-    // "Model thường" uses Aidancing model id 124
-    fast: { nameKey: "modals.model_fast", cost: 10, timeKey: "modals.model_fast_desc", modelId: "124" },
+    fast: { nameKey: "modals.model_fast", cost: 10, timeKey: "modals.model_fast_desc", modelId: "34" },
     turbo: { nameKey: "modals.model_turbo", cost: 20, timeKey: "modals.model_turbo_desc", modelId: "117" }
 };
 
@@ -2501,7 +2500,6 @@ async function setupEventListeners() {
                 const templateUrl = document.getElementById('selected-template-url')?.value || '';
                 const tiktokUrl = document.getElementById('tiktok-video-url')?.value?.trim() || '';
                 const modelKeySelected = document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
-                let modelIdOverride = null;
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
@@ -2547,16 +2545,6 @@ async function setupEventListeners() {
                     return showToast(t('modals.video_upload_required'));
                 }
 
-                // Model thường: auto select Aidancing id by uploaded video duration
-                // <10s  -> 125
-                // 10-20 -> 124
-                if (modelKeySelected === 'fast' && window.currentVideoSource === 'upload' && videoFile) {
-                    const dur = await getVideoDurationSeconds(videoFile);
-                    if (typeof dur === 'number') {
-                        modelIdOverride = dur < 10 ? '125' : '124';
-                    }
-                }
-
                 // Kiểm tra lại lần cuối trước khi upload
                 if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
                 if (window.currentVideoSource === 'upload' && videoFile && videoFile.size > 90 * 1024 * 1024) {
@@ -2576,7 +2564,6 @@ async function setupEventListeners() {
                     const modelKey = modelKeySelected;
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
                     let model = { ...localizedModel(modelKey) };
-                    if (modelIdOverride) model.modelId = modelIdOverride;
 
                     const userData = userDoc.data();
                     const promo = getPromo1CoinEligibilityFromUser(userData);

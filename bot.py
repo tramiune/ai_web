@@ -73,7 +73,7 @@ _RENDER_PROVIDERS = (
     RENDER_PROVIDER_VIDEOAIEASY,
 )
 AIDANCING_TURBO_MODEL_IDS = frozenset({"117"})
-AIDANCING_FAST_MODEL_IDS = frozenset({"124", "125"})
+AIDANCING_FAST_MODEL_IDS = frozenset({"34", "124", "125"})
 XIAOYANG_MODAL_STANDARD = "motion_v26"
 XIAOYANG_MODAL_TURBO = "motion_v30"
 USER_NOTE_ORDER_FAILED = (
@@ -556,20 +556,30 @@ def _processing_monitor_state():
     return ad_eligible, xy_eligible, vae_eligible, processing_count, vae_processing_count
 
 
-def on_processing_orders_snapshot(keys, changes, read_time):
-    """Listener: chỉ read Firestore khi đơn vào/ra khỏi processing (không poll lặp)."""
+def on_processing_orders_snapshot(snapshot, changes, read_time):
+    """Đồng bộ cache từ snapshot đầy đủ — tránh mất đơn khi listener reconnect (GOAWAY)."""
     with _processing_cache_lock:
-        for ch in changes:
-            doc = ch.document
-            oid = doc.id
-            if ch.type.name == 'REMOVED':
-                _processing_cache.pop(oid, None)
-                continue
+        fresh = {}
+        for doc in snapshot:
             d = doc.to_dict() or {}
-            if d.get('status') == 'processing':
-                _processing_cache[oid] = doc
-            else:
-                _processing_cache.pop(oid, None)
+            if d.get("status") == "processing":
+                fresh[doc.id] = doc
+        _processing_cache.clear()
+        _processing_cache.update(fresh)
+
+
+def _refresh_processing_cache_from_firestore():
+    fresh = {
+        doc.id: doc
+        for doc in db.collection("orders")
+        .where(filter=FieldFilter("status", "==", "processing"))
+        .stream()
+    }
+    with _processing_cache_lock:
+        _processing_cache.clear()
+        _processing_cache.update(fresh)
+    print(f"🔄 Refresh processing cache: {len(fresh)} đơn")
+    return len(fresh)
 
 
 def start_processing_listener():
@@ -577,6 +587,10 @@ def start_processing_listener():
         filter=FieldFilter("status", "==", "processing")
     ).on_snapshot(on_processing_orders_snapshot)
     print("👂 Listener processing orders — cache RAM, không query Firestore mỗi lần poll")
+    try:
+        _refresh_processing_cache_from_firestore()
+    except Exception as e:
+        print(f"⚠️ Nạp processing cache lúc khởi động: {e}")
 
 
 def _submit_engine_lock():
@@ -589,22 +603,13 @@ def _maybe_refresh_processing_cache():
     global _processing_cache_refresh_at
     if not use_api_mode():
         return
-    interval = int(os.environ.get("BOT_PROCESSING_CACHE_REFRESH_SEC", "600"))
+    interval = int(os.environ.get("BOT_PROCESSING_CACHE_REFRESH_SEC", "120"))
     now = time.time()
     if now - _processing_cache_refresh_at < interval:
         return
     _processing_cache_refresh_at = now
     try:
-        fresh = {
-            doc.id: doc
-            for doc in db.collection("orders")
-            .where(filter=FieldFilter("status", "==", "processing"))
-            .stream()
-        }
-        with _processing_cache_lock:
-            _processing_cache.clear()
-            _processing_cache.update(fresh)
-        print(f"🔄 Refresh processing cache: {len(fresh)} đơn")
+        _refresh_processing_cache_from_firestore()
     except Exception as e:
         print(f"⚠️ Refresh processing cache: {e}")
 
@@ -1542,7 +1547,7 @@ def submit_to_aidancing(order_id, fallback_reason=None):
 
             if use_api_mode():
                 try:
-                    model_id = data.get('modelId', '124')
+                    model_id = data.get('modelId', '34')
                     print(f"🚀 [HTTP] Nạp đơn model {model_id}...")
                     job_id = _http_create_job(model_id, char_path, vid_path)
                     print(f"🆔 [HTTP] Job mới: {job_id}")
@@ -1595,7 +1600,7 @@ def submit_to_aidancing(order_id, fallback_reason=None):
                             )
                         old_job_ids = set(re.findall(r'\b\d{6}\b', page.content()))
                         print(f"📦 Đã ghi nhận {len(old_job_ids)} Job ID cũ.")
-                        model_id = data.get('modelId', '124')
+                        model_id = data.get('modelId', '34')
                         create_url = f"{AIDANCING_ORIGIN}/create/general?id={model_id}"
                         print(f"🌐 Vào trang tạo: {create_url}")
                         page.goto(create_url, timeout=90000)
