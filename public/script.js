@@ -208,15 +208,39 @@ const MODELS = {
         timeKey: "modals.model_fast_desc",
         modelId: "34",
         renderProvider: "aidancing",
+        maxVideoSec: 20,
     },
     quality: {
         nameKey: "modals.model_quality",
-        cost: 20,
+        cost: 13,
         timeKey: "modals.model_quality_desc",
         modelId: "127",
         renderProvider: "roboneo",
+        maxVideoSec: 15,
+        isNew: true,
     },
 };
+
+function getSelectedModelKey() {
+    return document.querySelector('input[name="model-type"]:checked')?.value || 'quality';
+}
+
+function getSelectedModelMaxVideoSec() {
+    const m = MODELS[getSelectedModelKey()];
+    return m?.maxVideoSec ?? MAX_VIDEO_DURATION_SEC;
+}
+
+function updateModelSelectionUI() {
+    const qCost = document.getElementById('model-quality-cost');
+    const fCost = document.getElementById('model-fast-cost');
+    if (qCost) qCost.textContent = String(MODELS.quality.cost);
+    if (fCost) fCost.textContent = String(MODELS.fast.cost);
+    const sec = getSelectedModelMaxVideoSec();
+    document.querySelectorAll('[data-i18n="modals.tiktok_tab_hint"]').forEach((el) => {
+        el.textContent = t('modals.tiktok_tab_hint', { sec });
+    });
+    updateFirstOrderUI();
+}
 
 function localizedModel(key) {
     const m = MODELS[key];
@@ -434,7 +458,7 @@ export function applyTranslations() {
     }
     renderShowcase();
     renderServicePackages();
-    updateFirstOrderUI();
+    updateModelSelectionUI();
 }
 
 window.toggleLangMenu = (e) => {
@@ -1528,7 +1552,7 @@ window.switchVideoSource = (type) => {
             renderVideoFilePreview('preview-video-container', existing, {
                 inputId: 'file-video',
                 changeKey: 'modals.video_change',
-                maxDurationSec: MAX_VIDEO_DURATION_SEC
+                maxDurationSec: getSelectedModelMaxVideoSec()
             });
         }
     } else if (type === 'tiktok') {
@@ -1914,7 +1938,7 @@ function updateFirstOrderUI() {
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
         const summaryEl = document.getElementById('submit-summary-line');
         const checkedModel = document.querySelector('input[name="model-type"]:checked');
-        const modelKey = checkedModel ? checkedModel.value : 'fast';
+        const modelKey = checkedModel ? checkedModel.value : 'quality';
 
         if (promo1CoinStats.eligible) {
             costEl.innerText = '1';
@@ -2179,12 +2203,13 @@ async function applyTikTokVideoFromUrl(pageUrl, options = {}) {
             blobDuration = MAX_REFERENCE_VIDEO_SEC + 1;
         }
     }
-    const needsTrim = blobDuration > MAX_REFERENCE_VIDEO_SEC + 0.15;
+    const maxRefSec = getSelectedModelMaxVideoSec();
+    const needsTrim = blobDuration > maxRefSec + 0.15;
 
     if (needsTrim) {
         onProgress?.('trimming');
         try {
-            const trimmed = await trimVideoBlobToMaxSec(blob, MAX_REFERENCE_VIDEO_SEC);
+            const trimmed = await trimVideoBlobToMaxSec(blob, maxRefSec);
             blob = trimmed.blob;
         } catch (trimErr) {
             console.error('[TikTok] trim failed:', trimErr);
@@ -2206,7 +2231,7 @@ async function applyTikTokVideoFromUrl(pageUrl, options = {}) {
 
     renderVideoFilePreview('preview-tiktok-video-container', file, {
         changeKey: 'modals.tiktok_pick_another',
-        maxDurationSec: MAX_REFERENCE_VIDEO_SEC,
+        maxDurationSec: getSelectedModelMaxVideoSec(),
         onChange: () => {
             fileInput.value = '';
             const tiktokPreview = document.getElementById('preview-tiktok-video-container');
@@ -2239,11 +2264,11 @@ window.fetchTikTokVideo = async () => {
     try {
         const { trimmed } = await applyTikTokVideoFromUrl(pageUrl, {
             onProgress: (phase) => {
-                if (phase === 'trimming' && btn) btn.textContent = t('modals.tiktok_trimming');
-                if (phase === 'trimming') showToast(t('modals.tiktok_trimming'));
+                if (phase === 'trimming' && btn) btn.textContent = t('modals.tiktok_trimming', { sec: getSelectedModelMaxVideoSec() });
+                if (phase === 'trimming') showToast(t('modals.tiktok_trimming', { sec: getSelectedModelMaxVideoSec() }));
             }
         });
-        showToast(trimmed ? t('modals.tiktok_fetch_trimmed') : t('modals.tiktok_fetch_success'));
+        showToast(trimmed ? t('modals.tiktok_fetch_trimmed', { sec: getSelectedModelMaxVideoSec() }) : t('modals.tiktok_fetch_success'));
     } catch (e) {
         console.error('[TikTok] fetch failed:', e);
         showToast(e.code ? tiktokErrorMessage(e.code) : (e.message || t('modals.tiktok_fetch_failed')));
@@ -2282,7 +2307,7 @@ function renderVideoFilePreview(containerId, file, options = {}) {
         const duration = probe.duration;
         URL.revokeObjectURL(probeUrl);
         if (duration > maxDurationSec + 0.15) {
-            showToast(t('modals.video_duration_limit'));
+            showToast(t('modals.video_duration_limit', { sec: maxDurationSec }));
             if (options.inputId) {
                 const input = document.getElementById(options.inputId);
                 if (input) input.value = '';
@@ -2380,7 +2405,7 @@ window.handlePreview = (input, containerId) => {
         renderVideoFilePreview(containerId, file, {
             inputId: meta.inputId,
             changeKey: meta.changeKey,
-            maxDurationSec: MAX_VIDEO_DURATION_SEC
+            maxDurationSec: getSelectedModelMaxVideoSec(),
         });
     }
 };
@@ -2471,8 +2496,17 @@ async function uploadFile(file, folder) {
 async function setupEventListeners() {
     // Model Selection change cost
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            updateFirstOrderUI();
+        radio.addEventListener('change', () => {
+            updateModelSelectionUI();
+            const fileInput = document.getElementById('file-video');
+            const file = fileInput?.files?.[0];
+            if (file?.type?.startsWith('video/')) {
+                renderVideoFilePreview('preview-video-container', file, {
+                    inputId: 'file-video',
+                    changeKey: 'modals.video_change',
+                    maxDurationSec: getSelectedModelMaxVideoSec(),
+                });
+            }
         });
     });
 
@@ -2511,7 +2545,7 @@ async function setupEventListeners() {
                 let videoFile = document.getElementById('file-video')?.files?.[0];
                 const templateUrl = document.getElementById('selected-template-url')?.value || '';
                 const tiktokUrl = document.getElementById('tiktok-video-url')?.value?.trim() || '';
-                const modelKeySelected = document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
+                const modelKeySelected = document.querySelector('input[name="model-type"]:checked')?.value || 'quality';
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
@@ -2539,7 +2573,7 @@ async function setupEventListeners() {
                         const result = await applyTikTokVideoFromUrl(tiktokUrl, {
                             onProgress: (phase) => {
                                 if (phase === 'trimming' && mainTextFetch) {
-                                    mainTextFetch.innerText = t('modals.tiktok_trimming');
+                                    mainTextFetch.innerText = t('modals.tiktok_trimming', { sec: getSelectedModelMaxVideoSec() });
                                 }
                             }
                         });

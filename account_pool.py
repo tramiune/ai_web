@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -109,30 +110,54 @@ def upsert_account(
     return row
 
 
-def mark_account(email: str, *, status: str, note: str = "") -> None:
+def mark_account(
+    email: str,
+    *,
+    status: str,
+    note: str = "",
+    credits: int | None = None,
+) -> None:
     data = _load_pool()
     for row in data.get("accounts") or []:
         if row.get("email", "").lower() == email.strip().lower():
             row["status"] = status
             if note:
                 row["note"] = note
+            if credits is not None:
+                row["credits"] = int(credits)
             row["updated_at"] = int(time.time())
             break
     _save_pool(data)
 
 
-def pick_account(credits_needed: int, *, prefer_higher: bool = False) -> dict[str, Any] | None:
+def pick_account(
+    credits_needed: int,
+    *,
+    prefer_higher: bool = False,
+    exclude: set[str] | None = None,
+) -> dict[str, Any] | None:
     """Chọn nick active đủ credit. Mặc định: nick nhỏ nhất vẫn đủ (tiết kiệm nick lớn)."""
-    candidates = [
-        a
-        for a in list_accounts()
-        if a.get("status") == "active" and int(a.get("credits") or 0) >= credits_needed
-    ]
-    if not candidates:
+    rows = list_eligible_accounts(credits_needed, exclude=exclude)
+    if not rows:
         return None
     if prefer_higher:
-        return max(candidates, key=lambda a: int(a.get("credits") or 0))
-    return min(candidates, key=lambda a: int(a.get("credits") or 0))
+        return max(rows, key=lambda a: int(a.get("credits") or 0))
+    return min(rows, key=lambda a: int(a.get("credits") or 0))
+
+
+def list_eligible_accounts(
+    credits_needed: int,
+    *,
+    exclude: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    skip = {e.strip().lower() for e in (exclude or set()) if e}
+    return [
+        a
+        for a in list_accounts()
+        if a.get("status") == "active"
+        and int(a.get("credits") or 0) >= credits_needed
+        and (a.get("email") or "").strip().lower() not in skip
+    ]
 
 
 def _wait_proxy_rotate_cooldown(data: dict[str, Any]) -> None:
@@ -234,41 +259,44 @@ def acquire_client_for_job(
     credits_needed: int,
     *,
     max_buy_attempts: int = 3,
+    exclude_emails: set[str] | None = None,
 ) -> tuple[RoboNeoWebClient, dict[str, Any]]:
     """
     Chọn nick pool đủ credit, không có thì xoay IP (≥60s) + mua nick mới.
-    Lần retry chọn nick có nhiều coin hơn.
+    Thử lần lượt mọi nick đủ coin (bỏ qua nick đã fail trong exclude_emails).
     """
+    excluded = {e.strip().lower() for e in (exclude_emails or set()) if e}
     print(f"→ Cần ~{credits_needed} credit (quy đổi {credits_per_15s()}/15s)")
 
-    row = pick_account(credits_needed, prefer_higher=False)
-    if row:
+    for row in sorted(
+        list_eligible_accounts(credits_needed, exclude=excluded),
+        key=lambda a: int(a.get("credits") or 0),
+    ):
         print(f"→ Dùng nick pool {row['email']} ({row.get('credits')} credit)")
         try:
             client, info = _login_once(row["email"], row["password"], rotate=False)
             if info["credits"] < credits_needed:
-                print(f"⚠ Credit thực {info['credits']} < cần {credits_needed}")
-                raise RoboNeoError("credit không đủ sau login")
+                print(
+                    f"⚠ Credit thực {info['credits']} < cần {credits_needed} — đổi nick…"
+                )
+                mark_account(row["email"], status="depleted", note="credit không đủ sau login")
+                excluded.add(row["email"].strip().lower())
+                continue
             return client, info
         except Exception as e:
             print(f"⚠ Nick pool fail: {e}")
             mark_account(row["email"], status="locked", note=str(e))
-
-    row = pick_account(credits_needed, prefer_higher=True)
-    if row:
-        print(f"→ Thử nick nhiều coin hơn: {row['email']} ({row.get('credits')})")
-        try:
-            client, info = _login_once(row["email"], row["password"], rotate=False)
-            if info["credits"] >= credits_needed:
-                return client, info
-        except Exception as e:
-            mark_account(row["email"], status="locked", note=str(e))
+            excluded.add(row["email"].strip().lower())
 
     last_err: Exception | None = None
     for attempt in range(1, max_buy_attempts + 1):
         print(f"→ Mua nick mới (lần {attempt}/{max_buy_attempts})…")
         try:
             client, info = buy_and_register_account(rotate_ip=True)
+            email_l = (info.get("email") or "").strip().lower()
+            if email_l in excluded:
+                mark_account(info["email"], status="depleted", note="đã thử trước đó")
+                continue
             if info["credits"] >= credits_needed:
                 return client, info
             print(
@@ -276,6 +304,7 @@ def acquire_client_for_job(
                 f"< {credits_needed} — mua nick khác…"
             )
             mark_account(info["email"], status="depleted", note="credit thấp sau mua")
+            excluded.add(email_l)
         except (HuanAiHubError, Exception) as e:
             last_err = e
             print(f"   ⚠ {e}")

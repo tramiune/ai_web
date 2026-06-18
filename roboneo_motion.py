@@ -181,6 +181,11 @@ def _task_failed(data: dict) -> bool:
     return _task_status(data) in {"FAILED", "FAIL", "ERROR"}
 
 
+def _is_credit_error(err: object) -> bool:
+    s = str(err or "").lower()
+    return any(x in s for x in ("credit", "coin", "check_result", "không đủ", "insufficient"))
+
+
 def submit_to_roboneo(order_id: str) -> bool:
     from xiaoyang_motion import (
         USER_NOTE_FILES_MISSING,
@@ -202,8 +207,10 @@ def submit_to_roboneo(order_id: str) -> bool:
         submitting.add(order_id)
 
     success = False
-    account_email = ""
-    account_id = ""
+    char_path = None
+    vid_path = None
+    data: dict = {}
+    doc_ref = None
     try:
         with _submit_engine_lock():
             db = _g["db"]
@@ -230,127 +237,198 @@ def submit_to_roboneo(order_id: str) -> bool:
             char_path = None
             vid_path = None
             download_file = _g["download_file"]
+            session_error_backoff = _g.get("session_error_backoff", {})
+            max_attempts = int(get_env("ROBONEO_SUBMIT_ATTEMPTS", "3"))
+            excluded_nicks: set[str] = set()
+            last_credit_err: str | None = None
+            need = 0
+
             print(f"\n⚡ [NẠP ĐƠN / RoboNeo] {order_id} — model Chất lượng…")
-            try:
-                for attempt in range(1, 3):
-                    if attempt > 1:
-                        print(f"🔄 Thử tải file lần {attempt}...")
-                    char_path = download_file(img_url, f"char_{order_id}.png")
-                    vid_path = download_file(vid_url, f"vid_{order_id}.mp4")
-                    if char_path and vid_path:
-                        break
-                    time.sleep(2)
-                if not char_path or not vid_path:
-                    raise RoboNeoError("Không tải được ảnh/video từ link đơn hàng")
+            for dl in range(1, 3):
+                if dl > 1:
+                    print(f"🔄 Thử tải file lần {dl}...")
+                char_path = download_file(img_url, f"char_{order_id}.png")
+                vid_path = download_file(vid_url, f"vid_{order_id}.mp4")
+                if char_path and vid_path:
+                    break
+                time.sleep(2)
+            if not char_path or not vid_path:
+                raise RoboNeoError("Không tải được ảnh/video từ link đơn hàng")
 
-                duration = video_duration_sec(vid_path)
-                need = estimate_credits(duration)
-                print(f"→ Video ~{duration:.1f}s → cần ~{need} credit RoboNeo")
-                client, info = acquire_client_for_job(need)
-                account_email = info.get("email") or ""
-                account_id = _roboneo_account_id(account_email)
-                _rb_inflight_inc(account_id)
+            duration = video_duration_sec(vid_path)
+            need = estimate_credits(duration)
+            print(f"→ Video ~{duration:.1f}s → cần ~{need} credit RoboNeo")
 
-                active = _rb_active_count(account_email)
-                if active > ROBONEO_MAX_CONCURRENT_PER_ACCOUNT:
-                    print(
-                        f"📊 Nick {account_email} đầy slot "
-                        f"({active}/{ROBONEO_MAX_CONCURRENT_PER_ACCOUNT})"
-                    )
-                    raise RoboNeoError("Nick RoboNeo đầy slot")
-
-                surface = _roboneo_surface()
-                api_name = _roboneo_api_name()
-                mode = _roboneo_mode()
-                pattern = resolve_motion_mode(mode)
-                prompt = (data.get("prompt") or get_env(
-                    "ROBONEO_PROMPT", "Follow the reference motion naturally"
-                )).strip()
-
-                print(
-                    f"🚀 [RoboNeo/{account_email}] {surface} | {api_name} | "
-                    f"mode {mode} (pattern={pattern})"
-                )
-                client.init_config()
-                credit = client.meiye_query(surface=surface)
-                if credit.get("check_result") is False:
-                    raise RoboNeoError(f"Không đủ credit: {credit}")
-
-                room_id = client.create_room(surface=surface)
-                image_up = client.upload_file(char_path, surface=surface)
-                video_up = client.upload_file(vid_path, surface=surface)
-                workflow = client.build_motion_workflow(
-                    char_path,
-                    image_up["url"],
-                    image_up["asset_id"],
-                    vid_path,
-                    video_up["url"],
-                    video_up["asset_id"],
-                    prompt=prompt,
-                    api_name=api_name,
-                )
-                task_id = client.node_execute(
-                    room_id,
-                    workflow,
-                    api_name=api_name,
-                    prompt=prompt,
-                    model_pattern=pattern,
-                    surface=surface,
-                )
-                print(f"🆔 [RoboNeo/{account_email}] room={room_id} task={task_id}")
-                _mark_order_processing(
-                    doc_ref,
-                    task_id,
-                    provider=RENDER_PROVIDER_ROBONEO,
-                    roboneo_room_id=room_id,
-                    roboneo_account_email=account_email,
-                )
-                refresh_account_credits(client, account_email)
-                _g["session_error_backoff"].pop(order_id, None)
-                print(f"✅ Đơn {order_id} → processing (RoboNeo, {account_email})")
+            for attempt in range(1, max_attempts + 1):
+                account_email = ""
+                account_id = ""
                 try:
-                    short_id = order_id[-6:].upper()
-                    min_sec = int(get_env("ROBONEO_MIN_RENDER_SEC", "600"))
-                    _g["send_telegram_message"](
-                        f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b> (RoboNeo Chất lượng)\n\n"
-                        f"🆔 Mã đơn: #{short_id}\n"
-                        f"📧 Nick: {account_email}\n"
-                        f"🤖 Task: <code>{task_id}</code>\n"
-                        f"⏳ Poll sau {min_sec // 60} phút..."
+                    if attempt > 1:
+                        print(
+                            f"→ Retry RoboNeo {attempt}/{max_attempts} "
+                            f"(đổi nick, đã loại {len(excluded_nicks)})…"
+                        )
+
+                    client, info = acquire_client_for_job(
+                        need, exclude_emails=excluded_nicks
                     )
-                except Exception:
-                    pass
-                success = True
-            except (
-                requests.RequestException,
-                RoboNeoAuthError,
-                RoboNeoGatewayError,
-                RoboNeoError,
-            ) as e:
-                print(f"❌ Nạp RoboNeo thất bại {order_id}: {e}")
-                if account_email:
+                    account_email = info.get("email") or ""
+                    account_id = _roboneo_account_id(account_email)
+                    _rb_inflight_inc(account_id)
+
+                    active = _rb_active_count(account_email)
+                    if active > ROBONEO_MAX_CONCURRENT_PER_ACCOUNT:
+                        raise RoboNeoError("Nick RoboNeo đầy slot")
+
+                    surface = _roboneo_surface()
+                    api_name = _roboneo_api_name()
+                    mode = _roboneo_mode()
+                    pattern = resolve_motion_mode(mode)
+                    prompt = (data.get("prompt") or get_env(
+                        "ROBONEO_PROMPT", "Follow the reference motion naturally"
+                    )).strip()
+
+                    print(
+                        f"🚀 [RoboNeo/{account_email}] {surface} | {api_name} | "
+                        f"mode {mode} (pattern={pattern})"
+                    )
+                    client.init_config()
+                    credit = client.meiye_query(surface=surface)
+                    amount = int(credit.get("amount") or 0) if isinstance(credit, dict) else 0
+                    if credit.get("check_result") is False or amount < need:
+                        last_credit_err = f"Không đủ credit: cần ~{need}, có {amount} ({credit})"
+                        print(f"⚠ {last_credit_err} — đổi nick…")
+                        from account_pool import mark_account
+
+                        mark_account(
+                            account_email,
+                            status="depleted",
+                            note=last_credit_err,
+                            credits=amount,
+                        )
+                        excluded_nicks.add(account_email.strip().lower())
+                        _rb_inflight_dec(account_id)
+                        account_id = ""
+                        continue
+
+                    room_id = client.create_room(surface=surface)
+                    image_up = client.upload_file(char_path, surface=surface)
+                    video_up = client.upload_file(vid_path, surface=surface)
+                    workflow = client.build_motion_workflow(
+                        char_path,
+                        image_up["url"],
+                        image_up["asset_id"],
+                        vid_path,
+                        video_up["url"],
+                        video_up["asset_id"],
+                        prompt=prompt,
+                        api_name=api_name,
+                    )
+                    task_id = client.node_execute(
+                        room_id,
+                        workflow,
+                        api_name=api_name,
+                        prompt=prompt,
+                        model_pattern=pattern,
+                        surface=surface,
+                    )
+                    print(f"🆔 [RoboNeo/{account_email}] room={room_id} task={task_id}")
+                    _mark_order_processing(
+                        doc_ref,
+                        task_id,
+                        provider=RENDER_PROVIDER_ROBONEO,
+                        roboneo_room_id=room_id,
+                        roboneo_account_email=account_email,
+                    )
+                    refresh_account_credits(client, account_email)
                     from account_pool import mark_account
 
-                    mark_account(account_email, status="depleted", note=str(e))
-                _g["notify_internal_error_telegram"](order_id, data, str(e), "submit roboneo")
-                doc = doc_ref.get()
-                data = doc.to_dict() or {}
-                if data.get("status") == "pending":
-                    _fail_order_processing(
-                        doc,
-                        data,
-                        str(e),
-                        USER_NOTE_SUBMIT_FAILED,
-                        "submit roboneo",
+                    mark_account(
+                        account_email,
+                        status="depleted",
+                        note="đã xử lý 1 đơn (1 nick = 1 job)",
                     )
-            finally:
-                if account_id:
-                    _rb_inflight_dec(account_id)
-                if char_path and os.path.exists(char_path):
-                    os.remove(char_path)
-                if vid_path and os.path.exists(vid_path):
-                    os.remove(vid_path)
+                    session_error_backoff.pop(order_id, None)
+                    print(f"✅ Đơn {order_id} → processing (RoboNeo, {account_email})")
+                    try:
+                        short_id = order_id[-6:].upper()
+                        min_sec = int(get_env("ROBONEO_MIN_RENDER_SEC", "300"))
+                        _g["send_telegram_message"](
+                            f"⚙️ <b>ĐƠN HÀNG ĐANG XỬ LÝ</b> (RoboNeo Chất lượng)\n\n"
+                            f"🆔 Mã đơn: #{short_id}\n"
+                            f"📧 Nick: {account_email}\n"
+                            f"🤖 Task: <code>{task_id}</code>\n"
+                            f"⏳ Poll sau {min_sec // 60} phút..."
+                        )
+                    except Exception:
+                        pass
+                    success = True
+                    break
+                except (
+                    requests.RequestException,
+                    RoboNeoAuthError,
+                    RoboNeoGatewayError,
+                    RoboNeoError,
+                ) as e:
+                    if account_email:
+                        from account_pool import mark_account
+
+                        mark_account(account_email, status="depleted", note=str(e))
+                        excluded_nicks.add(account_email.strip().lower())
+                    if _is_credit_error(e) and attempt < max_attempts:
+                        last_credit_err = str(e)
+                        print(f"⚠ {e} — thử nick khác…")
+                        continue
+                    raise
+                finally:
+                    if account_id:
+                        _rb_inflight_dec(account_id)
+
+            if success:
+                return True
+
+            # Hết nick — giữ pending, retry sau (không hoàn coin khách)
+            backoff_sec = int(get_env("ROBONEO_CREDIT_BACKOFF_SEC", "120"))
+            session_error_backoff[order_id] = time.time() + backoff_sec
+            err_msg = last_credit_err or f"Không có nick đủ credit sau {max_attempts} lần"
+            print(f"⏸ Đơn {order_id} chờ retry sau {backoff_sec}s — {err_msg}")
+            _g["notify_internal_error_telegram"](
+                order_id, data, err_msg, "submit roboneo (thiếu credit, sẽ retry)"
+            )
+            return False
+    except (
+        requests.RequestException,
+        RoboNeoAuthError,
+        RoboNeoGatewayError,
+        RoboNeoError,
+    ) as e:
+        if _is_credit_error(e):
+            backoff_sec = int(get_env("ROBONEO_CREDIT_BACKOFF_SEC", "120"))
+            _g.get("session_error_backoff", {})[order_id] = time.time() + backoff_sec
+            print(f"⏸ Đơn {order_id} chờ retry sau {backoff_sec}s — {e}")
+            _g["notify_internal_error_telegram"](
+                order_id, data, str(e), "submit roboneo (thiếu credit, sẽ retry)"
+            )
+            return False
+        print(f"❌ Nạp RoboNeo thất bại {order_id}: {e}")
+        _g["notify_internal_error_telegram"](order_id, data, str(e), "submit roboneo")
+        if doc_ref is not None:
+            doc = doc_ref.get()
+            data = doc.to_dict() or {}
+            if data.get("status") == "pending":
+                _fail_order_processing(
+                    doc,
+                    data,
+                    str(e),
+                    USER_NOTE_SUBMIT_FAILED,
+                    "submit roboneo",
+                )
+        return False
     finally:
+        if char_path and os.path.exists(char_path):
+            os.remove(char_path)
+        if vid_path and os.path.exists(vid_path):
+            os.remove(vid_path)
         with submitting_lock:
             submitting.discard(order_id)
     return success

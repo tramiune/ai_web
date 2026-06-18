@@ -826,14 +826,18 @@ def submit_order(order_id: str):
             return
         doc = doc_ref.get()
         data = doc.to_dict() or {}
-        if data.get("status") == "pending":
-            _fail_order_processing(
-                doc,
-                data,
-                "Không nạp được RoboNeo (Chất lượng)",
-                USER_NOTE_SUBMIT_FAILED,
-                "submit roboneo",
-            )
+        if data.get("status") != "pending":
+            return
+        if _g["pending_submit_backoff_active"](order_id):
+            print(f"⏸ RoboNeo chờ nick/credit — đơn {order_id}")
+            return
+        _fail_order_processing(
+            doc,
+            data,
+            "Không nạp được RoboNeo (Chất lượng)",
+            USER_NOTE_SUBMIT_FAILED,
+            "submit roboneo",
+        )
         return
 
     if provider == RENDER_PROVIDER_VIDEOAIEASY:

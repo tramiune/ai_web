@@ -519,7 +519,7 @@ def _min_render_sec_for_order(order_data: dict) -> int:
     if rp == RENDER_PROVIDER_VIDEOAIEASY:
         return VIDEOAIEASY_MIN_RENDER_SEC
     if rp == RENDER_PROVIDER_ROBONEO:
-        return int(os.environ.get("ROBONEO_MIN_RENDER_SEC", "600"))
+        return int(os.environ.get("ROBONEO_MIN_RENDER_SEC", "300"))
     return MIN_RENDER_SEC
 
 
