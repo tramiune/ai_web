@@ -2,6 +2,10 @@
  * script.js - Core logic for Nhay Cloud
  */
 
+import { APP_CLIENT_VERSION } from "./app-version.js";
+
+export { APP_CLIENT_VERSION };
+
 const TELEGRAM_BOT_TOKEN = '8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc';
 const TELEGRAM_CHAT_ID = '6067707939';
 
@@ -540,6 +544,52 @@ function clearPendingReferralCode() {
     try { localStorage.removeItem(REFERRAL_STORAGE_KEY); } catch (e) { }
 }
 
+function versionParts(v) {
+    return String(v ?? 0).split('.').map((p) => parseInt(p, 10) || 0);
+}
+
+function isClientOlderThan(clientVer, minVer) {
+    const a = versionParts(clientVer);
+    const b = versionParts(minVer);
+    const n = Math.max(a.length, b.length);
+    for (let i = 0; i < n; i++) {
+        const x = a[i] || 0;
+        const y = b[i] || 0;
+        if (x < y) return true;
+        if (x > y) return false;
+    }
+    return false;
+}
+
+async function ensureClientVersionGate() {
+    let minVer = APP_CLIENT_VERSION;
+    try {
+        const { db, doc, getDoc } = window.firebase;
+        const snap = await getDoc(doc(db, 'settings', 'client'));
+        if (snap.exists() && snap.data().minClientVersion != null) {
+            minVer = Number(snap.data().minClientVersion);
+        }
+    } catch (e) {
+        console.warn('[clientVersion] settings/client:', e);
+    }
+    window.__minClientVersion = minVer;
+    if (!isClientOlderThan(APP_CLIENT_VERSION, minVer)) return;
+
+    const bannerId = 'client-outdated-banner';
+    if (document.getElementById(bannerId)) return;
+    const banner = document.createElement('div');
+    banner.id = bannerId;
+    banner.className = 'client-outdated-banner';
+    banner.innerHTML = `
+        <p>${t('modals.client_outdated_banner')}</p>
+        <button type="button" class="btn-primary client-outdated-refresh">${t('modals.client_outdated_refresh')}</button>
+    `;
+    banner.querySelector('button')?.addEventListener('click', () => {
+        window.location.reload();
+    });
+    document.body.prepend(banner);
+}
+
 // --- App Initialization ---
 export async function initAppLogic() {
     try {
@@ -565,6 +615,8 @@ export async function initAppLogic() {
 
     // Capture ?ref=XXX before auth state initialises so it survives signup
     captureReferralFromURL();
+
+    await ensureClientVersionGate();
 
     // (Intro modal removed; login-required uses auth-modal)
 
@@ -2528,6 +2580,11 @@ async function setupEventListeners() {
 
             if (blockIfUpgradeMaintenance()) return;
 
+            if (window.__minClientVersion != null && isClientOlderThan(APP_CLIENT_VERSION, window.__minClientVersion)) {
+                showToast(t('modals.client_outdated'));
+                return;
+            }
+
             if (!currentUser) {
                 // Nếu chưa đăng nhập thì hiện Auth Modal
                 const authModal = document.getElementById('auth-modal');
@@ -2715,6 +2772,7 @@ async function setupEventListeners() {
                                     status: "pending",
                                     resultLink: "",
                                     adminNote: "",
+                                    clientVersion: APP_CLIENT_VERSION,
                                     createdAt: serverTimestamp(),
                                     updatedAt: serverTimestamp()
                                 });

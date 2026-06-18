@@ -1382,6 +1382,31 @@ def _mark_order_processing(
 
 
 def submit_order(order_id):
+    doc_ref = db.collection("orders").document(order_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        return
+    data = doc.to_dict() or {}
+    if data.get("status") != "pending":
+        return
+    from client_version import client_version_label, client_version_ok, min_client_version
+
+    if not client_version_ok(data):
+        print(
+            f"⛔ Đơn {order_id} — client cũ v{client_version_label(data)} "
+            f"(cần ≥ {min_client_version()})"
+        )
+        from user_order_notes import USER_NOTE_CLIENT_OUTDATED
+
+        _fail_order_processing(
+            doc,
+            data,
+            f"clientVersion={client_version_label(data)}",
+            USER_NOTE_CLIENT_OUTDATED,
+            "client version",
+        )
+        return
+
     provider = get_active_render_provider()
     if provider == RENDER_PROVIDER_XIAOYANG:
         submit_to_xiaoyang(order_id)
