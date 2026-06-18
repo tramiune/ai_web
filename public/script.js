@@ -229,6 +229,13 @@ function getSelectedModelKey() {
     return document.querySelector('input[name="model-type"]:checked')?.value || 'quality';
 }
 
+function selectDefaultQualityModel() {
+    const qualityRadio = document.querySelector('input[name="model-type"][value="quality"]');
+    if (qualityRadio) qualityRadio.checked = true;
+    updateModelSelectionUI();
+    updateFirstOrderUI();
+}
+
 function getSelectedModelMaxVideoSec() {
     const m = MODELS[getSelectedModelKey()];
     return m?.maxVideoSec ?? MAX_VIDEO_DURATION_SEC;
@@ -643,6 +650,7 @@ export async function initAppLogic() {
     renderServicePackages();
     initPremiumEffects();
     setupEventListeners();
+    selectDefaultQualityModel();
     syncVideos();
     // Initial UI update for first order offer
     updateFirstOrderUI();
@@ -1945,7 +1953,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 
 window.openOrderModal = () => {
     if (blockIfUpgradeMaintenance()) return;
-    updateFirstOrderUI();
+    selectDefaultQualityModel();
     window.switchVideoSource('upload');
     window.openModal('order-modal');
 
@@ -1990,7 +1998,7 @@ function updateFirstOrderUI() {
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
         const summaryEl = document.getElementById('submit-summary-line');
         const checkedModel = document.querySelector('input[name="model-type"]:checked');
-        const modelKey = checkedModel ? checkedModel.value : 'quality';
+        const modelKey = checkedModel?.value === 'fast' ? 'fast' : 'quality';
 
         if (promo1CoinStats.eligible) {
             costEl.innerText = '1';
@@ -2550,6 +2558,7 @@ async function setupEventListeners() {
     document.querySelectorAll('input[name="model-type"]').forEach(radio => {
         radio.addEventListener('change', () => {
             updateModelSelectionUI();
+            updateFirstOrderUI();
             const fileInput = document.getElementById('file-video');
             const file = fileInput?.files?.[0];
             if (file?.type?.startsWith('video/')) {
@@ -2602,7 +2611,11 @@ async function setupEventListeners() {
                 let videoFile = document.getElementById('file-video')?.files?.[0];
                 const templateUrl = document.getElementById('selected-template-url')?.value || '';
                 const tiktokUrl = document.getElementById('tiktok-video-url')?.value?.trim() || '';
-                const modelKeySelected = document.querySelector('input[name="model-type"]:checked')?.value || 'quality';
+                const modelKeySelected = getSelectedModelKey();
+                if (isFirstTimeUser) {
+                    selectDefaultQualityModel();
+                }
+                const modelKeyForOrder = isFirstTimeUser ? 'quality' : modelKeySelected;
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
@@ -2664,7 +2677,7 @@ async function setupEventListeners() {
                 const userRef = doc(db, "users", currentUser.uid);
                 const userSnap = await runTransaction(db, async (transaction) => {
                     const userDoc = await transaction.get(userRef);
-                    const modelKey = modelKeySelected;
+                    const modelKey = modelKeyForOrder;
                     const serviceType = document.querySelector('input[name="service-type"]:checked').value;
                     let model = { ...localizedModel(modelKey) };
 
@@ -2806,6 +2819,7 @@ async function setupEventListeners() {
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
+                            selectDefaultQualityModel();
                             ['preview-char-container', 'preview-video-container', 'preview-tiktok-video-container'].forEach((id) => {
                                 const el = document.getElementById(id);
                                 if (el) {

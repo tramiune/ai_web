@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <link rel="icon" type="image/png" href="favicon.png">
     
     <!-- TikTok Pixel Code Start -->
@@ -1036,7 +1036,7 @@
                             style="display: flex; flex-direction: column; align-items: center; line-height: 1.2; flex: 1;">
                             <span data-i18n="hero.cta_create" style="font-size: 1rem; font-weight: 700;">Tạo video
                                 ngay</span>
-                            <span id="submit-summary-line" style="font-size: 0.7rem; opacity: 0.8; font-weight: 400;">Chất lượng cao, có trong 30p</span>
+                            <span id="submit-summary-line" style="font-size: 0.7rem; opacity: 0.8; font-weight: 400;" data-i18n="modals.model_quality_desc">Chuyển động mượt, không đổi khuôn mặt · tối đa 13s</span>
                         </div>
                         <div class="btn-cost-tag" style="margin-left: auto; position: relative;">
                             <svg class="coin-icon-mini" viewBox="0 0 24 24" fill="none">
@@ -1182,7 +1182,7 @@
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
-        import { initAppLogic } from "./script.js?v=4";
+        import { initAppLogic } from "./script.js?v=5";
 
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
