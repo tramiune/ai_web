@@ -169,12 +169,32 @@ def _task_status(data: dict) -> str:
     ).upper()
 
 
-def _task_done(data: dict) -> bool:
-    video_url = data.get("last_image_url") or ((data.get("initial_transferred_urls") or [None])[0])
-    if video_url:
+def _has_video_url(data: dict) -> bool:
+    if data.get("last_image_url"):
         return True
-    status = _task_status(data)
-    return status in {"SUCCEED", "SUCCESS", "DONE", "10"}
+    urls = data.get("initial_transferred_urls") or []
+    if urls and urls[0]:
+        return True
+    for key in ("urls", "images"):
+        vals = data.get(key) or (data.get("data") or {}).get(key) or []
+        if vals and vals[0]:
+            return True
+    media_list = data.get("media_info_list") or (data.get("data") or {}).get("media_info_list") or []
+    for item in media_list:
+        if (item or {}).get("media_data"):
+            return True
+    return False
+
+
+def _task_done(data: dict) -> bool:
+    return _has_video_url(data)
+
+
+def _task_success_empty(data: dict) -> bool:
+    """RoboNeo báo SUCCESS nhưng không có URL video (render rỗng)."""
+    if _has_video_url(data):
+        return False
+    return _task_status(data) in {"SUCCEED", "SUCCESS", "DONE", "10"}
 
 
 def _task_failed(data: dict) -> bool:
@@ -479,6 +499,14 @@ def poll_roboneo_orders(orders_to_check):
                 USER_NOTE_ORDER_FAILED,
                 "render roboneo",
             )
+        elif _task_success_empty(data):
+            _fail_order_processing(
+                doc,
+                order_data,
+                f"RoboNeo task {task_id} SUCCESS nhưng không có video (render rỗng): {data}",
+                USER_NOTE_ORDER_FAILED,
+                "render roboneo",
+            )
         elif _task_done(data):
             if skip_done and skip_done(doc.id, "đã completed"):
                 continue
@@ -493,6 +521,13 @@ def poll_roboneo_orders(orders_to_check):
                 complete(doc, local_path)
             except Exception as e:
                 print(f"⚠️ Lỗi tải/hoàn đơn {doc.id}: {e}")
+                _fail_order_processing(
+                    doc,
+                    order_data,
+                    str(e),
+                    USER_NOTE_ORDER_FAILED,
+                    "render roboneo download",
+                )
         else:
             print(f"⏳ Task {task_id} vẫn {status or 'RUNNING'}")
 
