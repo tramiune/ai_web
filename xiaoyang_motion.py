@@ -28,16 +28,19 @@ from videoaieasy_web import (
     resolution_for_order,
     duration_for_order,
 )
+import roboneo_motion as rb_motion
 
 load_project_env()
 
 RENDER_PROVIDER_AIDANCING = "aidancing"
 RENDER_PROVIDER_XIAOYANG = "xiaoyang"
 RENDER_PROVIDER_VIDEOAIEASY = "videoaieasy"
+RENDER_PROVIDER_ROBONEO = "roboneo"
 _RENDER_PROVIDERS = (
     RENDER_PROVIDER_AIDANCING,
     RENDER_PROVIDER_XIAOYANG,
     RENDER_PROVIDER_VIDEOAIEASY,
+    RENDER_PROVIDER_ROBONEO,
 )
 VIDEOAIEASY_MAX_CONCURRENT_PER_ACCOUNT = int(get_env("VIDEOAIEASY_MAX_CONCURRENT", "4"))
 AIDANCING_TURBO_MODEL_IDS = frozenset({"117"})
@@ -204,12 +207,13 @@ def _videoaieasy_model_for_order(order_data: dict) -> str:
 def _order_target_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
+    model_id = str(order_data.get("modelId") or "").strip()
+    # Model Chất lượng (127) → RoboNeo; không để renderProvider cũ (videoaieasy) ghi đè
+    if model_id in QUALITY_MODEL_IDS:
+        return RENDER_PROVIDER_ROBONEO
     rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
         return rp
-    model_id = str(order_data.get("modelId") or "").strip()
-    if model_id in QUALITY_MODEL_IDS:
-        return RENDER_PROVIDER_VIDEOAIEASY
     return RENDER_PROVIDER_AIDANCING
 
 
@@ -431,6 +435,8 @@ def _order_render_provider(order_data: dict) -> str:
     rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
         return rp
+    if order_data.get("roboneoTaskId"):
+        return RENDER_PROVIDER_ROBONEO
     if order_data.get("videoaieasyJobId"):
         return RENDER_PROVIDER_VIDEOAIEASY
     if order_data.get("xiaoyangTaskId"):
@@ -443,13 +449,20 @@ def split_monitor_state(processing_cache: dict, min_render_sec: int, *, vae_min_
     ad_eligible = []
     xy_eligible = []
     vae_eligible = []
+    rb_eligible = []
     vae_wait = vae_min_render_sec if vae_min_render_sec is not None else min_render_sec
+    rb_wait = int(get_env("ROBONEO_MIN_RENDER_SEC", str(min_render_sec)))
     for doc in processing_cache.values():
         d = doc.to_dict() or {}
         if d.get("status") != "processing":
             continue
         rp = _order_render_provider(d)
-        wait_sec = vae_wait if rp == RENDER_PROVIDER_VIDEOAIEASY else min_render_sec
+        if rp == RENDER_PROVIDER_VIDEOAIEASY:
+            wait_sec = vae_wait
+        elif rp == RENDER_PROVIDER_ROBONEO:
+            wait_sec = rb_wait
+        else:
+            wait_sec = min_render_sec
         submitted_at = d.get("submittedAt")
         if submitted_at and (now - submitted_at).total_seconds() <= wait_sec:
             continue
@@ -457,11 +470,13 @@ def split_monitor_state(processing_cache: dict, min_render_sec: int, *, vae_min_
             xy_eligible.append(doc)
         elif rp == RENDER_PROVIDER_VIDEOAIEASY and d.get("videoaieasyJobId"):
             vae_eligible.append(doc)
+        elif rp == RENDER_PROVIDER_ROBONEO and d.get("roboneoTaskId"):
+            rb_eligible.append(doc)
         else:
             job_id = d.get("aidancingJobId")
             if job_id and job_id != "MANUAL":
                 ad_eligible.append(doc)
-    return ad_eligible, xy_eligible, vae_eligible
+    return ad_eligible, xy_eligible, vae_eligible, rb_eligible
 
 
 def _fail_order_processing(doc, order_data, err_detail, system_note, context: str):
@@ -494,6 +509,8 @@ def _mark_order_processing(
     xiaoyang_account_email=None,
     videoaieasy_account=None,
     videoaieasy_account_email=None,
+    roboneo_room_id=None,
+    roboneo_account_email=None,
 ):
     payload = {
         "status": "processing",
@@ -514,6 +531,12 @@ def _mark_order_processing(
             payload["videoaieasyAccount"] = str(videoaieasy_account)
         if videoaieasy_account_email:
             payload["videoaieasyAccountEmail"] = str(videoaieasy_account_email)
+    elif provider == RENDER_PROVIDER_ROBONEO:
+        payload["roboneoTaskId"] = str(job_id)
+        if roboneo_room_id:
+            payload["roboneoRoomId"] = str(roboneo_room_id)
+        if roboneo_account_email:
+            payload["roboneoAccountEmail"] = str(roboneo_account_email)
     else:
         payload["aidancingJobId"] = str(job_id)
     doc_ref.update(payload)
@@ -798,6 +821,21 @@ def submit_order(order_id: str):
 
     provider = _order_target_provider(data)
 
+    if provider == RENDER_PROVIDER_ROBONEO:
+        if rb_motion.submit_to_roboneo(order_id):
+            return
+        doc = doc_ref.get()
+        data = doc.to_dict() or {}
+        if data.get("status") == "pending":
+            _fail_order_processing(
+                doc,
+                data,
+                "Không nạp được RoboNeo (Chất lượng)",
+                USER_NOTE_SUBMIT_FAILED,
+                "submit roboneo",
+            )
+        return
+
     if provider == RENDER_PROVIDER_VIDEOAIEASY:
         if _try_submit_videoaieasy(order_id):
             return
@@ -991,3 +1029,4 @@ def log_accounts_on_startup():
                 )
             except Exception as e:
                 print(f"  ⚠️  {acc['email']}: {e}")
+    rb_motion.log_pool_on_startup()

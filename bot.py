@@ -67,10 +67,12 @@ VIDEOAIEASY_POLL_INTERVAL_SEC = int(os.environ.get("VIDEOAIEASY_POLL_INTERVAL_SE
 RENDER_PROVIDER_AIDANCING = "aidancing"
 RENDER_PROVIDER_XIAOYANG = "xiaoyang"
 RENDER_PROVIDER_VIDEOAIEASY = "videoaieasy"
+RENDER_PROVIDER_ROBONEO = "roboneo"
 _RENDER_PROVIDERS = (
     RENDER_PROVIDER_AIDANCING,
     RENDER_PROVIDER_XIAOYANG,
     RENDER_PROVIDER_VIDEOAIEASY,
+    RENDER_PROVIDER_ROBONEO,
 )
 AIDANCING_TURBO_MODEL_IDS = frozenset({"117"})
 AIDANCING_FAST_MODEL_IDS = frozenset({"34", "124", "125"})
@@ -143,6 +145,8 @@ def _order_render_provider(order_data: dict) -> str:
     rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
         return rp
+    if order_data.get("roboneoTaskId"):
+        return RENDER_PROVIDER_ROBONEO
     if order_data.get("videoaieasyJobId"):
         return RENDER_PROVIDER_VIDEOAIEASY
     if order_data.get("xiaoyangTaskId"):
@@ -511,8 +515,11 @@ def _reset_persistent_api():
 
 
 def _min_render_sec_for_order(order_data: dict) -> int:
-    if _order_render_provider(order_data) == RENDER_PROVIDER_VIDEOAIEASY:
+    rp = _order_render_provider(order_data)
+    if rp == RENDER_PROVIDER_VIDEOAIEASY:
         return VIDEOAIEASY_MIN_RENDER_SEC
+    if rp == RENDER_PROVIDER_ROBONEO:
+        return int(os.environ.get("ROBONEO_MIN_RENDER_SEC", "600"))
     return MIN_RENDER_SEC
 
 
@@ -522,6 +529,7 @@ def _processing_monitor_state():
     ad_eligible = []
     xy_eligible = []
     vae_eligible = []
+    rb_eligible = []
     vae_processing_count = 0
     with _processing_cache_lock:
         stale_ids = []
@@ -549,11 +557,14 @@ def _processing_monitor_state():
             elif rp == RENDER_PROVIDER_VIDEOAIEASY:
                 if d.get("videoaieasyJobId"):
                     vae_eligible.append(doc)
+            elif rp == RENDER_PROVIDER_ROBONEO:
+                if d.get("roboneoTaskId"):
+                    rb_eligible.append(doc)
             else:
                 job_id = d.get("aidancingJobId")
                 if job_id and job_id != "MANUAL":
                     ad_eligible.append(doc)
-    return ad_eligible, xy_eligible, vae_eligible, processing_count, vae_processing_count
+    return ad_eligible, xy_eligible, vae_eligible, rb_eligible, processing_count, vae_processing_count
 
 
 def on_processing_orders_snapshot(snapshot, changes, read_time):
@@ -1305,13 +1316,13 @@ def check_finished_orders_api():
     if not is_bot_enabled():
         return
     _maybe_refresh_processing_cache()
-    ad_orders, xy_orders, vae_orders, _, _ = _processing_monitor_state()
-    if not ad_orders and not xy_orders and not vae_orders:
+    ad_orders, xy_orders, vae_orders, rb_orders, _, _ = _processing_monitor_state()
+    if not ad_orders and not xy_orders and not vae_orders and not rb_orders:
         return
 
     print(
         f"\n🔍 [MONITOR/HTTP] Poll Aidancing={len(ad_orders)} XiaoYang={len(xy_orders)} "
-        f"VideoAiEasy={len(vae_orders)} "
+        f"VideoAiEasy={len(vae_orders)} RoboNeo={len(rb_orders)} "
         f"(VAE: sau {VIDEOAIEASY_MIN_RENDER_SEC // 60}p, mỗi {VIDEOAIEASY_POLL_INTERVAL_SEC}s; "
         f"khác: sau {MIN_RENDER_SEC // 60}p)..."
     )
@@ -1339,6 +1350,13 @@ def check_finished_orders_api():
             xy_motion.poll_videoaieasy_orders(vae_orders)
         except Exception as e:
             print(f"❌ Lỗi monitor VideoAiEasy: {e}")
+    if rb_orders and xy_motion.enabled_for_bot(BOT_NAME):
+        try:
+            import roboneo_motion as rb_motion
+
+            rb_motion.poll_roboneo_orders(rb_orders)
+        except Exception as e:
+            print(f"❌ Lỗi monitor RoboNeo: {e}")
 
 def _mark_order_processing(
     doc_ref,
@@ -1679,7 +1697,7 @@ def check_finished_orders():
         if browser_lock.locked():
             return
 
-        ad_orders, _, _, _, _ = _processing_monitor_state()
+        ad_orders, _, _, _, _, _ = _processing_monitor_state()
         if not ad_orders:
             return
 
@@ -1934,6 +1952,24 @@ def start_bot():
             print(f"⚠️  BOT_CDP_URL={cdp_url} nhưng Chrome chưa mở CDP!")
             print("    → Mở Chrome CDP ở terminal KHÁC trước, giữ chạy, rồi bot mới nối được.")
     if xy_motion.enabled_for_bot(BOT_NAME):
+        import roboneo_motion as rb_motion
+
+        rb_motion.wire(
+            db=db,
+            bot_name=BOT_NAME,
+            processing_cache=_processing_cache,
+            processing_cache_lock=_processing_cache_lock,
+            is_bot_enabled=is_bot_enabled,
+            pending_submit_backoff_active=_pending_submit_backoff_active,
+            submitting_orders_lock=_submitting_orders_lock,
+            submitting_orders=_submitting_orders,
+            download_file=download_file,
+            session_error_backoff=_session_error_backoff,
+            send_telegram_message=send_telegram_message,
+            notify_internal_error_telegram=notify_internal_error_telegram,
+            complete_order_with_video=_complete_order_with_video,
+            skip_if_order_done=_skip_if_order_done,
+        )
         xy_motion.wire(
             db=db,
             bot_name=BOT_NAME,
@@ -1988,12 +2024,12 @@ def start_bot():
 
     def monitor_loop():
         while True:
-            ad_eligible, xy_eligible, vae_eligible, processing, vae_processing = _processing_monitor_state()
+            ad_eligible, xy_eligible, vae_eligible, rb_eligible, processing, vae_processing = _processing_monitor_state()
             if is_bot_enabled():
                 check_finished_orders()
             if use_api_mode():
                 sleep_sec = _monitor_sleep_seconds(
-                    len(ad_eligible) + len(xy_eligible) + len(vae_eligible),
+                    len(ad_eligible) + len(xy_eligible) + len(vae_eligible) + len(rb_eligible),
                     processing,
                     vae_processing_count=vae_processing,
                 )
