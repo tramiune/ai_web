@@ -332,6 +332,45 @@ def submit_to_roboneo(order_id: str) -> bool:
                         continue
 
                     room_id = client.create_room(surface=surface)
+                    print("→ countcost …")
+                    cost = client.count_cost(
+                        api_name=api_name,
+                        room_id=room_id,
+                        model_pattern=pattern,
+                        surface=surface,
+                    )
+                    cost_item = (cost.get("items") or [{}])[0] if isinstance(cost, dict) else {}
+                    fallback = cost_item.get("fallback_cost")
+                    print(
+                        f"  cost={cost_item.get('cost')} real_cost={cost_item.get('real_cost')} "
+                        f"fallback={fallback}"
+                    )
+                    required = need
+                    for val in (fallback, cost_item.get("real_cost"), cost_item.get("cost")):
+                        if val is not None:
+                            try:
+                                required = max(required, int(val))
+                            except (TypeError, ValueError):
+                                pass
+                    if amount < required:
+                        last_credit_err = (
+                            f"Credit {amount} < cost thực {required} "
+                            f"(ước tính ~{need}, fallback={fallback})"
+                        )
+                        print(f"⚠ {last_credit_err} — đổi nick…")
+                        from account_pool import mark_account
+
+                        mark_account(
+                            account_email,
+                            status="depleted",
+                            note=last_credit_err,
+                            credits=amount,
+                        )
+                        excluded_nicks.add(account_email.strip().lower())
+                        _rb_inflight_dec(account_id)
+                        account_id = ""
+                        continue
+
                     image_up = client.upload_file(char_path, surface=surface)
                     video_up = client.upload_file(vid_path, surface=surface)
                     workflow = client.build_motion_workflow(
