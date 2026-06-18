@@ -220,7 +220,7 @@ const MODELS = {
         timeKey: "modals.model_quality_desc",
         modelId: "127",
         renderProvider: "roboneo",
-        maxVideoSec: 15,
+        maxVideoSec: 13,
         isNew: true,
     },
 };
