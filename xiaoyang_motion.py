@@ -23,8 +23,10 @@ from videoaieasy_web import (
     VideoAiEasyError,
     MODEL_KLING_26,
     MODEL_KLING_30,
+    QUALITY_MODEL_IDS,
     prepare_character_image_for_vae,
     resolution_for_order,
+    duration_for_order,
 )
 
 load_project_env()
@@ -47,6 +49,7 @@ XIAOYANG_MAX_CONCURRENT_PER_ACCOUNT = int(get_env("XIAOYANG_MAX_CONCURRENT", "4"
 from user_order_notes import (
     USER_NOTE_FILES_MISSING,
     USER_NOTE_ORDER_FAILED,
+    USER_NOTE_SUBMIT_FAILED,
     user_note_for_videoaieasy_failure,
 )
 
@@ -191,9 +194,23 @@ def _use_videoaieasy() -> bool:
 
 def _videoaieasy_model_for_order(order_data: dict) -> str:
     model_id = str((order_data or {}).get("modelId") or "").strip()
+    if model_id in QUALITY_MODEL_IDS:
+        return MODEL_KLING_26
     if model_id in AIDANCING_TURBO_MODEL_IDS:
         return MODEL_KLING_30
     return MODEL_KLING_26
+
+
+def _order_target_provider(order_data: dict) -> str:
+    if not order_data:
+        return RENDER_PROVIDER_AIDANCING
+    rp = (order_data.get("renderProvider") or "").strip().lower()
+    if rp in _RENDER_PROVIDERS:
+        return rp
+    model_id = str(order_data.get("modelId") or "").strip()
+    if model_id in QUALITY_MODEL_IDS:
+        return RENDER_PROVIDER_VIDEOAIEASY
+    return RENDER_PROVIDER_AIDANCING
 
 
 def _videoaieasy_account_id(email: str) -> str:
@@ -666,6 +683,8 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
             session_error_backoff = _g.get("session_error_backoff", {})
             try:
                 model_id = _videoaieasy_model_for_order(data)
+                duration_sec = duration_for_order(data)
+                resolution = resolution_for_order(data)
                 tier = "Kling 3.0" if model_id == MODEL_KLING_30 else "Kling 2.6"
                 prompt = (data.get("prompt") or get_env(
                     "VIDEOAIEASY_PROMPT", "Follow the reference motion naturally"
@@ -674,7 +693,7 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                 _ensure_vae_web_session(api, account_email, account.get("password"))
                 print(
                     f"🚀 [VideoAiEasy/{nick_label}] {tier} — "
-                    f"modelId={data.get('modelId')} → {model_id}..."
+                    f"modelId={data.get('modelId')} → {model_id} {duration_sec}s {resolution}..."
                 )
                 for attempt in range(1, 3):
                     if attempt > 1:
@@ -699,7 +718,8 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                     driving_video_url=video_url,
                     prompt=prompt,
                     model_id=model_id,
-                    resolution=resolution_for_order(data),
+                    resolution=resolution,
+                    duration_sec=duration_sec,
                 )
                 print(f"🆔 [VideoAiEasy/{nick_label}] job: {job_id}")
                 _mark_order_processing(
@@ -766,31 +786,31 @@ def _try_submit_videoaieasy(order_id: str) -> bool:
 
 
 def submit_order(order_id: str):
-    """Nạp đơn theo renderProvider (Admin). Đơn processing giữ engine cũ."""
-    provider = get_active_render_provider()
-
-    if provider == RENDER_PROVIDER_AIDANCING:
-        _g["submit_to_aidancing"](order_id)
+    """Nạp đơn theo model/renderProvider — không fallback giữa engine."""
+    db = _g["db"]
+    doc_ref = db.collection("orders").document(order_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        return
+    data = doc.to_dict() or {}
+    if data.get("status") != "pending":
         return
 
-    if provider == RENDER_PROVIDER_XIAOYANG:
-        if _try_submit_xiaoyang(order_id):
-            return
-        print(f"⚠️ XiaoYang không nạp được {order_id} → thử VideoAiEasy")
-        if _try_submit_videoaieasy(order_id):
-            return
-        print(f"⚠️ VideoAiEasy không nạp được {order_id} → chuyển Aidancing")
-        _g["submit_to_aidancing"](order_id, fallback_reason="xiaoyang_fail")
-        return
+    provider = _order_target_provider(data)
 
     if provider == RENDER_PROVIDER_VIDEOAIEASY:
         if _try_submit_videoaieasy(order_id):
             return
-        print(f"⚠️ VideoAiEasy không nạp được {order_id} → thử XiaoYang")
-        if _try_submit_xiaoyang(order_id):
-            return
-        print(f"⚠️ XiaoYang không nạp được {order_id} → chuyển Aidancing")
-        _g["submit_to_aidancing"](order_id, fallback_reason="videoaieasy_fail")
+        doc = doc_ref.get()
+        data = doc.to_dict() or {}
+        if data.get("status") == "pending":
+            _fail_order_processing(
+                doc,
+                data,
+                "Không nạp được VideoAiEasy (Kling 2.6)",
+                USER_NOTE_SUBMIT_FAILED,
+                "submit videoaieasy",
+            )
         return
 
     _g["submit_to_aidancing"](order_id)

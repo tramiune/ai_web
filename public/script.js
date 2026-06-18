@@ -202,8 +202,22 @@ function gatewayLabel(gateway) {
 }
 
 const MODELS = {
-    fast: { nameKey: "modals.model_fast", cost: 10, timeKey: "modals.model_fast_desc", modelId: "34" },
-    turbo: { nameKey: "modals.model_turbo", cost: 20, timeKey: "modals.model_turbo_desc", modelId: "117" }
+    fast: {
+        nameKey: "modals.model_fast",
+        cost: 10,
+        timeKey: "modals.model_fast_desc",
+        modelId: "34",
+        renderProvider: "aidancing",
+    },
+    quality: {
+        nameKey: "modals.model_quality",
+        cost: 20,
+        timeKey: "modals.model_quality_desc",
+        modelId: "127",
+        renderProvider: "videoaieasy",
+        vaeDurationSec: 20,
+        vaeResolution: "720p",
+    },
 };
 
 function localizedModel(key) {
@@ -2656,6 +2670,9 @@ async function setupEventListeners() {
                                     userName: currentUser.displayName,
                                     packageName: model.name,
                                     modelId: model.modelId,
+                                    renderProvider: model.renderProvider || "aidancing",
+                                    ...(model.vaeDurationSec ? { vaeDurationSec: model.vaeDurationSec } : {}),
+                                    ...(model.vaeResolution ? { vaeResolution: model.vaeResolution } : {}),
                                     serviceType: serviceType,
                                     serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
                                     costCoins: model.cost,
