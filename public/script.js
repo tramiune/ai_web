@@ -226,12 +226,12 @@ const MODELS = {
 };
 
 function getSelectedModelKey() {
-    return document.querySelector('input[name="model-type"]:checked')?.value || 'quality';
+    return document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
 }
 
-function selectDefaultQualityModel() {
-    const qualityRadio = document.querySelector('input[name="model-type"][value="quality"]');
-    if (qualityRadio) qualityRadio.checked = true;
+function selectDefaultModel(modelKey = 'fast') {
+    const radio = document.querySelector(`input[name="model-type"][value="${modelKey}"]`);
+    if (radio) radio.checked = true;
     updateModelSelectionUI();
     updateFirstOrderUI();
 }
@@ -650,7 +650,7 @@ export async function initAppLogic() {
     renderServicePackages();
     initPremiumEffects();
     setupEventListeners();
-    selectDefaultQualityModel();
+    selectDefaultModel('fast');
     syncVideos();
     // Initial UI update for first order offer
     updateFirstOrderUI();
@@ -1953,7 +1953,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 
 window.openOrderModal = () => {
     if (blockIfUpgradeMaintenance()) return;
-    selectDefaultQualityModel();
+    selectDefaultModel('fast');
     window.switchVideoSource('upload');
     window.openModal('order-modal');
 
@@ -1997,8 +1997,7 @@ function updateFirstOrderUI() {
         const submitBtn = document.getElementById('order-submit-btn');
         const submitText = submitBtn ? submitBtn.querySelector('[data-i18n="hero.cta_create"]') : null;
         const summaryEl = document.getElementById('submit-summary-line');
-        const checkedModel = document.querySelector('input[name="model-type"]:checked');
-        const modelKey = checkedModel?.value === 'fast' ? 'fast' : 'quality';
+        const modelKey = getSelectedModelKey();
 
         if (promo1CoinStats.eligible) {
             costEl.innerText = '1';
@@ -2613,9 +2612,9 @@ async function setupEventListeners() {
                 const tiktokUrl = document.getElementById('tiktok-video-url')?.value?.trim() || '';
                 const modelKeySelected = getSelectedModelKey();
                 if (isFirstTimeUser) {
-                    selectDefaultQualityModel();
+                    selectDefaultModel('fast');
                 }
-                const modelKeyForOrder = isFirstTimeUser ? 'quality' : modelKeySelected;
+                const modelKeyForOrder = getSelectedModelKey();
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
@@ -2819,7 +2818,7 @@ async function setupEventListeners() {
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
-                            selectDefaultQualityModel();
+                            selectDefaultModel('fast');
                             ['preview-char-container', 'preview-video-container', 'preview-tiktok-video-container'].forEach((id) => {
                                 const el = document.getElementById(id);
                                 if (el) {
