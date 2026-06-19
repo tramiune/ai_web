@@ -209,9 +209,9 @@ def _order_target_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
     model_id = str(order_data.get("modelId") or "").strip()
-    # Model Chất lượng (127) → RoboNeo; không để renderProvider cũ (videoaieasy) ghi đè
+    # Model Chất lượng (127) → VideoAiEasy 1080p/20s
     if model_id in QUALITY_MODEL_IDS:
-        return RENDER_PROVIDER_ROBONEO
+        return RENDER_PROVIDER_VIDEOAIEASY
     rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
         return rp
@@ -866,7 +866,7 @@ def submit_order(order_id: str):
             _fail_order_processing(
                 doc,
                 data,
-                "Không nạp được VideoAiEasy (Kling 2.6)",
+                "Không nạp được VideoAiEasy (1080p/20s)",
                 USER_NOTE_SUBMIT_FAILED,
                 "submit videoaieasy",
             )

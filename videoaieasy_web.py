@@ -389,6 +389,8 @@ def resolution_for_order(order_data: dict | None) -> str:
     if explicit:
         return normalize_vae_resolution(str(explicit))
     model_id = str(data.get("modelId") or "").strip()
+    if model_id in QUALITY_MODEL_IDS:
+        return normalize_vae_resolution("1080p")
     if model_id in TURBO_MODEL_IDS:
         return normalize_vae_resolution("1080p")
     return normalize_vae_resolution(None)

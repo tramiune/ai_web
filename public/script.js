@@ -264,8 +264,10 @@ const MODELS = {
         cost: 13,
         timeKey: "modals.model_quality_desc",
         modelId: "127",
-        renderProvider: "roboneo",
-        maxVideoSec: 13,
+        renderProvider: "videoaieasy",
+        maxVideoSec: 20,
+        vaeDurationSec: 20,
+        vaeResolution: "1080p",
         isNew: true,
     },
 };
