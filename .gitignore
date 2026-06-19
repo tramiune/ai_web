@@ -15,6 +15,7 @@ venv/
 # Bot Sensitive Data
 serviceAccountKey.json
 account_pool.json
+data/
 .env.vps-motionai
 roboneo_session_*.json
 bot_chrome_profile/
