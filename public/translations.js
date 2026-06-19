@@ -271,6 +271,10 @@ window.TRANSLATIONS = {
             maintenance_upgrade_title: "Đang bảo trì nâng cấp",
             maintenance_upgrade_block_msg: "Hệ thống đang bảo trì nâng cấp từ 20:30 đến 22:30. Vui lòng quay lại sau 22:30.",
             maintenance_upgrade_block_detail: "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Mọi thao tác tạm thời bị tạm ngừng trong khung giờ này.",
+            maintenance_kaling_title: "Website đang bảo trì",
+            maintenance_kaling_block_msg: "kaling.cloud tạm ngừng hoạt động — đang chuyển sang hệ thống mới.",
+            maintenance_kaling_block_detail: "Code đã hoàn thành và đã áp dụng lên motionaistudio.cloud, nhưng vẫn đang xử lý một số lỗi. Vui lòng dùng motionaistudio.cloud hoặc quay lại sau 19/06. Xin lỗi vì sự bất tiện.",
+            maintenance_kaling_link: "👉 motionaistudio.cloud",
             delay_note: "💬 Đơn hàng đang được điều phối xử lý, bạn vui lòng đợi thêm chút nhé!",
             download_btn: "📥 Tải về",
             orders_count: "{count} Videos",
@@ -434,6 +438,7 @@ window.TRANSLATIONS = {
             error_no_url: "Không nhận được địa chỉ file từ máy chủ.",
             error_bad_response: "Lỗi xử lý phản hồi từ máy chủ.",
             error_server_rejected: "Máy chủ từ chối ({status}). Thử lại hoặc liên hệ hỗ trợ.",
+            error_invalid_filename: "Tên file video/ảnh không hợp lệ (thường do tải từ TikTok). Hãy đổi tên file rồi chọn lại, hoặc dán link TikTok trong ô tải video.",
             error_network: "❌ KHÔNG THỂ KẾT NỐI MÁY CHỦ! Kiểm tra mạng hoặc thử lại sau."
         },
         admin: {
@@ -947,6 +952,10 @@ window.TRANSLATIONS = {
             maintenance_upgrade_title: "Upgrade maintenance in progress",
             maintenance_upgrade_block_msg: "The system is under upgrade maintenance from 8:30 PM to 10:30 PM. Please come back after 10:30 PM.",
             maintenance_upgrade_block_detail: "We are upgrading the system to serve you better. All actions are temporarily disabled during this window.",
+            maintenance_kaling_title: "Site under maintenance",
+            maintenance_kaling_block_msg: "kaling.cloud is temporarily offline while we migrate to the new system.",
+            maintenance_kaling_block_detail: "Development is complete and deployed to motionaistudio.cloud, but we are still fixing some issues. Please use motionaistudio.cloud or check back after Jun 19. Sorry for the inconvenience.",
+            maintenance_kaling_link: "👉 motionaistudio.cloud",
             delay_note: "💬 Your order is being dispatched for processing, please wait a moment!",
             download_btn: "📥 Download",
             orders_count: "{count} Videos",
@@ -1110,6 +1119,7 @@ window.TRANSLATIONS = {
             error_no_url: "Server did not return a file URL.",
             error_bad_response: "Failed to parse server response.",
             error_server_rejected: "Server rejected upload ({status}). Try again or contact support.",
+            error_invalid_filename: "Invalid file name (common with TikTok downloads). Rename the file and try again, or paste the TikTok link in the video field.",
             error_network: "❌ CANNOT CONNECT TO SERVER! Check your network and try again."
         },
         admin: {

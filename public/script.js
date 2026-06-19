@@ -2500,7 +2500,10 @@ function sanitizeUploadFileName(name) {
     if (base.length > 80) base = base.substring(0, 80);
     if (!base) base = 'file';
 
-    return base + ext;
+    // Worker R2 từ chối 400 nếu key chứa ".." (path traversal) — hay gặp khi tải TikTok/SnapSave.
+    let out = (base + ext).replace(/\.\.+/g, '_');
+    if (!out || out.includes('..') || out.startsWith('.')) out = 'file' + (ext || '.bin');
+    return out;
 }
 
 async function uploadFile(file, folder) {
@@ -2539,7 +2542,12 @@ async function uploadFile(file, folder) {
                     reject(new Error(t('upload.error_bad_response')));
                 }
             } else {
-                reject(new Error(t('upload.error_server_rejected', { status: xhr.status })));
+                const body = (xhr.responseText || '').toLowerCase();
+                if (xhr.status === 400 && body.includes('file key')) {
+                    reject(new Error(t('upload.error_invalid_filename')));
+                } else {
+                    reject(new Error(t('upload.error_server_rejected', { status: xhr.status })));
+                }
             }
         };
 
@@ -3156,12 +3164,51 @@ window.viewFullImage = (url) => {
     modal.style.display = 'flex';
 };
 
-// --- Maintenance (nightly + one-time upgrade 03/06/2026 20:30–22:30 VN) ---
+// --- Maintenance (nightly + kaling.cloud migration until 19/06/2026) ---
 const UPGRADE_MAINTENANCE = {
     date: { y: 2026, m: 6, d: 3 },
     startMin: 20 * 60 + 30,
     endMin: 22 * 60 + 30,
 };
+
+const KALING_MIGRATION_MAINTENANCE = {
+    hosts: ['kaling.cloud', 'www.kaling.cloud'],
+    start: { y: 2026, m: 6, d: 16 },
+    end: { y: 2026, m: 6, d: 19 },
+};
+
+function isKalingHost() {
+    const h = (location.hostname || '').toLowerCase();
+    return KALING_MIGRATION_MAINTENANCE.hosts.some(
+        (host) => h === host || h.endsWith('.' + host),
+    );
+}
+
+function compareVnDate(vp, d) {
+    if (vp.year !== d.y) return vp.year - d.y;
+    if (vp.month !== d.m) return vp.month - d.m;
+    return vp.day - d.d;
+}
+
+function isKalingMigrationActive(vp = getVietnamDateParts()) {
+    if (!isKalingHost()) return false;
+    const { start, end } = KALING_MIGRATION_MAINTENANCE;
+    return compareVnDate(vp, start) >= 0 && compareVnDate(vp, end) <= 0;
+}
+
+function applyKalingMaintenanceCopy() {
+    const titleEl = document.getElementById('upgrade-maintenance-block-title');
+    const msgEl = document.querySelector('#upgrade-maintenance-block .upgrade-maintenance-block__text');
+    const subEl = document.querySelector('#upgrade-maintenance-block .upgrade-maintenance-block__sub');
+    const tr = typeof t === 'function' ? t : (k) => k;
+    if (titleEl) titleEl.textContent = tr('dashboard.maintenance_kaling_title');
+    if (msgEl) msgEl.textContent = tr('dashboard.maintenance_kaling_block_msg');
+    if (subEl) {
+        const detail = tr('dashboard.maintenance_kaling_block_detail');
+        const linkLabel = tr('dashboard.maintenance_kaling_link');
+        subEl.innerHTML = `${detail}<br><br><a href="https://motionaistudio.cloud" style="color:#00f2fe;font-weight:600;">${linkLabel}</a>`;
+    }
+}
 
 function getVietnamDateParts(date = new Date()) {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -3203,10 +3250,14 @@ function isUpgradeMaintenanceNotice(vp = getVietnamDateParts()) {
         && !isUpgradeMaintenanceActive(vp);
 }
 
-window.isUpgradeMaintenanceBlocked = () => isUpgradeMaintenanceActive();
+window.isUpgradeMaintenanceBlocked = () => isUpgradeMaintenanceActive() || isKalingMigrationActive();
 
 function blockIfUpgradeMaintenance() {
     if (!window.isUpgradeMaintenanceBlocked()) return false;
+    if (isKalingMigrationActive()) {
+        showToast(typeof t === 'function' ? t('dashboard.maintenance_kaling_block_msg') : 'kaling.cloud đang bảo trì — dùng motionaistudio.cloud');
+        return true;
+    }
     showToast(typeof t === 'function' ? t('dashboard.maintenance_upgrade_block_msg') : 'Hệ thống đang bảo trì nâng cấp. Vui lòng quay lại sau 22:30.');
     return true;
 }
@@ -3227,12 +3278,22 @@ function checkMaintenance() {
 
     const notice = document.getElementById('upgrade-maintenance-notice');
     if (notice) {
-        notice.hidden = !isUpgradeMaintenanceNotice(vp);
+        const kalingActive = isKalingMigrationActive(vp);
+        notice.hidden = !(isUpgradeMaintenanceNotice(vp) || kalingActive);
+        if (kalingActive) {
+            const span = notice.querySelector('span:not(.upgrade-maintenance-notice__icon)');
+            if (span && typeof t === 'function') {
+                span.textContent = t('dashboard.maintenance_kaling_block_msg');
+            }
+        }
     }
 
     const blockModal = document.getElementById('upgrade-maintenance-block');
     if (blockModal) {
-        const active = isUpgradeMaintenanceActive(vp);
+        const kalingActive = isKalingMigrationActive(vp);
+        const upgradeActive = isUpgradeMaintenanceActive(vp);
+        const active = kalingActive || upgradeActive;
+        if (kalingActive) applyKalingMaintenanceCopy();
         blockModal.hidden = !active;
         document.body.classList.toggle('upgrade-maintenance-locked', active);
         if (active) {

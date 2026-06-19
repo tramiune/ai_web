@@ -11,9 +11,16 @@ const CORS = {
   'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
 };
 
+function normalizeKey(key) {
+  if (!key || typeof key !== 'string') return '';
+  let k = key.replace(/\\/g, '/').replace(/\.\.+/g, '_').replace(/^\/+/, '');
+  if (k.includes('..') || k.startsWith('/')) return '';
+  return k;
+}
+
 function badKey(key) {
-  if (!key || typeof key !== 'string') return true;
-  if (key.includes('..') || key.startsWith('/')) return true;
+  const k = normalizeKey(key);
+  if (!k) return true;
   return false;
 }
 
@@ -76,8 +83,9 @@ export default {
     }
 
     const url = new URL(request.url);
-    const key = url.searchParams.get('file');
-    if (badKey(key)) {
+    const rawKey = url.searchParams.get('file');
+    const key = normalizeKey(rawKey);
+    if (badKey(rawKey)) {
       return new Response('Missing or invalid file key', { status: 400, headers: CORS });
     }
 
