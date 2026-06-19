@@ -17,6 +17,7 @@ from account_pool import (
     acquire_client_for_job,
     estimate_credits,
     list_accounts,
+    max_accounts_per_ip,
     refresh_account_credits,
     video_duration_sec,
 )
@@ -240,6 +241,23 @@ def submit_to_roboneo(order_id: str) -> bool:
                 return False
             data = doc.to_dict() or {}
             if data.get("status") != "pending":
+                return False
+
+            from client_version import client_version_label, client_version_ok, min_client_version
+            from user_order_notes import USER_NOTE_CLIENT_OUTDATED
+
+            if not client_version_ok(data):
+                print(
+                    f"⛔ Đơn {order_id} — client cũ v{client_version_label(data)} "
+                    f"(cần ≥ {min_client_version()})"
+                )
+                _fail_order_processing(
+                    doc,
+                    data,
+                    f"clientVersion={client_version_label(data)}",
+                    USER_NOTE_CLIENT_OUTDATED,
+                    "client version",
+                )
                 return False
 
             img_url = (data.get("characterImageLink") or "").strip()
@@ -576,6 +594,7 @@ def log_pool_on_startup():
     print(
         f"👥 RoboNeo pool: {len(rows)} nick | "
         f"max {ROBONEO_MAX_CONCURRENT_PER_ACCOUNT} đơn/nick | "
+        f"{max_accounts_per_ip()} nick/IP VNsProxy | "
         f"surface {_roboneo_surface()} | model {_roboneo_api_name()}"
     )
     for row in rows[:8]:

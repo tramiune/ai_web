@@ -29,6 +29,51 @@ const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const MAX_VIDEO_DURATION_SEC = 20;
 const MAX_REFERENCE_VIDEO_SEC = 20;
 
+const KALING_HOSTS = ['kaling.cloud', 'www.kaling.cloud'];
+const KALING_PRICING = { coinPerSec: 0.8, maxVideoSec: 13 };
+
+function isKalingSite() {
+    const h = (location.hostname || '').toLowerCase();
+    return KALING_HOSTS.some((host) => h === host || h.endsWith('.' + host));
+}
+window.isKalingSite = isKalingSite;
+
+/** Thời lượng video đã chọn trên kaling — dùng tính giá động. */
+let kalingSelectedDurationSec = null;
+
+function kalingCoinsForDuration(sec) {
+    const d = Math.min(Math.max(Number(sec) || 0, 0.1), KALING_PRICING.maxVideoSec);
+    return Math.max(1, Math.ceil(d * KALING_PRICING.coinPerSec));
+}
+
+async function getVideoDurationFromUrl(url) {
+    if (!url) return null;
+    try {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.crossOrigin = 'anonymous';
+        const duration = await new Promise((resolve, reject) => {
+            const cleanup = () => {
+                video.removeAttribute('src');
+                video.load();
+            };
+            video.onloadedmetadata = () => {
+                const d = Number(video.duration);
+                cleanup();
+                resolve(Number.isFinite(d) ? d : null);
+            };
+            video.onerror = () => {
+                cleanup();
+                reject(new Error('metadata error'));
+            };
+            video.src = url;
+        });
+        return duration;
+    } catch {
+        return null;
+    }
+}
+
 function getLocalDayKey(date = new Date(), timeZone = PROMO_1_COIN_TIMEZONE) {
     const parts = new Intl.DateTimeFormat('en-CA', {
         timeZone,
@@ -226,10 +271,12 @@ const MODELS = {
 };
 
 function getSelectedModelKey() {
+    if (isKalingSite()) return 'quality';
     return document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
 }
 
 function selectDefaultModel(modelKey = 'fast') {
+    if (isKalingSite()) modelKey = 'quality';
     const radio = document.querySelector(`input[name="model-type"][value="${modelKey}"]`);
     if (radio) radio.checked = true;
     updateModelSelectionUI();
@@ -237,6 +284,7 @@ function selectDefaultModel(modelKey = 'fast') {
 }
 
 function getSelectedModelMaxVideoSec() {
+    if (isKalingSite()) return KALING_PRICING.maxVideoSec;
     const m = MODELS[getSelectedModelKey()];
     return m?.maxVideoSec ?? MAX_VIDEO_DURATION_SEC;
 }
@@ -254,6 +302,21 @@ function updateModelSelectionUI() {
 }
 
 function localizedModel(key) {
+    if (isKalingSite()) {
+        const m = MODELS.quality;
+        const dur = kalingSelectedDurationSec;
+        const cost = dur != null ? kalingCoinsForDuration(dur) : null;
+        return {
+            ...m,
+            name: t('modals.kaling_package_name'),
+            time: t('modals.kaling_price_per_sec', {
+                rate: KALING_PRICING.coinPerSec,
+                max: KALING_PRICING.maxVideoSec,
+            }),
+            cost: cost ?? '—',
+            vaeDurationSec: dur != null ? Math.ceil(dur) : undefined,
+        };
+    }
     const m = MODELS[key];
     if (!m) return null;
     return {
@@ -650,7 +713,7 @@ export async function initAppLogic() {
     renderServicePackages();
     initPremiumEffects();
     setupEventListeners();
-    selectDefaultModel('fast');
+    selectDefaultModel(isKalingSite() ? 'quality' : 'fast');
     syncVideos();
     // Initial UI update for first order offer
     updateFirstOrderUI();
@@ -1990,7 +2053,7 @@ function updateFirstOrderUI() {
     
     const modelGroupEl = document.getElementById('model-selection-group');
     if (modelGroupEl) {
-        modelGroupEl.style.display = isFirstTimeUser ? 'none' : 'block';
+        modelGroupEl.style.display = (isKalingSite() || isFirstTimeUser) ? 'none' : 'block';
     }
 
     if (costEl) {
@@ -1999,7 +2062,7 @@ function updateFirstOrderUI() {
         const summaryEl = document.getElementById('submit-summary-line');
         const modelKey = getSelectedModelKey();
 
-        if (promo1CoinStats.eligible) {
+        if (!isKalingSite() && promo1CoinStats.eligible) {
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
@@ -2008,13 +2071,14 @@ function updateFirstOrderUI() {
                 summaryEl.style.color = '';
             }
         } else {
-            if (localizedModel(modelKey)) {
-                costEl.innerText = localizedModel(modelKey).cost;
+            const lm = localizedModel(modelKey);
+            if (lm) {
+                costEl.innerText = String(lm.cost);
             }
             if (submitBtn) submitBtn.classList.remove('btn-first-offer');
             if (submitText) submitText.innerText = t('hero.cta_create');
             if (summaryEl) {
-                summaryEl.innerText = t(`modals.model_${modelKey}_desc`);
+                summaryEl.innerText = lm ? lm.time : t(`modals.model_${modelKey}_desc`);
                 summaryEl.style.color = '';
             }
         }
@@ -2373,9 +2437,17 @@ function renderVideoFilePreview(containerId, file, options = {}) {
             }
             container.innerHTML = '';
             syncUploadZonePreviewState(container);
+            if (isKalingSite()) {
+                kalingSelectedDurationSec = null;
+                updateFirstOrderUI();
+            }
             return;
         }
 
+        if (isKalingSite()) {
+            kalingSelectedDurationSec = duration;
+            updateFirstOrderUI();
+        }
         container.innerHTML = '';
         const previewVideo = document.createElement('video');
         const previewUrl = URL.createObjectURL(file);
@@ -2619,10 +2691,15 @@ async function setupEventListeners() {
                 const templateUrl = document.getElementById('selected-template-url')?.value || '';
                 const tiktokUrl = document.getElementById('tiktok-video-url')?.value?.trim() || '';
                 const modelKeySelected = getSelectedModelKey();
-                if (isFirstTimeUser) {
+                if (isFirstTimeUser && !isKalingSite()) {
                     selectDefaultModel('fast');
                 }
                 const modelKeyForOrder = getSelectedModelKey();
+
+                let kalingDurationSec = null;
+                if (isKalingSite()) {
+                    kalingSelectedDurationSec = null;
+                }
 
                 if (!charFile) {
                     const charZone = document.querySelector('#file-char')?.closest('.upload-zone');
@@ -2668,6 +2745,24 @@ async function setupEventListeners() {
                     return showToast(t('modals.video_upload_required'));
                 }
 
+                if (isKalingSite()) {
+                    const maxSec = KALING_PRICING.maxVideoSec;
+                    if (videoFile) {
+                        kalingDurationSec = await getVideoDurationSeconds(videoFile);
+                    } else if (window.currentVideoSource === 'library') {
+                        const tpl = document.getElementById('selected-template-url')?.value || '';
+                        kalingDurationSec = tpl ? await getVideoDurationFromUrl(tpl) : null;
+                    }
+                    if (kalingDurationSec == null || !Number.isFinite(kalingDurationSec)) {
+                        return showToast(t('modals.video_upload_required'));
+                    }
+                    if (kalingDurationSec > maxSec + 0.15) {
+                        return showToast(t('modals.video_duration_limit', { sec: maxSec }));
+                    }
+                    kalingSelectedDurationSec = kalingDurationSec;
+                    updateFirstOrderUI();
+                }
+
                 // Kiểm tra lại lần cuối trước khi upload
                 if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
                 if (window.currentVideoSource === 'upload' && videoFile && videoFile.size > 90 * 1024 * 1024) {
@@ -2690,16 +2785,22 @@ async function setupEventListeners() {
 
                     const userData = userDoc.data();
                     const promo = getPromo1CoinEligibilityFromUser(userData);
-                    if (promo.eligible) {
+                    if (!isKalingSite() && promo.eligible) {
                         model.cost = 1;
                         model.promo1Coin = true;
-                    } else if (model.cost === 1) {
+                    } else if (!isKalingSite() && model.cost === 1) {
                         if (promo.usedToday) throw t('modals.promo1coin_daily_limit');
                         if (promo.totalUsed >= PROMO_1_COIN_MAX_TOTAL) throw t('modals.promo1coin_max_reached');
+                    } else if (isKalingSite() && kalingDurationSec != null) {
+                        model.cost = kalingCoinsForDuration(kalingDurationSec);
+                        model.vaeDurationSec = Math.ceil(kalingDurationSec);
                     }
 
                     if (userDoc.data().coins < model.cost) {
                         throw t('modals.insufficient_coins_title');
+                    }
+                    if (isKalingSite() && (!Number.isFinite(Number(model.cost)) || Number(model.cost) < 1)) {
+                        throw t('modals.video_upload_required');
                     }
                     return { currentCoins: userDoc.data().coins, model, serviceType };
                 });
@@ -2757,6 +2858,9 @@ async function setupEventListeners() {
                                     }
                                     model.cost = 1;
                                     model.promo1Coin = true;
+                                } else if (isKalingSite() && kalingDurationSec != null) {
+                                    model.cost = kalingCoinsForDuration(kalingDurationSec);
+                                    model.vaeDurationSec = Math.ceil(kalingDurationSec);
                                 }
 
                                 const aspectRatioEl = document.querySelector('input[name="aspect-ratio"]:checked');
@@ -3177,13 +3281,6 @@ const KALING_MIGRATION_MAINTENANCE = {
     end: { y: 2026, m: 6, d: 19 },
 };
 
-function isKalingHost() {
-    const h = (location.hostname || '').toLowerCase();
-    return KALING_MIGRATION_MAINTENANCE.hosts.some(
-        (host) => h === host || h.endsWith('.' + host),
-    );
-}
-
 function compareVnDate(vp, d) {
     if (vp.year !== d.y) return vp.year - d.y;
     if (vp.month !== d.m) return vp.month - d.m;
@@ -3191,7 +3288,7 @@ function compareVnDate(vp, d) {
 }
 
 function isKalingMigrationActive(vp = getVietnamDateParts()) {
-    if (!isKalingHost()) return false;
+    if (!isKalingSite()) return false;
     const { start, end } = KALING_MIGRATION_MAINTENANCE;
     return compareVnDate(vp, start) >= 0 && compareVnDate(vp, end) <= 0;
 }
