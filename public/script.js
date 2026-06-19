@@ -30,7 +30,7 @@ const MAX_VIDEO_DURATION_SEC = 20;
 const MAX_REFERENCE_VIDEO_SEC = 20;
 
 const KALING_HOSTS = ['kaling.cloud', 'www.kaling.cloud'];
-const KALING_PRICING = { coinPerSec: 0.8, maxVideoSec: 13 };
+const KALING_PRICING = { coinPerSec: 0.6, maxVideoSec: 13 };
 
 function isKalingSite() {
     const h = (location.hostname || '').toLowerCase();
@@ -3268,44 +3268,12 @@ window.viewFullImage = (url) => {
     modal.style.display = 'flex';
 };
 
-// --- Maintenance (nightly + kaling.cloud migration until 19/06/2026) ---
+// --- Maintenance (nightly + one-time upgrade window) ---
 const UPGRADE_MAINTENANCE = {
     date: { y: 2026, m: 6, d: 3 },
     startMin: 20 * 60 + 30,
     endMin: 22 * 60 + 30,
 };
-
-const KALING_MIGRATION_MAINTENANCE = {
-    hosts: ['kaling.cloud', 'www.kaling.cloud'],
-    start: { y: 2026, m: 6, d: 16 },
-    end: { y: 2026, m: 6, d: 19 },
-};
-
-function compareVnDate(vp, d) {
-    if (vp.year !== d.y) return vp.year - d.y;
-    if (vp.month !== d.m) return vp.month - d.m;
-    return vp.day - d.d;
-}
-
-function isKalingMigrationActive(vp = getVietnamDateParts()) {
-    if (!isKalingSite()) return false;
-    const { start, end } = KALING_MIGRATION_MAINTENANCE;
-    return compareVnDate(vp, start) >= 0 && compareVnDate(vp, end) <= 0;
-}
-
-function applyKalingMaintenanceCopy() {
-    const titleEl = document.getElementById('upgrade-maintenance-block-title');
-    const msgEl = document.querySelector('#upgrade-maintenance-block .upgrade-maintenance-block__text');
-    const subEl = document.querySelector('#upgrade-maintenance-block .upgrade-maintenance-block__sub');
-    const tr = typeof t === 'function' ? t : (k) => k;
-    if (titleEl) titleEl.textContent = tr('dashboard.maintenance_kaling_title');
-    if (msgEl) msgEl.textContent = tr('dashboard.maintenance_kaling_block_msg');
-    if (subEl) {
-        const detail = tr('dashboard.maintenance_kaling_block_detail');
-        const linkLabel = tr('dashboard.maintenance_kaling_link');
-        subEl.innerHTML = `${detail}<br><br><a href="https://motionaistudio.cloud" style="color:#00f2fe;font-weight:600;">${linkLabel}</a>`;
-    }
-}
 
 function getVietnamDateParts(date = new Date()) {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -3347,14 +3315,10 @@ function isUpgradeMaintenanceNotice(vp = getVietnamDateParts()) {
         && !isUpgradeMaintenanceActive(vp);
 }
 
-window.isUpgradeMaintenanceBlocked = () => isUpgradeMaintenanceActive() || isKalingMigrationActive();
+window.isUpgradeMaintenanceBlocked = () => isUpgradeMaintenanceActive();
 
 function blockIfUpgradeMaintenance() {
     if (!window.isUpgradeMaintenanceBlocked()) return false;
-    if (isKalingMigrationActive()) {
-        showToast(typeof t === 'function' ? t('dashboard.maintenance_kaling_block_msg') : 'kaling.cloud đang bảo trì — dùng motionaistudio.cloud');
-        return true;
-    }
     showToast(typeof t === 'function' ? t('dashboard.maintenance_upgrade_block_msg') : 'Hệ thống đang bảo trì nâng cấp. Vui lòng quay lại sau 22:30.');
     return true;
 }
@@ -3375,22 +3339,12 @@ function checkMaintenance() {
 
     const notice = document.getElementById('upgrade-maintenance-notice');
     if (notice) {
-        const kalingActive = isKalingMigrationActive(vp);
-        notice.hidden = !(isUpgradeMaintenanceNotice(vp) || kalingActive);
-        if (kalingActive) {
-            const span = notice.querySelector('span:not(.upgrade-maintenance-notice__icon)');
-            if (span && typeof t === 'function') {
-                span.textContent = t('dashboard.maintenance_kaling_block_msg');
-            }
-        }
+        notice.hidden = !isUpgradeMaintenanceNotice(vp);
     }
 
     const blockModal = document.getElementById('upgrade-maintenance-block');
     if (blockModal) {
-        const kalingActive = isKalingMigrationActive(vp);
-        const upgradeActive = isUpgradeMaintenanceActive(vp);
-        const active = kalingActive || upgradeActive;
-        if (kalingActive) applyKalingMaintenanceCopy();
+        const active = isUpgradeMaintenanceActive(vp);
         blockModal.hidden = !active;
         document.body.classList.toggle('upgrade-maintenance-locked', active);
         if (active) {
