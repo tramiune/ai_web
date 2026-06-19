@@ -12,14 +12,23 @@ import re
 import subprocess
 import time
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 from project_env import get_env, load_project_env
 from huanaihub import HuanAiHubError, buy_roboneo_account, default_product_id
-from roboneo_proxy import proxy_dict_from_key, roboneo_login
-from roboneo_web import RoboNeoWebClient, RoboNeoError
+from roboneo_proxy import probe_proxy, proxy_dict_from_key, roboneo_login
+from roboneo_web import RoboNeoAuthError, RoboNeoWebClient, RoboNeoError, resolve_surface
 
 POOL_FILE = Path(__file__).resolve().parent / "account_pool.json"
+
+
+def _pool_path() -> Path:
+    load_project_env()
+    raw = (get_env("ROBONEO_POOL_FILE") or "").strip()
+    if raw:
+        return Path(raw)
+    return POOL_FILE
 
 
 def credits_per_15s() -> float:
@@ -32,6 +41,81 @@ def proxy_rotate_cooldown_sec() -> int:
     return int(get_env("PROXY_ROTATE_COOLDOWN_SEC", "60") or "60")
 
 
+def max_accounts_per_ip() -> int:
+    """Số nick mua/login mới trên cùng 1 IP VNsProxy trước khi bắt buộc xoay."""
+    load_project_env()
+    return max(1, int(get_env("PROXY_ACCOUNTS_PER_IP", "2") or "2"))
+
+
+def _ensure_pool_defaults(data: dict[str, Any]) -> None:
+    if "accounts_on_current_ip" not in data:
+        active = [a for a in data.get("accounts") or [] if a.get("status") == "active"]
+        data["accounts_on_current_ip"] = min(len(active), max_accounts_per_ip())
+
+
+def _should_rotate_for_new_buy(data: dict[str, Any]) -> bool:
+    _ensure_pool_defaults(data)
+    return int(data.get("accounts_on_current_ip") or 0) >= max_accounts_per_ip()
+
+
+def _should_force_rotate_on_error(err: object) -> bool:
+    s = str(err or "").lower()
+    return any(
+        x in s
+        for x in (
+            "10114",
+            "captcha",
+            "verification",
+            "429",
+            "proxy",
+            "45130",
+            "login fail",
+            "403",
+            "connection",
+            "timeout",
+            "huanai",
+            "out of stock",
+            "sold out",
+            "hết hàng",
+            "không mua",
+            "too many",
+        )
+    )
+
+
+def _rotate_proxy_if_needed(data: dict[str, Any], *, force: bool) -> bool:
+    """Xoay IP VNsProxy nếu cần. Trả True nếu đã xoay. Luôn chờ cooldown ≥60s trước khi xoay."""
+    _ensure_pool_defaults(data)
+    if not force and not _should_rotate_for_new_buy(data):
+        used = int(data.get("accounts_on_current_ip") or 0)
+        limit = max_accounts_per_ip()
+        if used > 0:
+            print(f"→ Dùng IP hiện tại ({used}/{limit} nick trên IP)")
+        return False
+
+    load_project_env()
+    key = (get_env("ROBONEO_PROXY_KEY") or "").strip()
+    if not key:
+        return False
+
+    _wait_proxy_rotate_cooldown(data)
+    province_raw = (get_env("ROBONEO_PROXY_PROVINCE_ID") or "").strip()
+    province_id = int(province_raw) if province_raw else None
+
+    from roboneo_proxy import proxy_dict_rotate_with_fallback
+
+    proxies, host, rotated = proxy_dict_rotate_with_fallback(key, province_id=province_id)
+    if not probe_proxy(proxies):
+        raise RoboNeoError(f"IP mới {host} không kết nối được sau xoay")
+
+    data = _load_pool()
+    data["last_proxy_rotate_at"] = int(time.time())
+    data["accounts_on_current_ip"] = 0
+    _save_pool(data)
+    print(f"🔄 Xoay IP → {host} (cooldown {proxy_rotate_cooldown_sec()}s, tối đa {max_accounts_per_ip()} nick/IP)")
+    return True
+
+
 def estimate_credits(duration_sec: float, *, buffer_pct: float = 0.05) -> int:
     """Credit dự kiến cho 1 job motion theo độ dài video mẫu (giây)."""
     if duration_sec <= 0:
@@ -39,6 +123,65 @@ def estimate_credits(duration_sec: float, *, buffer_pct: float = 0.05) -> int:
     raw = duration_sec * credits_per_15s() / 15.0
     need = math.ceil(raw * (1.0 + buffer_pct))
     return max(need, 1)
+
+
+def min_reuse_credits() -> int:
+    """Credit tối thiểu để giữ nick active sau 1 job."""
+    load_project_env()
+    sec = float(get_env("ROBONEO_MIN_REUSE_VIDEO_SEC", "5") or "5")
+    return estimate_credits(sec, buffer_pct=0.0)
+
+
+def credit_sync_ttl_sec() -> int:
+    load_project_env()
+    return max(30, int(get_env("ROBONEO_CREDIT_SYNC_TTL_SEC", "180") or "180"))
+
+
+def effective_credits(row: dict[str, Any]) -> int | None:
+    """Credit khả dụng sau khi trừ phần đang giữ cho đơn chưa xong."""
+    raw = row.get("credits")
+    if raw is None:
+        return None
+    reserved = int(row.get("reserved") or 0)
+    return max(0, int(raw) - reserved)
+
+
+def _patch_account_row(email: str, **fields: Any) -> None:
+    email_l = email.strip().lower()
+    data = _load_pool()
+    for row in data.get("accounts") or []:
+        if (row.get("email") or "").strip().lower() == email_l:
+            row.update(fields)
+            row["updated_at"] = int(time.time())
+            _save_pool(data)
+            return
+
+
+def reserve_credits(email: str, amount: int) -> None:
+    if amount <= 0:
+        return
+    email_l = email.strip().lower()
+    data = _load_pool()
+    for row in data.get("accounts") or []:
+        if (row.get("email") or "").strip().lower() == email_l:
+            row["reserved"] = max(0, int(row.get("reserved") or 0)) + int(amount)
+            row["updated_at"] = int(time.time())
+            _save_pool(data)
+            return
+
+
+def release_reserved(email: str, amount: int) -> None:
+    if amount <= 0:
+        return
+    email_l = email.strip().lower()
+    data = _load_pool()
+    for row in data.get("accounts") or []:
+        if (row.get("email") or "").strip().lower() == email_l:
+            cur = max(0, int(row.get("reserved") or 0))
+            row["reserved"] = max(0, cur - int(amount))
+            row["updated_at"] = int(time.time())
+            _save_pool(data)
+            return
 
 
 def video_duration_sec(path: str | Path) -> float:
@@ -66,13 +209,16 @@ def video_duration_sec(path: str | Path) -> float:
 
 
 def _load_pool() -> dict[str, Any]:
-    if POOL_FILE.is_file():
-        return json.loads(POOL_FILE.read_text(encoding="utf-8"))
-    return {"accounts": [], "last_proxy_rotate_at": 0}
+    path = _pool_path()
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return {"accounts": [], "last_proxy_rotate_at": 0, "accounts_on_current_ip": 0}
 
 
 def _save_pool(data: dict[str, Any]) -> None:
-    POOL_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    path = _pool_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def list_accounts() -> list[dict[str, Any]]:
@@ -141,8 +287,8 @@ def pick_account(
     if not rows:
         return None
     if prefer_higher:
-        return max(rows, key=lambda a: int(a.get("credits") or 0))
-    return min(rows, key=lambda a: int(a.get("credits") or 0))
+        return max(rows, key=lambda a: effective_credits(a) or 0)
+    return min(rows, key=lambda a: effective_credits(a) if effective_credits(a) is not None else 999999)
 
 
 def list_eligible_accounts(
@@ -151,13 +297,47 @@ def list_eligible_accounts(
     exclude: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     skip = {e.strip().lower() for e in (exclude or set()) if e}
-    return [
-        a
-        for a in list_accounts()
-        if a.get("status") == "active"
-        and int(a.get("credits") or 0) >= credits_needed
-        and (a.get("email") or "").strip().lower() not in skip
-    ]
+    out: list[dict[str, Any]] = []
+    for a in list_accounts():
+        email = (a.get("email") or "").strip().lower()
+        if not email or email in skip:
+            continue
+        st = a.get("status")
+        if st == "locked":
+            continue
+        if st not in ("active", "depleted"):
+            continue
+        eff = effective_credits(a)
+        if eff is None:
+            out.append(a)
+        elif eff >= credits_needed:
+            out.append(a)
+        elif st == "depleted":
+            # depleted trong JSON có thể sai — sync lại kiểm credit thật
+            out.append(a)
+    return out
+
+
+def _account_pick_sort_key(a: dict[str, Any]) -> tuple:
+    st_rank = 0 if a.get("status") == "active" else 1
+    eff = effective_credits(a)
+    if eff is None:
+        return (st_rank, 1, 999999)
+    return (st_rank, 0, eff)
+
+
+def update_account_after_job(email: str, remaining: int) -> None:
+    """Cập nhật pool sau job — giữ active nếu còn đủ credit cho job tiếp."""
+    floor = min_reuse_credits()
+    if remaining >= floor:
+        mark_account(email, status="active", credits=remaining, note="")
+    else:
+        mark_account(
+            email,
+            status="depleted",
+            credits=remaining,
+            note=f"còn {remaining} credit (< {floor})",
+        )
 
 
 def _wait_proxy_rotate_cooldown(data: dict[str, Any]) -> None:
@@ -183,11 +363,18 @@ def _login_once(email: str, password: str, *, rotate: bool = False) -> tuple[Rob
     proxies = None
     host = ""
     if key:
-        proxies, host = proxy_dict_from_key(key, rotate=rotate, province_id=province_id if rotate else None)
         if rotate:
             data = _load_pool()
+            _wait_proxy_rotate_cooldown(data)
+            from roboneo_proxy import proxy_dict_rotate_with_fallback
+
+            proxies, host, _ = proxy_dict_rotate_with_fallback(key, province_id=province_id)
+            data = _load_pool()
             data["last_proxy_rotate_at"] = int(time.time())
+            data["accounts_on_current_ip"] = 0
             _save_pool(data)
+        else:
+            proxies, host = proxy_dict_from_key(key, rotate=False, province_id=province_id)
 
     resp = roboneo_login(email, password, proxies=proxies)
     client = RoboNeoWebClient(account_id=account_id)
@@ -211,26 +398,122 @@ def _login_once(email: str, password: str, *, rotate: bool = False) -> tuple[Rob
     bal = client.meiye_query()
     credits = int(bal.get("amount") or 0) if isinstance(bal, dict) else 0
     upsert_account(email, password, credits=credits, status="active", uid=int(uid) if uid else None)
+    _patch_account_row(email, last_sync_at=int(time.time()), reserved=0)
     return client, {"email": email, "uid": uid, "credits": credits, "proxy": host}
 
 
-def refresh_account_credits(client: RoboNeoWebClient, email: str) -> int:
-    bal = client.meiye_query()
+def get_or_refresh_client(
+    email: str,
+    password: str,
+    *,
+    force_sync: bool = False,
+    surface: str | None = None,
+) -> tuple[RoboNeoWebClient, dict[str, Any]]:
+    """Dùng session file nếu còn; chỉ login khi hết token. Sync credit qua meiye_query."""
+    load_project_env()
+    email = email.strip().lower()
+    account_id = _roboneo_account_id(email)
+    client = RoboNeoWebClient(account_id=account_id)
+    surf = surface or resolve_surface(get_env("ROBONEO_SURFACE", "team_studio"))
+
+    row = next((a for a in list_accounts() if (a.get("email") or "").lower() == email), None)
+    stale = True
+    if row and row.get("last_sync_at"):
+        stale = (time.time() - int(row["last_sync_at"])) > credit_sync_ttl_sec()
+
+    need_login = False
+    try:
+        client.ensure_session(email, password)
+        if not (client._state.get("access_token") or "").strip():
+            need_login = True
+    except RoboNeoAuthError:
+        need_login = True
+
+    if need_login:
+        return _login_once(email, password, rotate=False)
+
+    if force_sync or stale or row is None or row.get("credits") is None:
+        try:
+            bal = client.meiye_query(surface=surf)
+            credits = int(bal.get("amount") or 0) if isinstance(bal, dict) else 0
+            pwd = (row or {}).get("password") or password
+            upsert_account(email, pwd, credits=credits, status=(row or {}).get("status", "active"))
+            _patch_account_row(email, last_sync_at=int(time.time()))
+        except RoboNeoAuthError:
+            return _login_once(email, password, rotate=False)
+    else:
+        credits = int(row.get("credits") or 0)
+
+    return client, {
+        "email": email,
+        "uid": client.uid,
+        "credits": credits,
+        "proxy": client._state.get("proxy"),
+    }
+
+
+def refresh_account_credits(
+    client: RoboNeoWebClient,
+    email: str,
+    *,
+    surface: str | None = None,
+    release_reserved_amount: int = 0,
+) -> int:
+    load_project_env()
+    surf = surface or resolve_surface(get_env("ROBONEO_SURFACE", "team_studio"))
+    bal = client.meiye_query(surface=surf)
     credits = int(bal.get("amount") or 0) if isinstance(bal, dict) else 0
-    row = next((a for a in list_accounts() if a.get("email") == email), None)
+    row = next((a for a in list_accounts() if (a.get("email") or "").lower() == email.strip().lower()), None)
     if row:
         upsert_account(email, row["password"], credits=credits, status=row.get("status", "active"))
+        _patch_account_row(email, last_sync_at=int(time.time()))
+    if release_reserved_amount > 0:
+        release_reserved(email, release_reserved_amount)
     return credits
 
 
-def buy_and_register_account(*, rotate_ip: bool = True) -> tuple[RoboNeoWebClient, dict[str, Any]]:
+def sync_stale_pool_credits(
+    *,
+    surface: str | None = None,
+    max_accounts: int | None = None,
+) -> int:
+    """Sync credit các nick stale/unknown — session trước, login chỉ khi cần."""
+    load_project_env()
+    surf = surface or resolve_surface(get_env("ROBONEO_SURFACE", "team_studio"))
+    limit = max_accounts
+    if limit is None:
+        limit = max(0, int(get_env("ROBONEO_STARTUP_SYNC_MAX", "15") or "15"))
+    synced = 0
+    for row in list_accounts():
+        if limit and synced >= limit:
+            break
+        if row.get("status") == "locked":
+            continue
+        stale = not row.get("last_sync_at") or (
+            time.time() - int(row["last_sync_at"])
+        ) > credit_sync_ttl_sec()
+        if not stale and row.get("credits") is not None:
+            continue
+        email = (row.get("email") or "").strip()
+        password = row.get("password") or ""
+        if not email or not password:
+            continue
+        try:
+            get_or_refresh_client(email, password, force_sync=True, surface=surf)
+            synced += 1
+        except Exception as e:
+            print(f"  ⚠️ sync credit {email}: {e}")
+    return synced
+
+
+def buy_and_register_account(*, force_rotate: bool = False) -> tuple[RoboNeoWebClient, dict[str, Any]]:
     data = _load_pool()
-    if rotate_ip:
-        _wait_proxy_rotate_cooldown(data)
+    _rotate_proxy_if_needed(data, force=force_rotate)
+
     account = buy_roboneo_account(product_id=default_product_id(), amount=1)
     print(f"✅ Mua nick {account.email} (trans {account.trans_id})")
     try:
-        client, info = _login_once(account.email, account.password, rotate=rotate_ip)
+        client, info = _login_once(account.email, account.password, rotate=False)
         info["password"] = account.password
         upsert_account(
             account.email,
@@ -241,6 +524,9 @@ def buy_and_register_account(*, rotate_ip: bool = True) -> tuple[RoboNeoWebClien
             trans_id=account.trans_id,
             uid=info.get("uid"),
         )
+        data = _load_pool()
+        data["accounts_on_current_ip"] = int(data.get("accounts_on_current_ip") or 0) + 1
+        _save_pool(data)
         return client, info
     except Exception as e:
         upsert_account(
@@ -260,44 +546,61 @@ def acquire_client_for_job(
     *,
     max_buy_attempts: int = 3,
     exclude_emails: set[str] | None = None,
+    slot_available: Callable[[str], bool] | None = None,
+    surface: str | None = None,
 ) -> tuple[RoboNeoWebClient, dict[str, Any]]:
     """
-    Chọn nick pool đủ credit, không có thì xoay IP (≥60s) + mua nick mới.
-    Thử lần lượt mọi nick đủ coin (bỏ qua nick đã fail trong exclude_emails).
+    Chọn nick pool đủ credit; không có thì mua nick mới.
+    VNsProxy: tối đa PROXY_ACCOUNTS_PER_IP (mặc định 2) nick/IP, chỉ xoay khi hết slot hoặc lỗi;
+    chờ PROXY_ROTATE_COOLDOWN_SEC (60s) trước mỗi lần xoay.
     """
     excluded = {e.strip().lower() for e in (exclude_emails or set()) if e}
     print(f"→ Cần ~{credits_needed} credit (quy đổi {credits_per_15s()}/15s)")
 
     for row in sorted(
         list_eligible_accounts(credits_needed, exclude=excluded),
-        key=lambda a: int(a.get("credits") or 0),
+        key=_account_pick_sort_key,
     ):
-        print(f"→ Dùng nick pool {row['email']} ({row.get('credits')} credit)")
+        email = row["email"]
+        if slot_available is not None and not slot_available(email):
+            eff = effective_credits(row)
+            print(f"→ Bỏ qua {email} (đầy slot, eff={eff if eff is not None else '?'})")
+            continue
+        eff = effective_credits(row)
+        cr_label = eff if eff is not None else row.get("credits")
+        print(f"→ Thử nick pool {email} (eff={cr_label if cr_label is not None else '?'} credit)")
         try:
-            client, info = _login_once(row["email"], row["password"], rotate=False)
+            client, info = get_or_refresh_client(
+                email, row["password"], surface=surface
+            )
             if info["credits"] < credits_needed:
                 print(
                     f"⚠ Credit thực {info['credits']} < cần {credits_needed} — đổi nick…"
                 )
-                mark_account(row["email"], status="depleted", note="credit không đủ sau login")
-                excluded.add(row["email"].strip().lower())
+                mark_account(email, status="depleted", note="credit không đủ sau sync", credits=info["credits"])
+                excluded.add(email.strip().lower())
                 continue
+            reserve_credits(email, credits_needed)
+            info["reserved"] = credits_needed
             return client, info
         except Exception as e:
             print(f"⚠ Nick pool fail: {e}")
-            mark_account(row["email"], status="locked", note=str(e))
-            excluded.add(row["email"].strip().lower())
+            mark_account(email, status="locked", note=str(e))
+            excluded.add(email.strip().lower())
 
     last_err: Exception | None = None
+    force_rotate = False
     for attempt in range(1, max_buy_attempts + 1):
         print(f"→ Mua nick mới (lần {attempt}/{max_buy_attempts})…")
         try:
-            client, info = buy_and_register_account(rotate_ip=True)
+            client, info = buy_and_register_account(force_rotate=force_rotate)
             email_l = (info.get("email") or "").strip().lower()
             if email_l in excluded:
                 mark_account(info["email"], status="depleted", note="đã thử trước đó")
                 continue
             if info["credits"] >= credits_needed:
+                reserve_credits(info["email"], credits_needed)
+                info["reserved"] = credits_needed
                 return client, info
             print(
                 f"⚠ Nick mới {info['email']} chỉ {info['credits']} credit "
@@ -305,9 +608,13 @@ def acquire_client_for_job(
             )
             mark_account(info["email"], status="depleted", note="credit thấp sau mua")
             excluded.add(email_l)
+            force_rotate = False
         except (HuanAiHubError, Exception) as e:
             last_err = e
             print(f"   ⚠ {e}")
+            if _should_force_rotate_on_error(e):
+                print("   → Lần sau sẽ xoay IP (chờ cooldown VNsProxy nếu cần)…")
+                force_rotate = True
     if last_err:
         raise RoboNeoError(f"Không có nick đủ {credits_needed} credit: {last_err}")
     raise RoboNeoError(f"Không có nick đủ {credits_needed} credit")
