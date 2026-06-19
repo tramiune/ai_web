@@ -274,10 +274,10 @@ const MODELS = {
 
 function getSelectedModelKey() {
     if (isKalingSite()) return 'quality';
-    return document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
+    return document.querySelector('input[name="model-type"]:checked')?.value || 'quality';
 }
 
-function selectDefaultModel(modelKey = 'fast') {
+function selectDefaultModel(modelKey = 'quality') {
     if (isKalingSite()) modelKey = 'quality';
     const radio = document.querySelector(`input[name="model-type"][value="${modelKey}"]`);
     if (radio) radio.checked = true;
@@ -715,7 +715,7 @@ export async function initAppLogic() {
     renderServicePackages();
     initPremiumEffects();
     setupEventListeners();
-    selectDefaultModel(isKalingSite() ? 'quality' : 'fast');
+    selectDefaultModel('quality');
     syncVideos();
     // Initial UI update for first order offer
     updateFirstOrderUI();
@@ -2018,7 +2018,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 
 window.openOrderModal = () => {
     if (blockIfUpgradeMaintenance()) return;
-    selectDefaultModel('fast');
+    selectDefaultModel(isFirstTimeUser && !isKalingSite() ? 'fast' : 'quality');
     window.switchVideoSource('upload');
     window.openModal('order-modal');
 
@@ -2932,7 +2932,7 @@ async function setupEventListeners() {
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
-                            selectDefaultModel('fast');
+                            selectDefaultModel(isFirstTimeUser && !isKalingSite() ? 'fast' : 'quality');
                             ['preview-char-container', 'preview-video-container', 'preview-tiktok-video-container'].forEach((id) => {
                                 const el = document.getElementById(id);
                                 if (el) {
