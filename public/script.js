@@ -2168,6 +2168,22 @@ function hideVideoTrimOverlay() {
     document.body.classList.remove('video-trim-active');
 }
 
+function resetOrderSubmitUi(submitBtn, progressDiv) {
+    hideVideoTrimOverlay();
+    if (submitBtn) submitBtn.disabled = false;
+    if (progressDiv) progressDiv.style.display = 'none';
+    const mainText = submitBtn?.querySelector('[data-i18n="hero.cta_create"]');
+    if (mainText) mainText.innerText = t('hero.cta_create');
+    updateFirstOrderUI();
+}
+
+function referenceVideoNeedsTrim(refDurationSec, maxSec, { useLibrary = false } = {}) {
+    if (refDurationSec == null || !Number.isFinite(refDurationSec)) {
+        return useLibrary;
+    }
+    return refDurationSec > maxSec + 0.15;
+}
+
 function setVideoFileInput(file) {
     const fileInput = document.getElementById('file-video');
     if (!fileInput || !file) return;
@@ -3064,8 +3080,9 @@ async function setupEventListeners() {
                         refDurationSec = null;
                     }
                 }
-                const needsTrim = refDurationSec != null && Number.isFinite(refDurationSec) && refDurationSec > maxSec + 0.15;
-                if (needsTrim && (videoFile || useLibrary)) {
+                const needsTrim = (videoFile || useLibrary)
+                    && referenceVideoNeedsTrim(refDurationSec, maxSec, { useLibrary });
+                if (needsTrim) {
                     submitBtn.disabled = true;
                     showVideoTrimOverlay('modals.video_trim_title', { sec: maxSec });
                     try {
@@ -3086,9 +3103,7 @@ async function setupEventListeners() {
                         refDurationSec = prepared.durationSec;
                     } catch (trimErr) {
                         console.error('[VideoTrim] submit failed:', trimErr);
-                        hideVideoTrimOverlay();
-                        submitBtn.disabled = false;
-                        updateFirstOrderUI();
+                        resetOrderSubmitUi(submitBtn, progressDiv);
                         showToast(trimErr.code ? tiktokErrorMessage(trimErr.code) : (trimErr.message || t('modals.tiktok_trim_failed')));
                         return;
                     }
@@ -3108,8 +3123,12 @@ async function setupEventListeners() {
                 }
 
                 // Kiểm tra lại lần cuối trước khi upload
-                if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
+                if (charFile.size > 10 * 1024 * 1024) {
+                    resetOrderSubmitUi(submitBtn, progressDiv);
+                    return showToast(t('modals.char_note'));
+                }
                 if (window.currentVideoSource === 'upload' && videoFile && videoFile.size > MAX_VIDEO_FILE_BYTES) {
+                    resetOrderSubmitUi(submitBtn, progressDiv);
                     return showToast(t('modals.video_size_limit'));
                 }
 
