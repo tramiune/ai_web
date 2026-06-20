@@ -25,6 +25,7 @@ from videoaieasy_web import (
     MODEL_KLING_30,
     QUALITY_MODEL_IDS,
     prepare_character_image_for_vae,
+    prepare_motion_video_for_vae_upload,
     resolution_for_order,
     duration_for_order,
 )
@@ -703,6 +704,8 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
             vid_path = None
             vae_char_path = None
             vae_char_tmp = False
+            vid_upload_path = None
+            vid_upload_tmp = False
             download_file = _g["download_file"]
             session_error_backoff = _g.get("session_error_backoff", {})
             try:
@@ -733,10 +736,13 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                 vae_char_path, vae_char_tmp = prepare_character_image_for_vae(
                     char_path, aspect_ratio=aspect
                 )
+                vid_upload_path, vid_upload_tmp = prepare_motion_video_for_vae_upload(
+                    vid_path, max_seconds=duration_sec
+                )
                 print("📤 Upload ảnh lên videoaieasy.hdgr.online...")
                 image_url = api.upload_file(vae_char_path, kind="image")
                 print("📤 Upload video motion...")
-                video_url = api.upload_file(vid_path, kind="video")
+                video_url = api.upload_file(vid_upload_path, kind="video")
                 job_id = api.create_motion_job(
                     input_image_url=image_url,
                     driving_video_url=video_url,
@@ -778,6 +784,8 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
             finally:
                 if vae_char_tmp and vae_char_path and os.path.exists(vae_char_path):
                     os.remove(vae_char_path)
+                if vid_upload_tmp and vid_upload_path and os.path.exists(vid_upload_path):
+                    os.remove(vid_upload_path)
                 if char_path and os.path.exists(char_path):
                     os.remove(char_path)
                 if vid_path and os.path.exists(vid_path):

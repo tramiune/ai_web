@@ -10,6 +10,8 @@ import json
 import mimetypes
 import os
 import re
+import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -35,6 +37,7 @@ DEFAULT_VAE_RESOLUTION = "720p"
 QUALITY_MODEL_IDS = frozenset({"127"})
 VAE_QUALITY_DURATION_SEC = 20
 TURBO_MODEL_IDS = frozenset({"117", "125"})
+VAE_MAX_UPLOAD_BYTES = int(get_env("VIDEOAIEASY_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
 
 
 class VideoAiEasyError(RuntimeError):
@@ -489,3 +492,104 @@ def prepare_character_image_for_vae(
         f"(pad đen + resize, tỉ lệ {ar_label})"
     )
     return out_path, True
+
+
+def _ffmpeg_bin() -> str | None:
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        import shutil
+
+        return shutil.which("ffmpeg")
+
+
+def prepare_motion_video_for_vae_upload(
+    source_path: str,
+    *,
+    max_seconds: float | None = None,
+    max_bytes: int | None = None,
+) -> tuple[str, bool]:
+    """Cắt thời lượng + nén nếu cần — VideoAiEasy upload tối đa ~50MB."""
+    src = Path(source_path)
+    if not src.is_file():
+        raise VideoAiEasyError(f"File không tồn tại: {source_path}")
+
+    limit = max_bytes if max_bytes is not None else VAE_MAX_UPLOAD_BYTES
+    ffmpeg = _ffmpeg_bin()
+    work_path = src
+    work_tmp = False
+
+    if max_seconds is not None and max_seconds > 0 and ffmpeg:
+        fd, outp = tempfile.mkstemp(suffix=".mp4")
+        os.close(fd)
+        trim_out = Path(outp)
+        cmd = [
+            ffmpeg, "-y", "-i", str(work_path),
+            "-t", str(max_seconds),
+            "-c", "copy", "-movflags", "+faststart", str(trim_out),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            cmd = [
+                ffmpeg, "-y", "-i", str(work_path),
+                "-t", str(max_seconds),
+                "-c:v", "libx264", "-preset", "fast", "-crf", "28",
+                "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
+                str(trim_out),
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 and trim_out.is_file():
+            if work_tmp and work_path != src:
+                try:
+                    work_path.unlink()
+                except OSError:
+                    pass
+            work_path = trim_out
+            work_tmp = True
+            print(f"✂️ Cắt video motion → {max_seconds}s (VAE)")
+
+    size = work_path.stat().st_size
+    if size <= limit:
+        return str(work_path), work_tmp
+
+    if not ffmpeg:
+        raise VideoAiEasyError(
+            f"Video {size / (1024 * 1024):.1f}MB > giới hạn VAE "
+            f"{limit / (1024 * 1024):.0f}MB — cần ffmpeg để nén"
+        )
+
+    mb = size / (1024 * 1024)
+    print(f"📦 Video {mb:.1f}MB > {limit / (1024 * 1024):.0f}MB — nén trước upload VAE...")
+    for crf in (28, 32, 36):
+        fd, outp = tempfile.mkstemp(suffix=".mp4")
+        os.close(fd)
+        out_path = Path(outp)
+        cmd = [ffmpeg, "-y", "-i", str(work_path)]
+        if max_seconds is not None and max_seconds > 0:
+            cmd.extend(["-t", str(max_seconds)])
+        cmd.extend([
+            "-c:v", "libx264", "-preset", "fast", "-crf", str(crf),
+            "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
+            str(out_path),
+        ])
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0 or not out_path.is_file():
+            continue
+        if out_path.stat().st_size <= limit:
+            if work_tmp and work_path != src:
+                try:
+                    work_path.unlink()
+                except OSError:
+                    pass
+            print(f"✅ Nén VAE OK (crf {crf}) → {out_path.stat().st_size / (1024 * 1024):.1f}MB")
+            return str(out_path), True
+        try:
+            out_path.unlink()
+        except OSError:
+            pass
+
+    raise VideoAiEasyError(
+        f"Video vẫn > {limit / (1024 * 1024):.0f}MB sau khi nén — chọn video ngắn/nhẹ hơn"
+    )

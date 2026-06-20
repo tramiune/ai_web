@@ -28,6 +28,7 @@ const PROMO_1_COIN_MAX_TOTAL = 3;
 const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const MAX_VIDEO_DURATION_SEC = 20;
 const MAX_REFERENCE_VIDEO_SEC = 20;
+const MAX_VIDEO_FILE_BYTES = 50 * 1024 * 1024;
 
 const KALING_HOSTS = ['kaling.cloud', 'www.kaling.cloud'];
 const KALING_PRICING = { coinPerSec: 0.6, maxVideoSec: 13 };
@@ -2316,7 +2317,7 @@ async function applyTikTokVideoFromUrl(pageUrl, options = {}) {
     const { onProgress } = options;
     const { blob: initialBlob, duration: metaDuration } = await downloadTikTokVideoBlob(pageUrl);
     let blob = initialBlob;
-    if (blob.size > 90 * 1024 * 1024) {
+    if (blob.size > MAX_VIDEO_FILE_BYTES) {
         throw Object.assign(new Error(t('modals.video_size_limit')), { code: 'size_limit' });
     }
 
@@ -2412,7 +2413,7 @@ function renderVideoFilePreview(containerId, file, options = {}) {
 
     const maxDurationSec = options.maxDurationSec ?? MAX_VIDEO_DURATION_SEC;
 
-    if (file.size > 90 * 1024 * 1024) {
+    if (file.size > MAX_VIDEO_FILE_BYTES) {
         showToast(t('modals.video_size_limit'));
         if (options.inputId) {
             const input = document.getElementById(options.inputId);
@@ -2767,7 +2768,7 @@ async function setupEventListeners() {
 
                 // Kiểm tra lại lần cuối trước khi upload
                 if (charFile.size > 10 * 1024 * 1024) return showToast(t('modals.char_note'));
-                if (window.currentVideoSource === 'upload' && videoFile && videoFile.size > 90 * 1024 * 1024) {
+                if (window.currentVideoSource === 'upload' && videoFile && videoFile.size > MAX_VIDEO_FILE_BYTES) {
                     return showToast(t('modals.video_size_limit'));
                 }
 
