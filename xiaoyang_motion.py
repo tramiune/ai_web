@@ -20,6 +20,7 @@ from xiaoyang_web import XiaoyangAuthError, XiaoyangWebClient, XiaoyangWebError
 from videoaieasy_web import (
     VideoAiEasyClient,
     VideoAiEasyAuthError,
+    VideoAiEasyCreditError,
     VideoAiEasyError,
     MODEL_KLING_26,
     MODEL_KLING_30,
@@ -29,10 +30,14 @@ from videoaieasy_web import (
     VAE_API_MODEL_WEAVY,
     prepare_character_image_for_vae,
     prepare_motion_video_for_vae_upload,
+    profile_credits,
     resolution_for_order,
     duration_for_order,
+    vae_coins_for_duration,
     vae_motion_api_model,
+    vae_xu_for_duration,
 )
+from account_pool import video_duration_sec as probe_video_duration_seconds
 import roboneo_motion as rb_motion
 
 load_project_env()
@@ -723,17 +728,22 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                 duration_sec = duration_for_order(data)
                 resolution = resolution_for_order(data)
                 api_model = vae_motion_api_model(str(data.get("modelId") or ""))
-                tier = "weavy-kling" if api_model == VAE_API_MODEL_WEAVY else (
-                    "Kling 3.0" if model_id == MODEL_KLING_30 else "Kling 2.6"
-                )
+                vae_coins = vae_coins_for_duration(duration_sec, resolution)
+                vae_xu = vae_xu_for_duration(duration_sec, resolution)
                 prompt = (data.get("prompt") or get_env(
                     "VIDEOAIEASY_PROMPT", "Follow the reference motion naturally"
                 )).strip()
                 api = _get_vae_web_client(account_id)
-                _ensure_vae_web_session(api, account_email, account.get("password"))
+                profile = _ensure_vae_web_session(api, account_email, account.get("password"))
+                have = profile_credits(profile)
+                if have < vae_coins:
+                    raise VideoAiEasyCreditError(
+                        f"Không đủ coin VAE: cần {vae_coins} ({vae_xu:g} xu), có {have}"
+                    )
                 print(
-                    f"🚀 [VideoAiEasy/{nick_label}] {tier} — "
-                    f"modelId={data.get('modelId')} → {api_model} {duration_sec}s {resolution}..."
+                    f"🚀 [VideoAiEasy/{nick_label}] {api_model} — "
+                    f"gói {duration_sec}s {resolution} ({vae_xu:g} xu / {vae_coins} coins, có {have}) · "
+                    f"modelId={data.get('modelId')} → VAE {api_model}..."
                 )
                 for attempt in range(1, 3):
                     if attempt > 1:
@@ -752,6 +762,12 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                 vid_upload_path, vid_upload_tmp = prepare_motion_video_for_vae_upload(
                     vid_path, max_seconds=duration_sec
                 )
+                probed = probe_video_duration_seconds(vid_upload_path)
+                if probed is not None:
+                    print(
+                        f"📏 Video upload VAE: {probed:.1f}s "
+                        f"(gói {duration_sec}s → {vae_xu_for_duration(duration_sec, resolution):g} xu)"
+                    )
                 print("📤 Upload ảnh lên videoaieasy.hdgr.online...")
                 image_url = api.upload_file(vae_char_path, kind="image")
                 print("📤 Upload video motion...")
