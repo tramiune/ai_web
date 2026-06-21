@@ -23,6 +23,7 @@ from videoaieasy_web import (
     VideoAiEasyError,
     MODEL_KLING_26,
     MODEL_KLING_30,
+    QUALITY_30_MODEL_IDS,
     QUALITY_MODEL_IDS,
     prepare_character_image_for_vae,
     prepare_motion_video_for_vae_upload,
@@ -199,7 +200,7 @@ def _use_videoaieasy() -> bool:
 
 def _videoaieasy_model_for_order(order_data: dict) -> str:
     model_id = str((order_data or {}).get("modelId") or "").strip()
-    if model_id in QUALITY_MODEL_IDS:
+    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS:
         return MODEL_KLING_26
     if model_id in AIDANCING_TURBO_MODEL_IDS:
         return MODEL_KLING_30
@@ -210,8 +211,8 @@ def _order_target_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
     model_id = str(order_data.get("modelId") or "").strip()
-    # Model Chất lượng (127) → VideoAiEasy 1080p/20s
-    if model_id in QUALITY_MODEL_IDS:
+    # Mượt & giữ mặt (127 → 15s, 129 → 30s) → VideoAiEasy 1080p
+    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS:
         return RENDER_PROVIDER_VIDEOAIEASY
     rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
@@ -611,6 +612,12 @@ def submit_to_xiaoyang(order_id: str, account: dict) -> bool:
                     time.sleep(2)
                 if not char_path or not vid_path:
                     raise XiaoyangWebError("Không tải được ảnh/video từ link đơn hàng")
+                try:
+                    from order_media import trim_reference_video_for_order
+
+                    vid_path = trim_reference_video_for_order(vid_path, data)
+                except Exception as trim_err:
+                    print(f"⚠️ Server trim thất bại {order_id}: {trim_err}")
                 print("📤 Upload ảnh lên xiaoyang.online...")
                 image_token = api.upload_file(char_path)
                 print("📤 Upload video motion...")
@@ -874,7 +881,7 @@ def submit_order(order_id: str):
             _fail_order_processing(
                 doc,
                 data,
-                "Không nạp được VideoAiEasy (1080p/20s)",
+                "Không nạp được VideoAiEasy (Mượt & giữ mặt)",
                 USER_NOTE_SUBMIT_FAILED,
                 "submit videoaieasy",
             )

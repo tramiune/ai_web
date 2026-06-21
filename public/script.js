@@ -26,7 +26,7 @@ function safeToDate(field) {
 
 const PROMO_1_COIN_MAX_TOTAL = 3;
 const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
-const MAX_VIDEO_DURATION_SEC = 20;
+const MAX_VIDEO_DURATION_SEC = 30;
 const MAX_REFERENCE_VIDEO_SEC = 20;
 const MAX_VIDEO_FILE_BYTES = 50 * 1024 * 1024;
 
@@ -266,10 +266,20 @@ const MODELS = {
         timeKey: "modals.model_quality_desc",
         modelId: "127",
         renderProvider: "videoaieasy",
-        maxVideoSec: 20,
-        vaeDurationSec: 20,
+        maxVideoSec: 15,
+        vaeDurationSec: 15,
         vaeResolution: "1080p",
         isNew: true,
+    },
+    quality30: {
+        nameKey: "modals.model_quality30",
+        cost: 20,
+        timeKey: "modals.model_quality30_desc",
+        modelId: "129",
+        renderProvider: "videoaieasy",
+        maxVideoSec: 30,
+        vaeDurationSec: 30,
+        vaeResolution: "1080p",
     },
 };
 
@@ -294,8 +304,10 @@ function getSelectedModelMaxVideoSec() {
 
 function updateModelSelectionUI() {
     const qCost = document.getElementById('model-quality-cost');
+    const q30Cost = document.getElementById('model-quality30-cost');
     const fCost = document.getElementById('model-fast-cost');
     if (qCost) qCost.textContent = String(MODELS.quality.cost);
+    if (q30Cost) q30Cost.textContent = String(MODELS.quality30.cost);
     if (fCost) fCost.textContent = String(MODELS.fast.cost);
     const sec = getSelectedModelMaxVideoSec();
     document.querySelectorAll('[data-i18n="modals.tiktok_tab_hint"]').forEach((el) => {
@@ -2178,10 +2190,41 @@ function resetOrderSubmitUi(submitBtn, progressDiv) {
 }
 
 function referenceVideoNeedsTrim(refDurationSec, maxSec, { useLibrary = false } = {}) {
+    if (prefersServerSideTrim()) {
+        return false;
+    }
     if (refDurationSec == null || !Number.isFinite(refDurationSec)) {
         return useLibrary;
     }
     return refDurationSec > maxSec + 0.15;
+}
+
+function isMobileLikeClient() {
+    const ua = navigator.userAgent || '';
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+    return navigator.maxTouchPoints > 1 && window.innerWidth <= 1024;
+}
+
+function prefersServerSideTrim() {
+    return isMobileLikeClient();
+}
+
+function withTrimTimeout(promise, ms, label = 'trim') {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`${label}_timeout`));
+        }, ms);
+        Promise.resolve(promise).then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (err) => {
+                clearTimeout(timer);
+                reject(err);
+            }
+        );
+    });
 }
 
 function setVideoFileInput(file) {
@@ -2537,10 +2580,22 @@ async function trimVideoBlobToMaxSec(blob, maxSec = MAX_REFERENCE_VIDEO_SEC, opt
         return { blob, trimmed: false };
     }
 
-    const trimStrategies = [
-        { name: 'native', run: () => trimVideoBlobNative(blob, maxSec) },
-        { name: 'ffmpeg', run: () => trimVideoBlobWithFfmpeg(blob, maxSec, options) }
-    ];
+    const trimStrategies = prefersServerSideTrim()
+        ? []
+        : [
+            {
+                name: 'native',
+                run: () => withTrimTimeout(trimVideoBlobNative(blob, maxSec), 45000, 'native')
+            },
+            {
+                name: 'ffmpeg',
+                run: () => withTrimTimeout(trimVideoBlobWithFfmpeg(blob, maxSec, options), 120000, 'ffmpeg')
+            }
+        ];
+
+    if (!trimStrategies.length) {
+        throw new Error('server_trim_required');
+    }
 
     let lastErr = null;
     for (const strategy of trimStrategies) {
@@ -2567,6 +2622,16 @@ async function prepareVideoFileForSubmit(videoFile, maxSec, options = {}) {
     }
     if (durationSec <= maxSec + 0.15) {
         return { file: videoFile, trimmed: false, durationSec };
+    }
+
+    if (prefersServerSideTrim()) {
+        onProgress?.('server_trim', { sec: maxSec });
+        return {
+            file: videoFile,
+            trimmed: false,
+            durationSec: maxSec,
+            serverTrimPending: true
+        };
     }
 
     onProgress?.('trimming', { sec: maxSec });
@@ -2608,6 +2673,8 @@ function buildTrimProgressHandler(maxSec) {
     return (phase, params) => {
         if (phase === 'loading_ffmpeg') {
             updateVideoTrimOverlay('modals.video_trim_loading');
+        } else if (phase === 'server_trim') {
+            updateVideoTrimOverlay('modals.video_server_trim_pending', params || { sec: maxSec });
         } else if (phase === 'trimming') {
             updateVideoTrimOverlay('modals.video_trimming', params || { sec: maxSec });
         } else if (phase === 'fetching') {
@@ -2654,7 +2721,7 @@ async function applyTikTokVideoFromUrl(pageUrl, options = {}) {
     }
     const needsTrim = blobDuration > maxSec + 0.15;
 
-    if (needsTrim) {
+    if (needsTrim && !prefersServerSideTrim()) {
         try {
             const trimmed = await trimVideoBlobToMaxSec(blob, maxSec, { onProgress });
             blob = trimmed.blob;
@@ -2662,6 +2729,8 @@ async function applyTikTokVideoFromUrl(pageUrl, options = {}) {
             console.error('[TikTok] trim failed:', trimErr);
             throw Object.assign(new Error(t('modals.tiktok_trim_failed')), { code: 'trim_failed' });
         }
+    } else if (needsTrim && prefersServerSideTrim()) {
+        onProgress?.('server_trim', { sec: maxSec });
     }
 
     const file = new File([blob], 'tiktok_video.mp4', { type: 'video/mp4' });
@@ -2688,7 +2757,7 @@ async function applyTikTokVideoFromUrl(pageUrl, options = {}) {
         }
     });
 
-    return { file, trimmed: needsTrim };
+    return { file, trimmed: needsTrim && !prefersServerSideTrim(), serverTrimPending: needsTrim && prefersServerSideTrim() };
 }
 
 window.fetchTikTokVideo = async () => {
@@ -2708,19 +2777,27 @@ window.fetchTikTokVideo = async () => {
     showToast(t('modals.tiktok_fetching'));
 
     try {
-        const { trimmed } = await applyTikTokVideoFromUrl(pageUrl, {
+        const { trimmed, serverTrimPending } = await applyTikTokVideoFromUrl(pageUrl, {
             onProgress: (phase, params) => {
-                if (phase === 'trimming' && btn) {
-                    btn.textContent = t('modals.video_trimming', params || { sec: maxSec });
+                if ((phase === 'trimming' || phase === 'server_trim') && btn) {
+                    const key = phase === 'server_trim'
+                        ? 'modals.video_server_trim_pending'
+                        : 'modals.video_trimming';
+                    btn.textContent = t(key, params || { sec: maxSec });
                 }
                 if (phase === 'trimming') {
                     showToast(t('modals.video_trimming', params || { sec: maxSec }));
                 }
+                if (phase === 'server_trim') {
+                    showToast(t('modals.video_server_trim_mobile', params || { sec: maxSec }));
+                }
             }
         });
-        showToast(trimmed
-            ? t('modals.tiktok_fetch_trimmed', { sec: maxSec })
-            : t('modals.tiktok_fetch_success'));
+        showToast(serverTrimPending
+            ? t('modals.video_server_trim_mobile', { sec: maxSec })
+            : trimmed
+                ? t('modals.tiktok_fetch_trimmed', { sec: maxSec })
+                : t('modals.tiktok_fetch_success'));
     } catch (e) {
         console.error('[TikTok] fetch failed:', e);
         showToast(e.code ? tiktokErrorMessage(e.code) : (e.message || t('modals.tiktok_fetch_failed')));
@@ -2789,7 +2866,12 @@ function renderVideoFilePreview(containerId, file, options = {}) {
         container.appendChild(previewVideo);
 
         if (duration > maxDurationSec + 0.15) {
-            appendTrimHintBadge(container, maxDurationSec);
+            const badge = document.createElement('div');
+            badge.className = 'video-trim-hint-badge';
+            badge.textContent = prefersServerSideTrim()
+                ? t('modals.video_server_trim_mobile', { sec: maxDurationSec })
+                : t('modals.video_will_trim_on_submit', { sec: maxDurationSec });
+            container.appendChild(badge);
         }
 
         if (options.onChange) {
@@ -3084,7 +3166,10 @@ async function setupEventListeners() {
                     && referenceVideoNeedsTrim(refDurationSec, maxSec, { useLibrary });
                 if (needsTrim) {
                     submitBtn.disabled = true;
-                    showVideoTrimOverlay('modals.video_trim_title', { sec: maxSec });
+                    const trimMsgKey = prefersServerSideTrim()
+                        ? 'modals.video_server_trim_pending'
+                        : 'modals.video_trim_title';
+                    showVideoTrimOverlay(trimMsgKey, { sec: maxSec });
                     try {
                         const prepared = await prepareReferenceVideoForSubmit({
                             videoFile,
@@ -3101,6 +3186,9 @@ async function setupEventListeners() {
                             if (templateInput) templateInput.value = '';
                         }
                         refDurationSec = prepared.durationSec;
+                        if (prepared.serverTrimPending) {
+                            showToast(t('modals.video_server_trim_mobile', { sec: maxSec }));
+                        }
                     } catch (trimErr) {
                         console.error('[VideoTrim] submit failed:', trimErr);
                         resetOrderSubmitUi(submitBtn, progressDiv);
@@ -3250,6 +3338,7 @@ async function setupEventListeners() {
                                     modelId: model.modelId,
                                     renderProvider: model.renderProvider || "aidancing",
                                     ...(model.vaeDurationSec ? { vaeDurationSec: model.vaeDurationSec } : {}),
+                                    ...(model.maxVideoSec ? { maxVideoSec: model.maxVideoSec } : {}),
                                     ...(model.vaeResolution ? { vaeResolution: model.vaeResolution } : {}),
                                     serviceType: serviceType,
                                     serviceLabel: SERVICE_TYPE_MAP()[serviceType] || serviceType,
