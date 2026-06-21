@@ -25,6 +25,7 @@ from videoaieasy_web import (
     MODEL_KLING_30,
     QUALITY_MODEL_IDS,
     QUALITY_30_MODEL_IDS,
+    ECONOMY_MODEL_IDS,
     VAE_API_MODEL_WEAVY,
     prepare_character_image_for_vae,
     prepare_motion_video_for_vae_upload,
@@ -202,7 +203,7 @@ def _use_videoaieasy() -> bool:
 
 def _videoaieasy_model_for_order(order_data: dict) -> str:
     model_id = str((order_data or {}).get("modelId") or "").strip()
-    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS:
+    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS:
         return VAE_API_MODEL_WEAVY
     if model_id in AIDANCING_TURBO_MODEL_IDS:
         return MODEL_KLING_30
@@ -213,8 +214,8 @@ def _order_target_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
     model_id = str(order_data.get("modelId") or "").strip()
-    # Mượt & giữ mặt (127 → weavy 20s, 129 → weavy 30s) → VideoAiEasy
-    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS:
+    # Mượt & giữ mặt (127 → weavy 20s, 129 → weavy 30s, 128 → weavy 10s) → VideoAiEasy
+    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS:
         return RENDER_PROVIDER_VIDEOAIEASY
     rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
