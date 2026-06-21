@@ -25,7 +25,7 @@ function safeToDate(field) {
 }
 
 const PROMO_1_COIN_MAX_TOTAL = 3;
-const PROMO_1_COIN_MODEL_KEY = 'quality30';
+const PROMO_1_COIN_MODEL_KEY = 'quality';
 const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const MAX_VIDEO_DURATION_SEC = 30;
 const MAX_REFERENCE_VIDEO_SEC = 20;
