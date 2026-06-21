@@ -25,6 +25,7 @@ function safeToDate(field) {
 }
 
 const PROMO_1_COIN_MAX_TOTAL = 3;
+const PROMO_1_COIN_MODEL_KEY = 'quality30';
 const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const MAX_VIDEO_DURATION_SEC = 30;
 const MAX_REFERENCE_VIDEO_SEC = 20;
@@ -107,6 +108,13 @@ function computePromo1CoinStats(orders = [], userData = null) {
     const remainingTotal = Math.max(0, PROMO_1_COIN_MAX_TOTAL - totalUsed);
     const eligible = remainingTotal > 0 && !usedToday;
     return { eligible, totalUsed, usedToday, remainingTotal, todayKey };
+}
+
+function modelForPromo1CoinOrder() {
+    const model = { ...localizedModel(PROMO_1_COIN_MODEL_KEY) };
+    model.cost = 1;
+    model.promo1Coin = true;
+    return model;
 }
 
 function getPromo1CoinEligibilityFromUser(userData) {
@@ -2031,7 +2039,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 
 window.openOrderModal = () => {
     if (blockIfUpgradeMaintenance()) return;
-    selectDefaultModel(isFirstTimeUser && !isKalingSite() ? 'fast' : 'quality');
+    selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : 'quality');
     window.switchVideoSource('upload');
     window.openModal('order-modal');
 
@@ -2078,6 +2086,7 @@ function updateFirstOrderUI() {
         const modelKey = getSelectedModelKey();
 
         if (!isKalingSite() && promo1CoinStats.eligible) {
+            selectDefaultModel(PROMO_1_COIN_MODEL_KEY);
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
@@ -3106,7 +3115,7 @@ async function setupEventListeners() {
                 const tiktokUrl = document.getElementById('tiktok-video-url')?.value?.trim() || '';
                 const modelKeySelected = getSelectedModelKey();
                 if (isFirstTimeUser && !isKalingSite()) {
-                    selectDefaultModel('fast');
+                    selectDefaultModel(PROMO_1_COIN_MODEL_KEY);
                 }
                 const modelKeyForOrder = getSelectedModelKey();
 
@@ -3250,8 +3259,7 @@ async function setupEventListeners() {
                     const userData = userDoc.data();
                     const promo = getPromo1CoinEligibilityFromUser(userData);
                     if (!isKalingSite() && promo.eligible) {
-                        model.cost = 1;
-                        model.promo1Coin = true;
+                        model = modelForPromo1CoinOrder();
                     } else if (!isKalingSite() && model.cost === 1) {
                         if (promo.usedToday) throw t('modals.promo1coin_daily_limit');
                         if (promo.totalUsed >= PROMO_1_COIN_MAX_TOTAL) throw t('modals.promo1coin_max_reached');
@@ -3322,8 +3330,7 @@ async function setupEventListeners() {
                                         if (promo.usedToday) throw t('modals.promo1coin_daily_limit');
                                         throw t('modals.promo1coin_max_reached');
                                     }
-                                    model.cost = 1;
-                                    model.promo1Coin = true;
+                                    Object.assign(model, modelForPromo1CoinOrder());
                                 } else if (isKalingSite() && kalingDurationSec != null) {
                                     model.cost = kalingCoinsForDuration(kalingDurationSec);
                                     model.vaeDurationSec = Math.ceil(kalingDurationSec);
@@ -3397,7 +3404,7 @@ async function setupEventListeners() {
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
-                            selectDefaultModel(isFirstTimeUser && !isKalingSite() ? 'fast' : 'quality');
+                            selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : 'quality');
                             ['preview-char-container', 'preview-video-container', 'preview-tiktok-video-container'].forEach((id) => {
                                 const el = document.getElementById(id);
                                 if (el) {
