@@ -23,12 +23,14 @@ from videoaieasy_web import (
     VideoAiEasyError,
     MODEL_KLING_26,
     MODEL_KLING_30,
-    QUALITY_30_MODEL_IDS,
     QUALITY_MODEL_IDS,
+    QUALITY_30_MODEL_IDS,
+    VAE_API_MODEL_WEAVY,
     prepare_character_image_for_vae,
     prepare_motion_video_for_vae_upload,
     resolution_for_order,
     duration_for_order,
+    vae_motion_api_model,
 )
 import roboneo_motion as rb_motion
 
@@ -201,7 +203,7 @@ def _use_videoaieasy() -> bool:
 def _videoaieasy_model_for_order(order_data: dict) -> str:
     model_id = str((order_data or {}).get("modelId") or "").strip()
     if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS:
-        return MODEL_KLING_26
+        return VAE_API_MODEL_WEAVY
     if model_id in AIDANCING_TURBO_MODEL_IDS:
         return MODEL_KLING_30
     return MODEL_KLING_26
@@ -211,7 +213,7 @@ def _order_target_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
     model_id = str(order_data.get("modelId") or "").strip()
-    # Mượt & giữ mặt (127 → 15s, 129 → 30s) → VideoAiEasy 1080p
+    # Mượt & giữ mặt (127 → weavy 20s, 129 → weavy 30s) → VideoAiEasy
     if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS:
         return RENDER_PROVIDER_VIDEOAIEASY
     rp = (order_data.get("renderProvider") or "").strip().lower()
@@ -719,7 +721,10 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                 model_id = _videoaieasy_model_for_order(data)
                 duration_sec = duration_for_order(data)
                 resolution = resolution_for_order(data)
-                tier = "Kling 3.0" if model_id == MODEL_KLING_30 else "Kling 2.6"
+                api_model = vae_motion_api_model(str(data.get("modelId") or ""))
+                tier = "weavy-kling" if api_model == VAE_API_MODEL_WEAVY else (
+                    "Kling 3.0" if model_id == MODEL_KLING_30 else "Kling 2.6"
+                )
                 prompt = (data.get("prompt") or get_env(
                     "VIDEOAIEASY_PROMPT", "Follow the reference motion naturally"
                 )).strip()
@@ -727,7 +732,7 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                 _ensure_vae_web_session(api, account_email, account.get("password"))
                 print(
                     f"🚀 [VideoAiEasy/{nick_label}] {tier} — "
-                    f"modelId={data.get('modelId')} → {model_id} {duration_sec}s {resolution}..."
+                    f"modelId={data.get('modelId')} → {api_model} {duration_sec}s {resolution}..."
                 )
                 for attempt in range(1, 3):
                     if attempt > 1:
@@ -757,6 +762,7 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                     model_id=model_id,
                     resolution=resolution,
                     duration_sec=duration_sec,
+                    api_model=api_model,
                 )
                 print(f"🆔 [VideoAiEasy/{nick_label}] job: {job_id}")
                 _mark_order_processing(
