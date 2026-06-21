@@ -108,13 +108,11 @@ send "ENVEOF\r"
 expect -re {\$ |# }
 send "pip3 install -q -r requirements.txt\r"
 expect -re {\$ |# }
-send "python3 -m py_compile bot.py roboneo_motion.py xiaoyang_motion.py account_pool.py\r"
+send "python3 -m py_compile bot.py roboneo_motion.py xiaoyang_motion.py account_pool.py bot_singleton.py\r"
 expect -re {\$ |# }
-send "pkill -f 'python3 bot.py --name motionai_vps_bot' 2>/dev/null || true\r"
+send "bash scripts/run-bot-single.sh motionai_vps_bot --mode http\r"
 expect -re {\$ |# }
-send "set -a && set +u && . ./.env && set +a && PYTHONUNBUFFERED=1 nohup python3 bot.py --name motionai_vps_bot --mode http >> bot_restart.log 2>&1 &\r"
-expect -re {\$ |# }
-send "sleep 12 && pgrep -af 'motionai_vps_bot' && tail -25 bot_restart.log\r"
+send "sleep 12 && pgrep -af 'bot.py --name motionai_vps_bot' && tail -25 bot_restart.log\r"
 expect -re {\$ |# }
 send "exit\r"
 expect eof

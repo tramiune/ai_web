@@ -969,6 +969,24 @@ def start_bot_control_listener():
 
     db.collection('bots').document(BOT_NAME).on_snapshot(on_bot_config_snapshot)
 
+
+def _sync_engine_balances_for_admin():
+    try:
+        import engine_balance_report as ebr
+
+        ebr.sync_engine_balances_to_firestore(db, BOT_NAME)
+        print(f"📊 engineBalances → Firestore bots/{BOT_NAME} (Admin)")
+    except Exception as e:
+        print(f"⚠️ sync engineBalances: {e}")
+
+
+def _engine_balance_sync_loop():
+    interval = max(300, int(os.environ.get("ENGINE_BALANCE_SYNC_SEC", "1800")))
+    while True:
+        time.sleep(interval)
+        _sync_engine_balances_for_admin()
+
+
 def send_telegram_message(text):
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -1588,6 +1606,13 @@ def submit_to_aidancing(order_id, fallback_reason=None):
                 if vid_path and os.path.exists(vid_path): os.remove(vid_path)
                 return
 
+            try:
+                from order_media import trim_reference_video_for_order
+
+                vid_path = trim_reference_video_for_order(vid_path, data)
+            except Exception as trim_err:
+                print(f"⚠️ Server trim thất bại {order_id}: {trim_err}")
+
             if use_api_mode():
                 try:
                     model_id = data.get('modelId', '34')
@@ -1968,6 +1993,10 @@ def start_bot():
         print("❌ Tên bot không hợp lệ. Dùng: python bot.py --name aidancing-vps1")
         sys.exit(1)
 
+    from bot_singleton import acquire_bot_instance_lock
+
+    acquire_bot_instance_lock(BOT_NAME)
+
     print(f"📡 MotionAI BOT [{BOT_NAME}] (v3.9 xy+ad - mode={os.environ.get('BOT_MODE', 'browser')}) đang khởi động...")
     cdp_url = os.environ.get("BOT_CDP_URL", "").strip()
     if cdp_url:
@@ -2019,6 +2048,8 @@ def start_bot():
         )
 
     start_bot_control_listener()
+    _sync_engine_balances_for_admin()
+    threading.Thread(target=_engine_balance_sync_loop, daemon=True).start()
     if xy_motion.enabled_for_bot(BOT_NAME):
         xy_motion.start_render_provider_listener()
     else:

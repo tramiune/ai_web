@@ -19,6 +19,7 @@ data/
 .env.vps-motionai
 roboneo_session_*.json
 bot_chrome_profile/
+.run/
 *.mp4
 *.png
 *.jpg

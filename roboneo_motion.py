@@ -22,7 +22,6 @@ from account_pool import (
     max_accounts_per_ip,
     refresh_account_credits,
     release_reserved,
-    sync_stale_pool_credits,
     update_account_after_job,
     video_duration_sec,
     _pool_path,
@@ -298,6 +297,13 @@ def submit_to_roboneo(order_id: str) -> bool:
                 time.sleep(2)
             if not char_path or not vid_path:
                 raise RoboNeoError("Không tải được ảnh/video từ link đơn hàng")
+
+            try:
+                from order_media import trim_reference_video_for_order
+
+                vid_path = trim_reference_video_for_order(vid_path, data)
+            except Exception as trim_err:
+                print(f"⚠️ Server trim thất bại {order_id}: {trim_err}")
 
             duration = video_duration_sec(vid_path)
             need = estimate_credits(duration)
@@ -622,10 +628,8 @@ def poll_roboneo_orders(orders_to_check):
 
 
 def log_pool_on_startup():
+    """In thống kê pool — không login/sync credit lúc startup (tránh 45130 cùng IP)."""
     surface = _roboneo_surface()
-    synced = sync_stale_pool_credits(surface=surface)
-    if synced:
-        print(f"🔄 Đã sync credit {synced} nick (session, không login thừa)")
     rows = list_eligible_accounts(1)
     all_rows = [a for a in list_accounts() if a.get("status") in ("active", "depleted")]
     known = sum(1 for a in all_rows if a.get("credits") is not None)
