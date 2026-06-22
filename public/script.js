@@ -334,7 +334,6 @@ function updateModelSelectionUI() {
     document.querySelectorAll('[data-i18n="modals.tiktok_tab_hint"]').forEach((el) => {
         el.textContent = t('modals.tiktok_tab_hint', { sec });
     });
-    updateFirstOrderUI();
 }
 
 function localizedModel(key) {
@@ -708,15 +707,14 @@ export async function initAppLogic() {
 
     // Global Error Handler for debugging
     window.onerror = function (msg, url, lineNo, columnNo, error) {
-        const message = [
-            'Message: ' + msg,
-            'Line: ' + lineNo,
-            'Column: ' + columnNo,
-            'Error object: ' + JSON.stringify(error)
-        ].join(' - ');
-        console.error("Global Error:", message);
-        showToast(t('common.error_system', { msg }));
-        return false;
+        const errText = error?.message || error?.stack || String(msg || 'unknown');
+        console.error('Global Error:', msg, url, lineNo, columnNo, error);
+        try {
+            showToast(t('common.error_system', { msg: String(msg || errText).slice(0, 200) }));
+        } catch (e) {
+            console.error('Global Error handler failed:', e);
+        }
+        return true;
     };
 
     // Capture ?ref=XXX before auth state initialises so it survives signup
@@ -2099,7 +2097,8 @@ function updateFirstOrderUI() {
         const modelKey = getSelectedModelKey();
 
         if (!isKalingSite() && promo1CoinStats.eligible) {
-            selectDefaultModel(PROMO_1_COIN_MODEL_KEY);
+            const promoRadio = document.querySelector(`input[name="model-type"][value="${PROMO_1_COIN_MODEL_KEY}"]`);
+            if (promoRadio) promoRadio.checked = true;
             costEl.innerText = '1';
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
