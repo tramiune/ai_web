@@ -594,6 +594,7 @@ export function applyTranslations() {
     renderShowcase();
     renderServicePackages();
     updateModelSelectionUI();
+    updateFirstOrderUI();
 }
 
 window.toggleLangMenu = (e) => {
@@ -2157,6 +2158,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 window.openOrderModal = () => {
     if (blockIfUpgradeMaintenance()) return;
     selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : 'fast');
+    updateFirstOrderUI();
     window.switchVideoSource('upload');
     window.openModal('order-modal');
 
