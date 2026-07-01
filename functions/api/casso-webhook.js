@@ -8,7 +8,7 @@
  * - FIREBASE_SERVICE_ACCOUNT_KL (Kaling — kaling.cloud)
  */
 
-const TELEGRAM_BOT_TOKEN = '8676046240:AAE14lDxAj9otGTjVnd8Smr2__Wg-J2dCLc';
+const TELEGRAM_BOT_TOKEN = '8647185235:AAEcxfblgna8BnQoAX2B7cF9HEyx3EhDBts';
 const TELEGRAM_CHAT_ID = '6067707939';
 
 function getServiceAccountFromEnv(env, key) {
@@ -89,15 +89,20 @@ export async function onRequestPost(context) {
            await grantCoins(state.token, state.cfg.project_id, topup.userId, coins, topup.id);
            console.log(`Successfully granted ${coins} coins to user ${topup.userId}`);
            
-           // Gửi thông báo Telegram
+           // Gửi thông báo Telegram (+ tổng doanh thu hôm nay qua KV, không chặn luồng nạp)
            const tidDisplay = transaction.tid || transaction.id || 'N/A';
+           const todayTotalVnd = await trackDailyRevenueVnd(env, amount, topup.id, 'ALL');
+           const todayLine = todayTotalVnd != null
+             ? `\n📊 Tổng hôm nay: ${todayTotalVnd.toLocaleString('vi-VN')}đ`
+             : '';
            const message = `💰 *NẠP TIỀN THÀNH CÔNG!*\n\n` +
                            `👤 Khách: ${topup.userName || 'N/A'}\n` +
                            `📧 Email: ${topup.userEmail || 'N/A'}\n` +
                            `💵 Số tiền: ${amount.toLocaleString()}đ\n` +
                            `🪙 Coin nhận: +${coins}\n` +
                            `📝 Nội dung: ${code}\n` +
-                           `🔑 Mã GD: \`${tidDisplay}\``;
+                           `🔑 Mã GD: \`${tidDisplay}\`` +
+                           todayLine;
            await notifyTelegram(message);
 
            // Affiliate / Referral commission - isolated, must never block topup flow
@@ -238,6 +243,44 @@ async function grantCoins(token, projectId, userId, coins, topupId) {
 }
 
 function b64(str) { return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+
+const REVENUE_KV_TTL_SEC = 14 * 24 * 60 * 60;
+const REVENUE_DEDUPE_TTL_SEC = 48 * 60 * 60;
+
+function vietnamDateKey(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+}
+
+/**
+ * Cộng dồn doanh thu VND theo ngày (VN) vào KV. Best-effort only — lỗi KV không ảnh hưởng nạp tiền.
+ * Dedupe theo topupId để webhook retry không cộng trùng.
+ */
+async function trackDailyRevenueVnd(env, amountVnd, topupId, scope = 'ALL') {
+  const kv = env?.REVENUE_KV;
+  if (!kv || !topupId) return null;
+  const amount = Math.round(Number(amountVnd) || 0);
+  if (amount <= 0) return null;
+
+  try {
+    const dedupeKey = `rev:dedupe:${String(topupId)}`;
+    const dayKey = vietnamDateKey();
+    const totalKey = `rev:total:${scope}:${dayKey}`;
+
+    if (await kv.get(dedupeKey)) {
+      const existing = await kv.get(totalKey);
+      return existing ? parseInt(existing, 10) : 0;
+    }
+
+    const prev = parseInt(await kv.get(totalKey) || '0', 10);
+    const next = prev + amount;
+    await kv.put(totalKey, String(next), { expirationTtl: REVENUE_KV_TTL_SEC });
+    await kv.put(dedupeKey, '1', { expirationTtl: REVENUE_DEDUPE_TTL_SEC });
+    return next;
+  } catch (err) {
+    console.warn('[RevenueKV] trackDailyRevenueVnd:', err.message);
+    return null;
+  }
+}
 
 async function notifyTelegram(text) {
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;

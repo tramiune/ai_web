@@ -248,7 +248,15 @@ function serviceDisplayName(pkg) {
 }
 
 function supportedLangs() {
-    return window.LANG_CONFIG?.supported || ['vi', 'en', 'es', 'pt', 'th', 'id'];
+    return window.LANG_CONFIG?.supported || ['vi', 'en'];
+}
+
+function detectLangFromBrowser() {
+    const langs = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
+    for (const l of langs) {
+        if (String(l).toLowerCase().startsWith('vi')) return 'vi';
+    }
+    return 'en';
 }
 
 function gatewayLabel(gateway) {
@@ -451,32 +459,18 @@ function fbHas(key) {
     return typeof FB_LISTENERS[key] === 'function';
 }
 // --- i18n Logic ---
-// Priority: manual choice in localStorage > geo (VN=vi, else=en) > browser language.
-const LANG_STORAGE_KEY = 'app_lang';
-
-function detectLangFromBrowser() {
-    const langs = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
-    for (const l of langs) {
-        if (String(l).toLowerCase().startsWith('vi')) return 'vi';
-    }
-    return 'en';
-}
-
+// VN (geo) → tiếng Việt; nước ngoài → English. Fallback: trình duyệt → en.
 async function resolveInitialLanguage() {
-    const saved = localStorage.getItem(LANG_STORAGE_KEY);
-    if (supportedLangs().includes(saved)) return saved;
-
     try {
         const res = await fetch('/api/geo', { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
-            const lang = data.lang || window.LANG_CONFIG?.langFromCountry?.(data.country) || 'en';
-            if (supportedLangs().includes(lang)) return lang;
+            if (String(data.country || '').toUpperCase() === 'VN') return 'vi';
+            return 'en';
         }
     } catch (e) {
         console.warn('[i18n] Geo detection failed, using browser fallback:', e.message);
     }
-
     return detectLangFromBrowser();
 }
 
@@ -484,10 +478,42 @@ async function resolveInitialLanguage() {
 let currentLang = 'en';
 window.currentLang = currentLang;
 
+function localeTag() {
+    return currentLang === 'vi' ? 'vi-VN' : 'en-US';
+}
+
 function logFirebaseEvent(name, params = {}) {
     if (window.firebase && window.firebase.analytics && window.firebase.logEvent) {
         window.firebase.logEvent(window.firebase.analytics, name, params);
     }
+}
+
+function metaPixelId() {
+    return (window.ANALYTICS_CONFIG && window.ANALYTICS_CONFIG.metaPixelId) || '';
+}
+
+function isMetaPixelReady() {
+    return typeof fbq === 'function' && !!metaPixelId();
+}
+
+function metaEventId(prefix) {
+    const safe = String(prefix || 'evt').replace(/\s+/g, '_');
+    return `${safe}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function trackMetaEvent(eventName, params = {}) {
+    if (!isMetaPixelReady()) return;
+    const payload = { ...params };
+    if (!payload.eventID) payload.eventID = metaEventId(eventName);
+    fbq('track', eventName, payload);
+    console.log(`📘 Meta Pixel: ${eventName}`, payload);
+}
+
+function updateMetaAdvancedMatching(user) {
+    if (!isMetaPixelReady() || !user?.email) return;
+    const em = String(user.email).trim().toLowerCase();
+    if (!em) return;
+    fbq('init', metaPixelId(), { em });
 }
 
 export function t(path, params = {}) {
@@ -697,6 +723,9 @@ async function ensureClientVersionGate() {
 
 // --- App Initialization ---
 export async function initAppLogic() {
+    if (!metaPixelId()) {
+        console.warn('[Meta Pixel] Chưa cấu hình metaPixelId trong public/analytics-config.js — Facebook Ads sẽ không nhận event.');
+    }
     try {
         currentLang = await resolveInitialLanguage();
     } catch (e) {
@@ -755,9 +784,20 @@ export async function initAppLogic() {
     checkMaintenance();
     // Detect In-App Browsers
     detectInAppBrowser();
+    setupSupportFabs();
 
     // Call again after dynamic parts are rendered
     applyTranslations();
+}
+
+const TELEGRAM_SUPPORT_URL = 'https://t.me/motionaistudio';
+const ZALO_SUPPORT_URL = 'https://zalo.me/0965951536';
+
+function setupSupportFabs() {
+    const fab = document.getElementById('telegram-fab');
+    if (fab) fab.href = TELEGRAM_SUPPORT_URL;
+    const zaloFab = document.getElementById('zalo-fab');
+    if (zaloFab) zaloFab.href = ZALO_SUPPORT_URL;
 }
 
 // --- Browser Detection ---
@@ -965,7 +1005,7 @@ window.renderShowcase = async (page) => {
     if (!gallery) return;
 
     if (!_showcaseShuffled.length) {
-        gallery.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</div>';
+        gallery.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text-muted)">${t('common.loading')}</div>`;
         await fetchTemplates();
         if (!TREND_VIDEOS.length) { gallery.innerHTML = ''; return; }
         _showcaseShuffled = [...TREND_VIDEOS].sort(() => Math.random() - 0.5);
@@ -1109,6 +1149,7 @@ async function handleUserLoggedIn(user) {
     document.getElementById('user-profile-menu').style.display = 'block';
     const navbarCoin = document.getElementById('navbar-coin-widget');
     if (navbarCoin) navbarCoin.style.display = 'flex';
+    if (typeof updateBatchChannelNewBadge === 'function') updateBatchChannelNewBadge();
     document.getElementById('dropdown-user-name').innerText = user.displayName || user.email.split('@')[0];
     document.getElementById('dropdown-user-email').innerText = user.email;
 
@@ -1148,6 +1189,7 @@ async function handleUserLoggedIn(user) {
         });
         console.log("🎯 TikTok Pixel: Identified user for Advanced Matching");
     }
+    updateMetaAdvancedMatching(user);
 
     // Firebase/Google Identify
     if (user.email) {
@@ -1203,6 +1245,13 @@ async function handleUserLoggedIn(user) {
         if (referredBy) newUserPayload.referredBy = referredBy;
 
         await setDoc(userRef, newUserPayload);
+
+        trackMetaEvent('CompleteRegistration', {
+            value: 0,
+            currency: 'VND',
+            status: true,
+            content_name: user.providerData?.[0]?.providerId || 'signup'
+        });
 
         // Clear the pending ref code after a successful signup attempt.
         if (referredBy) {
@@ -1268,6 +1317,15 @@ async function handleUserLoggedIn(user) {
                         content_id: purchaseId
                     });
                 }
+
+                trackMetaEvent('Purchase', {
+                    value: purchaseValue,
+                    currency: 'VND',
+                    content_ids: [purchaseId],
+                    content_name: purchaseName,
+                    content_type: 'product',
+                    num_items: 1
+                });
 
                 sendTelegramMessage(`💰 <b>NẠP COIN THÀNH CÔNG!</b>\n👤 Khách: ${escapeHTML(data.displayName)}\n📧 Email: ${escapeHTML(data.email)}\n✨ Đã cộng: +${addedCoins} Coin\n💰 Số dư mới: ${currentCoins} Coin`);
             }
@@ -1348,6 +1406,9 @@ function navigateFromURLParam() {
             showTopupHistory();
         } else if (page === 'admin-panel' && window.__isAdmin) {
             showAdminPanel();
+        } else if (page === 'build-channel-page' && currentUser) {
+            showDashboard();
+            window.openBatchChannelModal();
         } else if (page === 'user-dashboard') {
             showDashboard();
         } else {
@@ -1410,8 +1471,13 @@ function handleUserLoggedOut() {
     adminSubscribedOrderStatus = null;
     adminSubscribedTopupStatus = null;
     Object.keys(FB_CACHE).forEach(k => { delete FB_CACHE[k]; });
+    if (typeof resetBatchChannelForm === 'function') {
+        _batchChannelPickerOrders = [];
+        resetBatchChannelForm({ keepDefaults: true });
+        closeModal('batch-channel-modal');
+    }
 
-    // Legacy var (giờ đã unsub trong fbUnsubAll, để null cho an toàn)
+    // Legacy var
     referralEarningsUnsubscribe = null;
 
     isFirstTimeUser = false;
@@ -1425,6 +1491,7 @@ function showDashboard() {
     hideAllPages();
     document.getElementById('user-dashboard').style.display = 'block';
     window.scrollTo(0, 0);
+    if (typeof updateBatchChannelNewBadge === 'function') updateBatchChannelNewBadge();
 }
 
 function showTopupHistory() {
@@ -1434,10 +1501,24 @@ function showTopupHistory() {
 }
 
 function showBuildChannel() {
-    hideAllPages();
-    document.getElementById('build-channel-page').style.display = 'block';
-    window.scrollTo(0, 0);
+    window.openBatchChannelModal();
 }
+
+function updateBatchChannelNewBadge() {
+    /* Badge MỚI luôn hiển thị — CSS .auto-video-new-badge */
+}
+
+window.openBatchChannelModal = () => {
+    if (!currentUser) {
+        showToast(t('common.toast_login_required'));
+        return;
+    }
+    if (blockIfUpgradeMaintenance()) return;
+    loadBatchChannelPage();
+    window.openModal('batch-channel-modal');
+};
+
+window.showBuildChannel = showBuildChannel;
 
 function showAdminPanel() {
     hideAllPages();
@@ -1454,7 +1535,7 @@ function showLanding() {
 }
 
 function hideAllPages() {
-    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel', 'build-channel-page', 'referral-page'];
+    const pages = ['landing-page', 'user-dashboard', 'topup-history-page', 'admin-panel', 'referral-page'];
     pages.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -1507,7 +1588,8 @@ window.navTo = (target) => {
     } else if (target === 'topup-history-page') {
         showTopupHistory();
     } else if (target === 'build-channel-page') {
-        showBuildChannel();
+        showDashboard();
+        window.openBatchChannelModal();
     } else if (target === 'referral-page') {
         showReferralPage();
     } else if (target === 'admin-panel') {
@@ -1735,11 +1817,11 @@ window.renderTemplates = async (page) => {
     if (!grid) return;
 
     if (!_templatesFetched) {
-        grid.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">Loading...</div>';
+        grid.innerHTML = `<div style="text-align:center;padding:1rem;color:var(--text-muted)">${t('common.loading')}</div>`;
         await fetchTemplates();
     }
     if (!TREND_VIDEOS.length) {
-        grid.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">No templates</div>';
+        grid.innerHTML = `<div style="text-align:center;padding:1rem;color:var(--text-muted)">${t('showcase.no_templates')}</div>`;
         return;
     }
 
@@ -1886,6 +1968,12 @@ window.openPricingModal = () => {
         });
     }
 
+    trackMetaEvent('ViewContent', {
+        content_name: 'Topup Packages',
+        content_type: 'product_group',
+        content_ids: ['all_packages']
+    });
+
     // Firebase Analytics: view_item_list
     logFirebaseEvent('view_item_list', { item_list_name: 'Topup Packages' });
 };
@@ -1907,13 +1995,22 @@ window.selectTopup = async (id, method = 'vietqr') => {
     showPaymentPanel(selectedPaymentMethod);
 
     if (selectedPaymentMethod === 'intl') {
+        const intlValue = parseFloat(String(selectedTopupPackage.usdPrice || '0').replace(/[^0-9.]/g, '')) || 0;
         if (typeof ttq !== 'undefined') {
             ttq.track('InitiateCheckout', {
-                value: parseFloat(String(selectedTopupPackage.usdPrice || '0').replace(/[^0-9.]/g, '')) || 0,
+                value: intlValue,
                 currency: 'USD',
                 content_id: selectedTopupPackage.id
             });
         }
+        trackMetaEvent('InitiateCheckout', {
+            value: intlValue,
+            currency: 'USD',
+            content_ids: [selectedTopupPackage.id],
+            content_name: selectedTopupPackage.name,
+            content_type: 'product',
+            num_items: 1
+        });
         logFirebaseEvent('begin_checkout', {
             value: parseFloat(String(selectedTopupPackage.usdPrice || '0').replace(/[^0-9.]/g, '')) || 0,
             currency: 'USD',
@@ -1935,6 +2032,15 @@ window.selectTopup = async (id, method = 'vietqr') => {
             content_id: selectedTopupPackage.id
         });
     }
+
+    trackMetaEvent('InitiateCheckout', {
+        value: selectedTopupPackage.amount,
+        currency: 'VND',
+        content_ids: [selectedTopupPackage.id],
+        content_name: selectedTopupPackage.name,
+        content_type: 'product',
+        num_items: 1
+    });
 
     logFirebaseEvent('begin_checkout', {
         value: selectedTopupPackage.amount,
@@ -2072,6 +2178,12 @@ window.openOrderModal = () => {
             content_id: 'ai_video_generation'
         });
     }
+
+    trackMetaEvent('ViewContent', {
+        content_name: 'AI Video Service',
+        content_type: 'product',
+        content_ids: ['ai_video_generation']
+    });
 };
 
 function updateFirstOrderUI() {
@@ -3403,6 +3515,14 @@ async function setupEventListeners() {
                                 });
                             }
 
+                            trackMetaEvent('Lead', {
+                                value: model.cost * 1000,
+                                currency: 'VND',
+                                content_name: serviceLabelPixel,
+                                content_ids: [orderId],
+                                content_category: 'ai_video_order'
+                            });
+
                             // Firebase Analytics: generate_lead
                             logFirebaseEvent('generate_lead', {
                                 value: model.cost * 1000,
@@ -3588,12 +3708,12 @@ function renderMyOrders() {
         return timeB - timeA;
     });
 
-    if (countText) countText.innerText = `${sortedDocs.length} Videos`;
+    if (countText) countText.innerText = t('dashboard.orders_count', { count: sortedDocs.length });
 
     grid.innerHTML = sortedDocs.map(d => {
             const orderId = d.id.substring(d.id.length - 6).toUpperCase();
             const createdDateObj = safeToDate(d.createdAt);
-            const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
+            const date = createdDateObj ? createdDateObj.toLocaleString(localeTag(), { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '...';
             const statusVN = STATUS_MAP()[d.status] || d.status;
             const isNew = createdDateObj && (Date.now() - createdDateObj.getTime() < 5 * 60 * 1000);
             const isCompleted = d.status === 'completed' || d.status === 'done';
@@ -3719,7 +3839,7 @@ function renderMyTopups() {
 
     list.innerHTML = sortedDocs.map(d => {
         const createdDateObj = safeToDate(d.createdAt);
-        const date = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
+        const date = createdDateObj ? createdDateObj.toLocaleString(localeTag(), { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '...';
         const statusVN = STATUS_MAP()[d.status] || d.status;
         return `
             <tr>
@@ -4132,7 +4252,7 @@ function renderAdminEngineBalances() {
         const dt = safeToDate(updated);
         updatedEl.textContent = dt
             ? t('admin.engine_balances_updated', {
-                time: dt.toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN')
+                time: dt.toLocaleString(localeTag())
             })
             : '';
     }
@@ -4223,7 +4343,7 @@ function renderAdminBots() {
     list.innerHTML = rows.map(b => {
         const started = safeToDate(b.startedAt) || safeToDate(b.createdAt);
         const startedStr = started
-            ? started.toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN')
+            ? started.toLocaleString(localeTag())
             : '—';
         const enabled = !!b.enabled;
         const runLabel = enabled ? t('admin.bots_running') : t('admin.bots_stopped');
@@ -4430,7 +4550,7 @@ function renderAdminReferrals() {
         const money = getReferralMoneyFields(d);
         const ref = getReferrerDisplay(d);
         const dateStr = safeToDate(d.createdAt)
-            ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN')
+            ? safeToDate(d.createdAt).toLocaleString(localeTag())
             : '—';
         return `
             <tr>
@@ -5171,7 +5291,7 @@ function renderAdminTopups() {
         }
         const safeUrl = d.proofLink ? d.proofLink.replace(/'/g, "\\'") : '';
         const createdDateObj = safeToDate(d.createdAt);
-        const dateStr = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+        const dateStr = createdDateObj ? createdDateObj.toLocaleString(localeTag(), { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
         return `
             <tr style="background: ${groupColor}; transition: background 0.3s ease;">
                 <td>
@@ -5341,7 +5461,7 @@ function renderAdminOrders() {
         }
         const orderId = d.id.substring(d.id.length - 6).toUpperCase();
         const createdDateObj = safeToDate(d.createdAt);
-        const dateStr = createdDateObj ? createdDateObj.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+        const dateStr = createdDateObj ? createdDateObj.toLocaleString(localeTag(), { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
         return `
             <tr style="background: ${groupColor}; transition: background 0.3s ease;">
                 <td style="font-family: monospace; font-weight: bold; color: var(--accent-primary);">
@@ -5879,18 +5999,27 @@ async function mountPaypalButtons(pkg) {
                     // The webhook is the source of truth for coin grant; the
                     // Firebase onSnapshot on the user doc will refresh the
                     // balance display automatically.
+                    const paypalValue = parseFloat((pkg.usdPrice || '$0').replace('$', ''));
                     if (typeof ttq !== 'undefined') {
                         try {
                             ttq.track('CompletePayment', {
-                                value: parseFloat((pkg.usdPrice || '$0').replace('$', '')),
+                                value: paypalValue,
                                 currency: 'USD',
                                 content_id: pkg.id
                             });
                         } catch (e) { /* swallow */ }
                     }
+                    trackMetaEvent('Purchase', {
+                        value: paypalValue,
+                        currency: 'USD',
+                        content_ids: [pkg.id],
+                        content_name: pkg.name,
+                        content_type: 'product',
+                        num_items: 1
+                    });
                     logFirebaseEvent('purchase', {
                         currency: 'USD',
-                        value: parseFloat((pkg.usdPrice || '$0').replace('$', '')),
+                        value: paypalValue,
                         transaction_id: data.orderID,
                         items: [{ item_id: pkg.id, item_name: pkg.name }]
                     });
@@ -6027,7 +6156,7 @@ function formatReferralMoney(amount, currency) {
     if ((currency || 'VND').toUpperCase() === 'USD') {
         return `$${n.toFixed(2)}`;
     }
-    return `${Math.round(n).toLocaleString('vi-VN')}đ`;
+    return `${Math.round(n).toLocaleString(localeTag())}đ`;
 }
 
 function referralGatewayLabel(gateway) {
@@ -6161,7 +6290,7 @@ async function openReferralPage() {
 
             const friendName = escapeHTML(d.referredUserName || t('common.guest'));
             const friendEmail = escapeHTML(d.referredUserEmail || '');
-            const dateStr = safeToDate(d.createdAt) ? safeToDate(d.createdAt).toLocaleString(currentLang === 'en' ? 'en-US' : 'vi-VN') : '—';
+            const dateStr = safeToDate(d.createdAt) ? safeToDate(d.createdAt).toLocaleString(localeTag()) : '—';
             const gatewayLabel = referralGatewayLabel(d.gateway);
             const baseMoney = formatReferralMoney(money.baseAmount, money.currency);
             const commissionMoney = formatReferralMoney(money.commissionAmount, money.currency);
@@ -6305,3 +6434,474 @@ async function payReferralCommissionClient(topupId, referredUserId, baseCoins, g
 }
 window.payReferralCommissionClient = payReferralCommissionClient;
 
+const BATCH_CHANNEL_CRON_HOUR_DEFAULT = 3;
+let _batchChannelPickerOrders = [];
+let _batchChannelCfg = null;
+
+function getBatchChannelConfigId() {
+    return currentUser?.uid || '';
+}
+
+function resetBatchChannelForm({ keepDefaults = true } = {}) {
+    const urlInput = document.getElementById('batch-channel-url');
+    if (urlInput) urlInput.value = '';
+
+    const templateInput = document.getElementById('batch-template-input');
+    if (templateInput) templateInput.value = '';
+
+    const preview = document.getElementById('batch-template-preview');
+    const templateZone = document.getElementById('batch-template-zone');
+    if (preview) preview.innerHTML = '';
+    templateZone?.classList.remove('has-preview');
+
+    const cronInput = document.getElementById('batch-cron-hour');
+    if (cronInput) cronInput.value = String(BATCH_CHANNEL_CRON_HOUR_DEFAULT);
+
+    const yesterdayInput = document.getElementById('batch-yesterday-count');
+    if (yesterdayInput) yesterdayInput.value = '0';
+
+    const box = document.getElementById('batch-daily-checkbox');
+    if (box) box.checked = !!keepDefaults;
+
+    syncBatchSourceModeUI('tiktok');
+    renderBatchChannelOrderPicker(_batchChannelPickerOrders, []);
+    _batchChannelCfg = null;
+    renderBatchChannelStatus(null);
+}
+
+function applyBatchChannelConfigToForm(cfg) {
+    renderBatchChannelStatus(cfg);
+
+    const urlInput = document.getElementById('batch-channel-url');
+    if (urlInput) urlInput.value = cfg?.channelUrl || '';
+
+    const cronInput = document.getElementById('batch-cron-hour');
+    if (cronInput) {
+        cronInput.value = String(
+            cfg?.cronHour != null ? cfg.cronHour : BATCH_CHANNEL_CRON_HOUR_DEFAULT
+        );
+    }
+
+    const yesterdayInput = document.getElementById('batch-yesterday-count');
+    if (yesterdayInput) {
+        yesterdayInput.value = String(
+            cfg?.yesterdayVideoCount != null ? cfg.yesterdayVideoCount : 0
+        );
+    }
+
+    syncBatchSourceModeUI(cfg?.sourceMode || 'tiktok');
+
+    const preview = document.getElementById('batch-template-preview');
+    const templateZone = document.getElementById('batch-template-zone');
+    if (preview) {
+        if (cfg?.templateImageUrl) {
+            preview.innerHTML = `<img src="${escapeHTML(cfg.templateImageUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`;
+            templateZone?.classList.add('has-preview');
+        } else {
+            preview.innerHTML = '';
+            templateZone?.classList.remove('has-preview');
+        }
+    }
+
+    renderBatchChannelOrderPicker(_batchChannelPickerOrders, cfg?.selectedOrderIds || []);
+}
+
+function parseTikTokUsername(raw) {
+    const s = (raw || '').trim();
+    if (!s) return '';
+    if (s.startsWith('@')) return s.slice(1).split('/')[0];
+    const m = s.match(/tiktok\.com\/@([^/?#]+)/i);
+    if (m) return m[1];
+    return s.replace(/^@/, '').split('/')[0];
+}
+
+function batchChannelRunNowPending(cfg) {
+    if (!cfg?.runNowRequestedAt) return false;
+    const req = cfg.runNowRequestedAt?.toMillis?.() ?? cfg.runNowRequestedAt?.seconds * 1000 ?? 0;
+    const handled = cfg.runNowHandledAt?.toMillis?.() ?? cfg.runNowHandledAt?.seconds * 1000 ?? 0;
+    return req > handled;
+}
+
+function getBatchSourceModeFromUI() {
+    const orders = document.getElementById('batch-source-orders');
+    return orders?.checked ? 'orders' : 'tiktok';
+}
+
+function getBatchYesterdayVideoCount() {
+    const raw = parseInt(document.getElementById('batch-yesterday-count')?.value, 10);
+    if (!Number.isFinite(raw) || raw <= 0) return 0;
+    return Math.max(0, Math.min(50, raw));
+}
+
+function syncBatchSourceModeUI(mode) {
+    const m = mode === 'orders' ? 'orders' : 'tiktok';
+    const tiktokRadio = document.getElementById('batch-source-tiktok');
+    const ordersRadio = document.getElementById('batch-source-orders');
+    const tiktokWrap = document.getElementById('batch-channel-tiktok-wrap');
+    const ordersWrap = document.getElementById('batch-channel-orders-wrap');
+    if (tiktokRadio) tiktokRadio.checked = m === 'tiktok';
+    if (ordersRadio) ordersRadio.checked = m === 'orders';
+    if (tiktokWrap) tiktokWrap.style.display = m === 'tiktok' ? 'block' : 'none';
+    if (ordersWrap) ordersWrap.style.display = m === 'orders' ? 'block' : 'none';
+    document.querySelectorAll('.batch-source-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-mode') === m);
+    });
+}
+
+function getBatchSelectedOrderIds() {
+    const wrap = document.getElementById('batch-channel-orders-pick');
+    if (!wrap) return [];
+    return [...wrap.querySelectorAll('input[type="checkbox"][data-order-id]:checked')]
+        .map((el) => el.getAttribute('data-order-id'))
+        .filter(Boolean);
+}
+
+function renderBatchChannelOrderPicker(orders, selectedIds = []) {
+    const wrap = document.getElementById('batch-channel-orders-pick');
+    if (!wrap) return;
+    const selected = new Set(selectedIds || []);
+    if (!orders.length) {
+        wrap.innerHTML = `<div class="batch-empty-hint">${t('build_channel.orders_pick_empty')}</div>`;
+        return;
+    }
+    wrap.innerHTML = orders.map((o) => {
+        const id = o.id;
+        const shortId = id.slice(-6).toUpperCase();
+        const checked = selected.has(id) ? 'checked' : '';
+        return `
+        <label class="batch-order-pick-item">
+            <input type="checkbox" data-order-id="${escapeHTML(id)}" ${checked}>
+            <div class="batch-order-pick-thumb">
+                ${o.characterImageLink ? `<img src="${escapeHTML(o.characterImageLink)}" alt="">` : ''}
+            </div>
+            <div class="batch-order-pick-meta">
+                <div class="batch-order-pick-id">#${escapeHTML(shortId)}</div>
+                <div class="batch-order-pick-user">${escapeHTML(o.userName || o.userEmail || t('common.guest'))}</div>
+            </div>
+            <span class="status-badge status-${escapeHTML(o.status || 'pending')}">${escapeHTML(STATUS_MAP()[o.status] || o.status || '')}</span>
+        </label>`;
+    }).join('');
+}
+
+function isBatchDailyChecked() {
+    return !!document.getElementById('batch-daily-checkbox')?.checked;
+}
+
+function getBatchCronHour() {
+    const raw = parseInt(document.getElementById('batch-cron-hour')?.value, 10);
+    if (!Number.isFinite(raw)) return BATCH_CHANNEL_CRON_HOUR_DEFAULT;
+    return Math.max(0, Math.min(23, raw));
+}
+
+function syncBatchDailyScheduleUI(cfg) {
+    const wrap = document.getElementById('batch-cron-hour-wrap');
+    const show = isBatchDailyChecked();
+    if (wrap) wrap.style.display = show ? 'block' : 'none';
+    updateBatchChannelMainButton(cfg ?? _batchChannelCfg);
+}
+
+async function persistBatchChannelCronHourOnly() {
+    if (!currentUser || !_batchChannelCfg?.enabled) return;
+    const configId = getBatchChannelConfigId();
+    if (!configId) return;
+    const { db, doc, setDoc, serverTimestamp } = window.firebase;
+    const cronHour = getBatchCronHour();
+    try {
+        await setDoc(doc(db, 'batchChannelConfig', configId), {
+            cronHour,
+            updatedAt: serverTimestamp(),
+        }, { merge: true });
+    } catch (e) {
+        console.error('[BatchChannel] cron hour:', e);
+    }
+}
+
+function updateBatchChannelMainButton(cfg) {
+    const btn = document.getElementById('batch-channel-main-btn');
+    if (!btn) return;
+    btn.disabled = false;
+    btn.classList.remove('btn-secondary');
+    btn.classList.add('btn-primary');
+    btn.style.background = '';
+    btn.style.borderColor = '';
+
+    if (batchChannelRunNowPending(cfg)) {
+        btn.disabled = true;
+        btn.textContent = t('build_channel.btn_running');
+        return;
+    }
+
+    const daily = isBatchDailyChecked();
+    if (daily && cfg?.enabled) {
+        btn.textContent = t('build_channel.btn_stop');
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+        btn.style.background = '#c0392b';
+        btn.style.borderColor = '#c0392b';
+        return;
+    }
+    if (daily) {
+        btn.textContent = t('build_channel.btn_schedule', { hour: getBatchCronHour() });
+        return;
+    }
+    btn.textContent = t('build_channel.btn_run_now');
+}
+
+function syncBatchDailyCheckboxFromCfg(cfg) {
+    const box = document.getElementById('batch-daily-checkbox');
+    if (!box) return;
+    box.checked = cfg != null ? !!cfg.enabled : true;
+}
+
+function batchChannelRunNowMode() {
+    return getBatchSourceModeFromUI() === 'orders' ? 'orders' : 'full';
+}
+
+function batchChannelPerVideoCost() {
+    return 20;
+}
+
+async function ensureBatchChannelCoins(triggerRun) {
+    if (!triggerRun || !currentUser) return true;
+    const cost = batchChannelPerVideoCost();
+    const { db, doc, getDoc } = window.firebase;
+    let coins = Number(FB_CACHE.userProfile?.coins);
+    try {
+        const snap = await getDoc(doc(db, 'users', currentUser.uid));
+        if (snap.exists()) {
+            coins = Number(snap.data().coins);
+        }
+    } catch (e) {
+        console.warn('[BatchChannel] coin check:', e);
+    }
+    if (!Number.isFinite(coins) || coins < cost) {
+        showToast(t('build_channel.status_insufficient_coins', { cost }));
+        return false;
+    }
+    return true;
+}
+
+async function persistBatchChannelConfig({ enable, triggerRun = false }) {
+    if (!currentUser) {
+        showToast(t('common.toast_login_required'));
+        return false;
+    }
+    const configId = getBatchChannelConfigId();
+    if (!configId) return false;
+    const { db, doc, getDoc, setDoc, serverTimestamp } = window.firebase;
+    const channelUrl = document.getElementById('batch-channel-url')?.value?.trim() || '';
+    const username = parseTikTokUsername(channelUrl);
+    const sourceMode = getBatchSourceModeFromUI();
+    const selectedOrderIds = getBatchSelectedOrderIds();
+
+    if (sourceMode === 'tiktok' && !username) {
+        showToast(t('build_channel.status_need_channel'));
+        return false;
+    }
+    if (sourceMode === 'orders' && !selectedOrderIds.length) {
+        showToast(t('build_channel.status_need_orders'));
+        return false;
+    }
+    if (!(await ensureBatchChannelCoins(triggerRun))) {
+        return false;
+    }
+
+    let templateImageUrl = '';
+    let existingStartedAt = null;
+    try {
+        const existing = await getDoc(doc(db, 'batchChannelConfig', configId));
+        if (existing.exists()) {
+            const d = existing.data();
+            templateImageUrl = d.templateImageUrl || '';
+            existingStartedAt = d.startedAt || null;
+        }
+    } catch (_) { /* ignore */ }
+
+    const fileInput = document.getElementById('batch-template-input');
+    const file = fileInput?.files?.[0];
+    const needsTemplate = enable || triggerRun;
+    if (needsTemplate && file) {
+        try {
+            templateImageUrl = await uploadFile(file, 'characters');
+            const preview = document.getElementById('batch-template-preview');
+            if (preview) {
+                preview.innerHTML = `<img src="${escapeHTML(templateImageUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`;
+                document.getElementById('batch-template-zone')?.classList.add('has-preview');
+            }
+        } catch (e) {
+            console.error('[BatchChannel] upload template:', e);
+            showToast(e.message || t('upload.error_network'));
+            return false;
+        }
+    }
+    if (needsTemplate && !templateImageUrl) {
+        showToast(t('build_channel.status_need_template'));
+        return false;
+    }
+
+    const payload = {
+        enabled: !!enable,
+        channelUrl,
+        channelUsername: username,
+        templateImageUrl,
+        sourceMode,
+        cronHour: getBatchCronHour(),
+        yesterdayVideoCount: getBatchYesterdayVideoCount(),
+        wardrobeReplace: 'full',
+        frameSec: 2.5,
+        selectedOrderIds,
+        createdBy: currentUser.uid,
+        createdByEmail: currentUser.email || '',
+        createdByName: currentUser.displayName || userDisplayLabel(currentUser),
+        updatedAt: serverTimestamp(),
+    };
+    if (enable && !existingStartedAt) {
+        payload.startedAt = serverTimestamp();
+    }
+    if (triggerRun) {
+        payload.enabled = false;
+        payload.runNowRequestedAt = serverTimestamp();
+        payload.runNowMode = batchChannelRunNowMode();
+    }
+
+    try {
+        await setDoc(doc(db, 'batchChannelConfig', configId), payload, { merge: true });
+        if (fileInput) fileInput.value = '';
+        if (triggerRun) {
+            showToast(t('build_channel.status_run_now_queued'));
+            closeModal('batch-channel-modal');
+        } else if (enable) {
+            showToast(t('build_channel.status_schedule_on', { hour: getBatchCronHour() }));
+        } else {
+            showToast(t('build_channel.status_schedule_off'));
+        }
+        return true;
+    } catch (e) {
+        console.error('[BatchChannel] save:', e);
+        showToast(t('common.error_system', { msg: e.message || e.code || 'save' }));
+        return false;
+    }
+}
+
+window.handleBatchChannelMainAction = async () => {
+    const cfg = _batchChannelCfg;
+    if (batchChannelRunNowPending(cfg)) return;
+
+    const daily = isBatchDailyChecked();
+    if (daily && cfg?.enabled) {
+        await persistBatchChannelConfig({ enable: false });
+        return;
+    }
+    if (daily) {
+        await persistBatchChannelConfig({ enable: true });
+        return;
+    }
+    await persistBatchChannelConfig({ enable: false, triggerRun: true });
+};
+
+window.saveBatchChannelConfig = async (enable) => {
+    await persistBatchChannelConfig({ enable: !!enable });
+};
+
+function renderBatchChannelStatus(cfg) {
+    _batchChannelCfg = cfg;
+    const el = document.getElementById('batch-channel-status');
+    let html = '';
+    let show = false;
+
+    if (cfg && batchChannelRunNowPending(cfg)) {
+        html = t('build_channel.status_run_now_pending');
+        show = true;
+    } else if (cfg?.enabled) {
+        const hour = cfg.cronHour != null ? Number(cfg.cronHour) : BATCH_CHANNEL_CRON_HOUR_DEFAULT;
+        html = t('build_channel.status_on', { hour: Number.isFinite(hour) ? hour : BATCH_CHANNEL_CRON_HOUR_DEFAULT });
+        if (cfg.lastRunMessage) html += ` — ${escapeHTML(cfg.lastRunMessage)}`;
+        show = true;
+    } else if (cfg?.lastRunMessage) {
+        html = escapeHTML(cfg.lastRunMessage);
+        show = true;
+    }
+
+    if (el) {
+        el.textContent = html;
+        el.style.display = show ? '' : 'none';
+    }
+    syncBatchDailyCheckboxFromCfg(cfg);
+    syncBatchDailyScheduleUI(cfg);
+}
+
+async function loadBatchChannelPage() {
+    if (!currentUser) return;
+    const configId = getBatchChannelConfigId();
+    if (!configId) return;
+    const { db, doc, collection, query, orderBy, limit, onSnapshot, where } = window.firebase;
+
+    if (!window.__batchSourceModeBound) {
+        window.__batchSourceModeBound = true;
+        document.getElementById('batch-source-tiktok')?.addEventListener('change', () => syncBatchSourceModeUI('tiktok'));
+        document.getElementById('batch-source-orders')?.addEventListener('change', () => syncBatchSourceModeUI('orders'));
+        document.querySelectorAll('.batch-source-tab').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode') || 'tiktok';
+                syncBatchSourceModeUI(mode);
+            });
+        });
+        const templateZone = document.getElementById('batch-template-zone');
+        const templateInput = document.getElementById('batch-template-input');
+        templateZone?.addEventListener('click', (e) => {
+            if (e.target.closest('.preview-change-btn')) return;
+            templateInput?.click();
+        });
+        templateInput?.addEventListener('change', () => {
+            const file = templateInput.files?.[0];
+            if (!file) return;
+            const preview = document.getElementById('batch-template-preview');
+            if (preview) {
+                preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">`;
+                templateZone?.classList.add('has-preview');
+            }
+        });
+        document.getElementById('batch-daily-checkbox')?.addEventListener('change', () => {
+            syncBatchDailyScheduleUI(_batchChannelCfg);
+        });
+        document.getElementById('batch-cron-hour')?.addEventListener('change', () => {
+            updateBatchChannelMainButton(_batchChannelCfg);
+            persistBatchChannelCronHourOnly();
+        });
+    }
+
+    fbUnsub('batchChannelConfig');
+    resetBatchChannelForm({ keepDefaults: true });
+    fbSub('batchChannelConfig', onSnapshot(doc(db, 'batchChannelConfig', configId), (snap) => {
+        if (currentUser?.uid !== configId) return;
+        const cfg = snap.exists() ? snap.data() : null;
+        applyBatchChannelConfigToForm(cfg);
+    }, (err) => console.error('[BatchChannel] config listener:', err)));
+
+    fbUnsub('batchChannelOrdersPick');
+    fbUnsub('batchChannelOrdersPickFallback');
+    const pickQ = query(
+        collection(db, 'orders'),
+        where('userId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc'),
+        limit(80)
+    );
+    fbSub('batchChannelOrdersPick', onSnapshot(pickQ, (snap) => {
+        _batchChannelPickerOrders = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((o) => (o.characterImageLink || '').trim() && (o.referenceVideoLink || '').trim());
+        renderBatchChannelOrderPicker(_batchChannelPickerOrders, getBatchSelectedOrderIds());
+    }, (err) => {
+        console.error('[BatchChannel] orders pick:', err);
+        if (err?.code === 'failed-precondition') {
+            const fallbackQ = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(120));
+            fbSub('batchChannelOrdersPickFallback', onSnapshot(fallbackQ, (snap) => {
+                _batchChannelPickerOrders = snap.docs
+                    .map((d) => ({ id: d.id, ...d.data() }))
+                    .filter((o) => o.userId === currentUser.uid)
+                    .filter((o) => (o.characterImageLink || '').trim() && (o.referenceVideoLink || '').trim());
+                renderBatchChannelOrderPicker(_batchChannelPickerOrders, getBatchSelectedOrderIds());
+            }));
+        }
+    }));
+}

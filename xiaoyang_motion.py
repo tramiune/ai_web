@@ -52,7 +52,7 @@ _RENDER_PROVIDERS = (
     RENDER_PROVIDER_VIDEOAIEASY,
     RENDER_PROVIDER_ROBONEO,
 )
-VIDEOAIEASY_MAX_CONCURRENT_PER_ACCOUNT = int(get_env("VIDEOAIEASY_MAX_CONCURRENT", "4"))
+VIDEOAIEASY_MAX_CONCURRENT_PER_ACCOUNT = int(get_env("VIDEOAIEASY_MAX_CONCURRENT", "50"))
 AIDANCING_TURBO_MODEL_IDS = frozenset({"117"})
 AIDANCING_FAST_MODEL_IDS = frozenset({"34", "124", "125"})
 XIAOYANG_MODAL_STANDARD = "motion_v26"
@@ -680,32 +680,33 @@ def submit_to_xiaoyang(order_id: str, account: dict) -> bool:
     return success
 
 
-def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
+def submit_to_videoaieasy(order_id: str, account: dict) -> tuple[bool, str | None]:
     if not _g["is_bot_enabled"]():
-        return False
+        return False, None
     if _g["pending_submit_backoff_active"](order_id):
-        return False
+        return False, None
     submitting_lock = _g["submitting_orders_lock"]
     submitting = _g["submitting_orders"]
     with submitting_lock:
         if order_id in submitting:
-            return False
+            return False, None
         submitting.add(order_id)
 
     account_id = account["id"]
     account_email = account.get("email", "")
     _vae_inflight_inc(account_id)
     success = False
+    err_msg: str | None = None
     try:
         with _submit_engine_lock():
             db = _g["db"]
             doc_ref = db.collection("orders").document(order_id)
             doc = doc_ref.get()
             if not doc.exists:
-                return False
+                return False, None
             data = doc.to_dict() or {}
             if data.get("status") != "pending":
-                return False
+                return False, None
 
             nick_label = account_email or account_id
             print(f"\n⚡ [NẠP ĐƠN / VideoAiEasy] {order_id} — nick {nick_label}...")
@@ -713,7 +714,7 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
             vid_url = (data.get("referenceVideoLink") or "").strip()
             if not img_url or not vid_url:
                 print(f"❌ Thiếu link ảnh/video cho đơn {order_id}")
-                return False
+                return False, None
 
             char_path = None
             vid_path = None
@@ -805,6 +806,7 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
                     pass
                 success = True
             except (requests.RequestException, VideoAiEasyAuthError, VideoAiEasyError) as e:
+                err_msg = str(e)
                 print(f"❌ Nạp VideoAiEasy thất bại {order_id} ({nick_label}): {e}")
                 if isinstance(e, VideoAiEasyAuthError):
                     _reset_vae_web_client(account_id)
@@ -824,7 +826,7 @@ def submit_to_videoaieasy(order_id: str, account: dict) -> bool:
         _vae_inflight_dec(account_id)
         with submitting_lock:
             submitting.discard(order_id)
-    return success
+    return success, err_msg
 
 
 def _try_submit_xiaoyang(order_id: str) -> bool:
@@ -837,13 +839,13 @@ def _try_submit_xiaoyang(order_id: str) -> bool:
     return submit_to_xiaoyang(order_id, account)
 
 
-def _try_submit_videoaieasy(order_id: str) -> bool:
+def _try_submit_videoaieasy(order_id: str) -> tuple[bool, str | None]:
     if not _use_videoaieasy():
-        return False
+        return False, None
     account = _pick_videoaieasy_account()
     if not account:
         print(f"📊 Không có nick VideoAiEasy hoặc đầy slot — {order_id}")
-        return False
+        return False, None
     return submit_to_videoaieasy(order_id, account)
 
 
@@ -896,7 +898,8 @@ def submit_order(order_id: str):
         return
 
     if provider == RENDER_PROVIDER_VIDEOAIEASY:
-        if _try_submit_videoaieasy(order_id):
+        ok, vae_err = _try_submit_videoaieasy(order_id)
+        if ok:
             return
         doc = doc_ref.get()
         data = doc.to_dict() or {}
@@ -904,8 +907,8 @@ def submit_order(order_id: str):
             _fail_order_processing(
                 doc,
                 data,
-                "Không nạp được VideoAiEasy (Mượt & giữ mặt)",
-                USER_NOTE_SUBMIT_FAILED,
+                f"Không nạp được VideoAiEasy: {vae_err or ''}".strip(),
+                user_note_for_videoaieasy_failure(vae_err),
                 "submit videoaieasy",
             )
         return

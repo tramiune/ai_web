@@ -1,8 +1,24 @@
 (function applyLegalI18n() {
-    const LANG_KEY = 'app_lang';
-    const saved = (localStorage.getItem(LANG_KEY) || '').trim();
-    const supported = window.LANG_CONFIG?.supported || ['vi', 'en', 'es', 'pt', 'th', 'id'];
-    const lang = supported.includes(saved) ? saved : 'vi';
+    const supported = window.LANG_CONFIG?.supported || ['vi', 'en'];
+
+    function detectLangFromBrowser() {
+        const langs = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
+        for (const l of langs) {
+            if (String(l).toLowerCase().startsWith('vi')) return 'vi';
+        }
+        return 'en';
+    }
+
+    function resolveLang() {
+        return fetch('/api/geo', { cache: 'no-store' })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data && String(data.country || '').toUpperCase() === 'VN') return 'vi';
+                if (data) return 'en';
+                return detectLangFromBrowser();
+            })
+            .catch(() => detectLangFromBrowser());
+    }
 
     function lookup(path, locale) {
         let value = window.TRANSLATIONS?.[locale];
@@ -17,20 +33,27 @@
         return value;
     }
 
-    function t(path) {
-        return lookup(path, lang) || lookup(path, 'en') || lookup(path, 'vi');
+    function makeT(lang) {
+        const locale = supported.includes(lang) ? lang : 'en';
+        return function t(path) {
+            return lookup(path, locale) || lookup(path, 'en') || lookup(path, 'vi');
+        };
     }
 
-    document.documentElement.lang = lang;
+    resolveLang().then((lang) => {
+        const locale = supported.includes(lang) ? lang : 'en';
+        const t = makeT(locale);
+        document.documentElement.lang = locale;
 
-    const titleKey = document.body.getAttribute('data-page-title');
-    if (titleKey) {
-        const title = t(titleKey);
-        if (title) document.title = title;
-    }
+        const titleKey = document.body.getAttribute('data-page-title');
+        if (titleKey) {
+            const title = t(titleKey);
+            if (title) document.title = title;
+        }
 
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const translation = t(el.getAttribute('data-i18n'));
-        if (translation) el.innerHTML = translation;
+        document.querySelectorAll('[data-i18n]').forEach((el) => {
+            const translation = t(el.getAttribute('data-i18n'));
+            if (translation) el.innerHTML = translation;
+        });
     });
 })();

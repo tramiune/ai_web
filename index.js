@@ -58,20 +58,12 @@ export default {
       return new Response('Method Not Allowed', { status: 405 });
     }
 
-    // Geo hint for auto language: tier mapping via lang-config.js on frontend.
+    // Geo hint for auto language: VN → vi, else → en.
     if (url.pathname === '/api/geo' && method === 'GET') {
-      const country = request.headers.get('CF-IPCountry')
+      const country = (request.headers.get('CF-IPCountry')
         || request.headers.get('cf-ipcountry')
-        || 'XX';
-      const tierLangMap = {
-        VN: 'vi',
-        ES: 'es', MX: 'es', CO: 'es', AR: 'es', CL: 'es', PE: 'es', EC: 'es',
-        VE: 'es', UY: 'es', PY: 'es', BO: 'es', CR: 'es', PA: 'es', DO: 'es',
-        GT: 'es', HN: 'es', NI: 'es', SV: 'es', PR: 'es', CU: 'es',
-        BR: 'pt', PT: 'pt',
-        TH: 'th', ID: 'id'
-      };
-      const lang = tierLangMap[country] || 'en';
+        || 'XX').toUpperCase();
+      const lang = country === 'VN' ? 'vi' : 'en';
       return new Response(JSON.stringify({ country, lang }), {
         headers: {
           'Content-Type': 'application/json',

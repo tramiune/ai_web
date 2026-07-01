@@ -13,6 +13,43 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=6">
     <link rel="icon" type="image/png" href="favicon.png">
+
+    <script src="analytics-config.js"></script>
+
+    <!-- Meta (Facebook) Pixel — set metaPixelId in analytics-config.js -->
+    <script>
+    (function () {
+        var pid = window.ANALYTICS_CONFIG && window.ANALYTICS_CONFIG.metaPixelId;
+        if (!pid) return;
+        !function (f, b, e, v, n, t, s) {
+            if (f.fbq) return;
+            n = f.fbq = function () {
+                n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+            };
+            if (!f._fbq) f._fbq = n;
+            n.push = n;
+            n.loaded = !0;
+            n.version = '2.0';
+            n.queue = [];
+            t = b.createElement(e);
+            t.async = !0;
+            t.src = v;
+            s = b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t, s);
+        }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', pid);
+        fbq('track', 'PageView');
+    })();
+    </script>
+    <noscript id="meta-pixel-noscript"></noscript>
+    <script>
+    (function () {
+        var pid = window.ANALYTICS_CONFIG && window.ANALYTICS_CONFIG.metaPixelId;
+        var el = document.getElementById('meta-pixel-noscript');
+        if (!pid || !el) return;
+        el.innerHTML = '<img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=' + encodeURIComponent(pid) + '&ev=PageView&noscript=1"/>';
+    })();
+    </script>
     
     <!-- TikTok Pixel Code Start -->
     <script>
@@ -322,6 +359,11 @@
                         <button class="btn-topup-inline" onclick="window.openTopupModal()" type="button">
                             <span class="btn-topup-inline__label">Nạp coin</span>
                         </button>
+                        <button type="button" id="home-auto-video-btn" class="btn-auto-video" onclick="window.openBatchChannelModal()">
+                            <span class="btn-auto-video__icon" aria-hidden="true">✨</span>
+                            <span data-i18n="dashboard.auto_video_btn">Tạo video tự động</span>
+                            <span class="auto-video-new-badge" data-i18n="dashboard.auto_video_new">MỚI</span>
+                        </button>
                         <button class="btn-primary" onclick="window.openOrderModal()" data-i18n="dashboard.create_new" style="white-space: nowrap;">+ Tạo video mới</button>
                     </div>
                 </div>
@@ -500,49 +542,6 @@
                     <tr><td colspan="5" style="text-align:center; opacity:0.5; padding:2rem;" data-i18n="referral.empty">Chưa có hoa hồng nào. Hãy chia sẻ link để bắt đầu nhận thưởng!</td></tr>
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    <!-- Build Channel Page -->
-    <div id="build-channel-page" class="dashboard" style="display: none;">
-        <div class="db-header">
-            <div class="user-info-section">
-                <h1 class="user-greeting-text">Chào mừng, User! ✨</h1>
-                <p class="user-email-text" style="opacity: 0.6; font-size: 0.9rem;"></p>
-            </div>
-
-            <div class="wallet-card">
-                <div class="wallet-icon">
-                    <svg style="width: 24px; height: 24px;" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L20.66 7V17L12 22L3.34 17V7L12 2Z" fill="url(#coin-gradient)"
-                            fill-opacity="0.2" stroke="url(#coin-gradient)" stroke-width="2" />
-                        <path d="M12 6L17.2 9V15L12 18L6.8 15V9L12 6Z" fill="url(#coin-gradient)" />
-                        <path d="M12 9V15M9 12H15" stroke="white" stroke-width="1.5" stroke-linecap="round" />
-                    </svg>
-                </div>
-                <div class="wallet-info">
-                    <span class="wallet-label" data-i18n="dashboard.balance">Số dư Coin</span>
-                    <div class="wallet-value"><span class="coin-balance-text">0</span></div>
-                </div>
-                <button class="topup-pill-btn" onclick="window.openTopupModal()">
-                    <span>+</span> <span data-i18n="dashboard.topup">Nạp thêm</span>
-                </button>
-            </div>
-        </div>
-
-        <div class="section-header" style="text-align: left; margin-bottom: 1.5rem; margin-top: 2rem; display: flex; align-items: center; justify-content: space-between;">
-            <h2 data-i18n="navbar.build_channel">Xây kênh 1000 fl / 21 ngày</h2>
-            <button class="btn-secondary" onclick="window.navTo('user-dashboard')" style="padding: 0.5rem 1rem; font-size: 0.8rem;">
-                <span data-i18n="modals.back">Quay lại</span>
-            </button>
-        </div>
-        
-        <div class="glass-card" style="padding: 4rem 2rem; text-align: center;">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">🚀</div>
-            <h2 style="color: #ffde00; margin-bottom: 1rem;" data-i18n="build_channel.coming_soon_title">Tính năng đang phát triển</h2>
-            <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; line-height: 1.6;" data-i18n="build_channel.coming_soon_desc">
-                Chúng tôi đang xây dựng lộ trình chi tiết giúp bạn đạt 1000 followers trên TikTok chỉ trong 21 ngày. Vui lòng quay lại sau!
-            </p>
         </div>
     </div>
 
@@ -747,6 +746,90 @@
                     </div>
                     <button class="btn-primary" onclick="window.makeAdmin()" style="width: 100%;" data-i18n="admin.grant_admin_btn">Cấp quyền Admin</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch channel modal (auto TikTok → outfit → video) -->
+    <div id="batch-channel-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content batch-channel-modal-content">
+            <span class="modal-close" onclick="closeModal('batch-channel-modal')" aria-label="Close">&times;</span>
+            <div class="modal-header">
+                <h2 data-i18n="build_channel.title">Tạo video tự động</h2>
+                <p data-i18n="build_channel.subtitle">Gắn ảnh nhân vật và link TikTok — hệ thống tự lấy video, thay outfit và render AI (có thể chạy mỗi ngày).</p>
+            </div>
+            <div class="modal-body batch-channel-modal-body">
+                <section class="batch-channel-panel glass-card">
+                    <div class="batch-panel-head">
+                        <h3 data-i18n="build_channel.setup_title">Thiết lập nhanh</h3>
+                    </div>
+                    <ol class="batch-steps">
+                        <li class="batch-step">
+                            <span class="batch-step-num">1</span>
+                            <div class="batch-step-body">
+                                <div class="batch-field-label" data-i18n="build_channel.step1_title">Ảnh nhân vật của bạn</div>
+                                <p class="batch-field-hint" data-i18n="build_channel.step1_hint">Ảnh rõ mặt + toàn thân, nền đơn giản.</p>
+                                <div id="batch-template-zone" class="upload-zone upload-zone--small batch-template-zone">
+                                    <input type="file" id="batch-template-input" accept="image/*" hidden>
+                                    <div id="batch-template-preview" class="batch-template-preview"></div>
+                                    <span data-i18n="build_channel.template_pick">Chọn ảnh</span>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="batch-step">
+                            <span class="batch-step-num">2</span>
+                            <div class="batch-step-body">
+                                <div class="batch-field-label" data-i18n="build_channel.step2_title">Link kênh TikTok</div>
+                                <p class="batch-field-hint" data-i18n="build_channel.step2_hint">Hệ thống lấy video đăng hôm qua trên kênh này.</p>
+                                <input type="url" id="batch-channel-url" class="form-control" placeholder="https://www.tiktok.com/@username" data-i18n="build_channel.channel_placeholder">
+                            </div>
+                        </li>
+                    </ol>
+                    <div class="batch-advanced-section">
+                        <div class="batch-advanced-heading" data-i18n="build_channel.advanced_toggle">Tùy chọn nâng cao</div>
+                        <div class="batch-advanced-body">
+                            <div class="batch-field">
+                                <label class="batch-field-label" data-i18n="build_channel.source_mode_label">Nguồn video</label>
+                                <div class="batch-source-tabs">
+                                    <button type="button" class="batch-source-tab active" data-mode="tiktok" data-i18n="build_channel.source_tiktok">TikTok hôm qua</button>
+                                    <button type="button" class="batch-source-tab" data-mode="orders" data-i18n="build_channel.source_orders">Video đơn cũ</button>
+                                </div>
+                                <input type="radio" name="batch-source-mode" id="batch-source-tiktok" value="tiktok" checked hidden>
+                                <input type="radio" name="batch-source-mode" id="batch-source-orders" value="orders" hidden>
+                            </div>
+                            <div id="batch-channel-tiktok-wrap" class="batch-inline-field">
+                                <label class="batch-field-label" data-i18n="build_channel.yesterday_count_label">Giới hạn số video</label>
+                                <input type="number" id="batch-yesterday-count" class="form-control" min="0" max="50" value="0" placeholder="0">
+                                <p class="batch-field-hint" data-i18n="build_channel.yesterday_count_hint">0 = tất cả video hôm qua.</p>
+                            </div>
+                            <div id="batch-channel-orders-wrap" class="batch-field" style="display:none;">
+                                <label class="batch-field-label" data-i18n="build_channel.orders_pick_label">Chọn đơn nguồn</label>
+                                <div id="batch-channel-orders-pick" class="batch-order-pick-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <ol class="batch-steps batch-steps--tail">
+                        <li class="batch-step">
+                            <span class="batch-step-num">3</span>
+                            <div class="batch-step-body">
+                                <div class="batch-field-label" data-i18n="build_channel.step3_title">Lịch tự động</div>
+                                <label class="batch-daily-row">
+                                    <input type="checkbox" id="batch-daily-checkbox" checked>
+                                    <span data-i18n="build_channel.daily_checkbox">Chạy mỗi ngày</span>
+                                </label>
+                                <div id="batch-cron-hour-wrap" class="batch-inline-field">
+                                    <label class="batch-field-label" data-i18n="build_channel.cron_hour_label">Giờ chạy tự động (VN)</label>
+                                    <input type="number" id="batch-cron-hour" class="form-control" min="0" max="23" value="3" style="max-width:88px;">
+                                    <p class="batch-field-hint" data-i18n="build_channel.cron_hour_hint">Mặc định 3:00 sáng — có thể đổi giờ khác.</p>
+                                </div>
+                            </div>
+                        </li>
+                    </ol>
+                    <p id="batch-channel-status" class="batch-status-text" style="display: none;"></p>
+                </section>
+            </div>
+            <div class="batch-channel-modal-footer">
+                <button type="button" class="btn-primary" id="batch-channel-main-btn" onclick="window.handleBatchChannelMainAction()">Tạo video ngay</button>
             </div>
         </div>
     </div>
@@ -1221,7 +1304,7 @@
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
-        import { initAppLogic } from "./script.js?v=6";
+        import { initAppLogic } from "./script.js?v=7";
 
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
@@ -1303,14 +1386,21 @@
                 data-i18n="footer.privacy">Chính sách bảo mật</a>
         </div>
     </footer>
-    <!-- Floating Telegram Button (right) -->
-    <a href="https://t.me/motionaistudio" target="_blank" class="telegram-fab" data-i18n-title="common.support_chat" title="Chat với chúng tôi ✨">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M22 2L11 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-        </svg>
-    </a>
+    <!-- Floating support buttons (Zalo + Telegram) -->
+    <div class="support-fabs" data-i18n-title="common.support_fabs_aria" aria-label="Liên hệ hỗ trợ">
+        <a href="https://zalo.me/0965951536" class="zalo-fab" id="zalo-fab" target="_blank" rel="noopener noreferrer"
+            data-i18n-title="common.support_zalo" title="Chat Zalo hỗ trợ">
+            <img src="/assets/zalo-icon.png" alt="" class="zalo-fab__img" width="60" height="60" loading="lazy" decoding="async">
+        </a>
+        <a href="https://t.me/motionaistudio" target="_blank" class="telegram-fab" id="telegram-fab" rel="noopener noreferrer"
+            data-i18n-title="common.support_chat" title="Chat với chúng tôi ✨">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 2L11 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+            </svg>
+        </a>
+    </div>
 
     <!-- SVG Gradients -->
     <svg style="width:0; height:0; position:absolute;" aria-hidden="true" focusable="false">
@@ -1327,8 +1417,8 @@
             <div style="width: 100%; aspect-ratio: 16/9; border-radius: 14px; overflow: hidden; background:#000; border: 1px solid rgba(255,255,255,0.12); margin-bottom: 1rem;">
                 <video id="auth-banner-video" autoplay muted loop playsinline style="width:100%; height:100%; object-fit: cover; display:block;"></video>
             </div>
-            <h2 class="auth-modal-title" style="margin-top: 0;">Đăng nhập để tạo video trending</h2>
-            <p class="auth-modal-desc" id="auth-modal-desc" style="margin-bottom: 1.25rem;">Vào nhanh một xíu thôi nha, để mình lưu video của bạn và làm cho “xịn” hơn.</p>
+            <h2 class="auth-modal-title" style="margin-top: 0;" data-i18n="modals.auth_gate_title">Đăng nhập để tạo video trending</h2>
+            <p class="auth-modal-desc" id="auth-modal-desc" style="margin-bottom: 1.25rem;" data-i18n="modals.auth_gate_desc">Vào nhanh một xíu thôi nha, để mình lưu video của bạn và làm cho “xịn” hơn.</p>
 
 
 
