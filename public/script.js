@@ -273,10 +273,10 @@ const MODELS = {
         cost: 8,
         timeKey: "modals.model_economy_desc",
         modelId: "128",
-        renderProvider: "videoaieasy",
+        renderProvider: "roboneo",
         maxVideoSec: 10,
         vaeDurationSec: 10,
-        vaeResolution: "1080p",
+        vaeResolution: "720p",
         isEconomy: true,
     },
     fast: {

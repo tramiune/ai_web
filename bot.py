@@ -1370,9 +1370,22 @@ def check_finished_orders_api():
             print(f"❌ Lỗi monitor VideoAiEasy: {e}")
     if rb_orders and xy_motion.enabled_for_bot(BOT_NAME):
         try:
-            import roboneo_motion as rb_motion
+            relay_docs = [
+                d
+                for d in rb_orders
+                if (d.to_dict() or {}).get("kalingRoboNeoRelay")
+            ]
+            local_docs = [
+                d
+                for d in rb_orders
+                if not (d.to_dict() or {}).get("kalingRoboNeoRelay")
+            ]
+            if relay_docs:
+                xy_motion.poll_kaling_roboneo_relay_orders(relay_docs)
+            if local_docs:
+                import roboneo_motion as rb_motion
 
-            rb_motion.poll_roboneo_orders(rb_orders)
+                rb_motion.poll_roboneo_orders(local_docs)
         except Exception as e:
             print(f"❌ Lỗi monitor RoboNeo: {e}")
 

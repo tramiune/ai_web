@@ -219,13 +219,27 @@ def _order_target_provider(order_data: dict) -> str:
     if not order_data:
         return RENDER_PROVIDER_AIDANCING
     model_id = str(order_data.get("modelId") or "").strip()
+    rp = (order_data.get("renderProvider") or "").strip().lower()
+    if model_id in ECONOMY_MODEL_IDS and rp == RENDER_PROVIDER_ROBONEO:
+        return RENDER_PROVIDER_ROBONEO
     # Mượt & giữ mặt (127 → weavy 20s, 129 → weavy 30s, 128 → weavy 10s) → VideoAiEasy
     if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS:
         return RENDER_PROVIDER_VIDEOAIEASY
-    rp = (order_data.get("renderProvider") or "").strip().lower()
     if rp in _RENDER_PROVIDERS:
         return rp
     return RENDER_PROVIDER_AIDANCING
+
+
+def _use_kaling_roboneo_relay(order_data: dict) -> bool:
+    from kaling_roboneo_relay import relay_configured
+
+    if not relay_configured():
+        return False
+    model_id = str((order_data or {}).get("modelId") or "").strip()
+    if model_id not in ECONOMY_MODEL_IDS:
+        return False
+    rp = ((order_data or {}).get("renderProvider") or "").strip().lower()
+    return rp == RENDER_PROVIDER_ROBONEO
 
 
 def _videoaieasy_account_id(email: str) -> str:
@@ -849,6 +863,104 @@ def _try_submit_videoaieasy(order_id: str) -> tuple[bool, str | None]:
     return submit_to_videoaieasy(order_id, account)
 
 
+def submit_to_kaling_roboneo_relay(order_id: str) -> bool:
+    from kaling_roboneo_relay import submit_order_via_relay
+
+    if not _g["is_bot_enabled"]():
+        return False
+    submitting_lock = _g["submitting_orders_lock"]
+    submitting = _g["submitting_orders"]
+    with submitting_lock:
+        if order_id in submitting:
+            return False
+        submitting.add(order_id)
+    data: dict = {}
+    try:
+        db = _g["db"]
+        doc_ref = db.collection("orders").document(order_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return False
+        data = doc.to_dict() or {}
+        if data.get("status") != "pending":
+            return False
+        print(f"\n⚡ [NẠP ĐƠN / Kaling relay RoboNeo] {order_id} — Tiết kiệm…")
+        out = submit_order_via_relay(order_id, data)
+        if not out:
+            return False
+        _mark_order_processing(
+            doc_ref,
+            out["taskId"],
+            provider=RENDER_PROVIDER_ROBONEO,
+            roboneo_room_id=out.get("roomId"),
+            roboneo_account_email=out.get("accountEmail"),
+        )
+        extra = {
+            "kalingRoboNeoRelay": True,
+            "roboneoRelayId": out.get("relayId"),
+        }
+        if out.get("refPlan"):
+            extra["roboneoRefPlan"] = out["refPlan"]
+        doc_ref.update(extra)
+        print(f"✅ Đơn {order_id} → processing (Kaling relay RoboNeo)")
+        return True
+    except Exception as e:
+        print(f"❌ Kaling relay RoboNeo {order_id}: {e}")
+        _g["notify_internal_error_telegram"](
+            order_id, data, str(e), "submit kaling relay"
+        )
+        return False
+    finally:
+        with submitting_lock:
+            submitting.discard(order_id)
+
+
+def poll_kaling_roboneo_relay_orders(orders_to_check):
+    from kaling_roboneo_relay import download_relay_video, poll_relay
+
+    skip_done = _g.get("skip_if_order_done")
+    complete = _g["complete_order_with_video"]
+    for doc in orders_to_check:
+        order_data = doc.to_dict() or {}
+        relay_id = str(order_data.get("roboneoRelayId") or "").strip()
+        if not relay_id:
+            continue
+        print(f"🧐 Kaling relay — {relay_id[:8]}… (đơn {doc.id})")
+        try:
+            st = poll_relay(relay_id)
+        except Exception as e:
+            print(f"❌ Poll relay {relay_id}: {e}")
+            continue
+        status = (st.get("status") or "").lower()
+        if status == "failed":
+            _fail_order_processing(
+                doc,
+                order_data,
+                st.get("error") or "relay failed",
+                USER_NOTE_ORDER_FAILED,
+                "render kaling relay",
+            )
+            continue
+        if status != "done":
+            print(f"⏳ Relay {relay_id[:8]}… {status or 'processing'}")
+            continue
+        if skip_done and skip_done(doc.id, "đã completed"):
+            continue
+        local_path = f"res_{doc.id}.mp4"
+        try:
+            download_relay_video(relay_id, local_path)
+            complete(doc, local_path)
+        except Exception as e:
+            print(f"⚠️ Lỗi tải/hoàn đơn relay {doc.id}: {e}")
+            _fail_order_processing(
+                doc,
+                order_data,
+                str(e),
+                USER_NOTE_ORDER_FAILED,
+                "render kaling relay download",
+            )
+
+
 def submit_order(order_id: str):
     """Nạp đơn theo model/renderProvider — không fallback giữa engine."""
     db = _g["db"]
@@ -879,6 +991,26 @@ def submit_order(order_id: str):
     provider = _order_target_provider(data)
 
     if provider == RENDER_PROVIDER_ROBONEO:
+        if _use_kaling_roboneo_relay(data):
+            if submit_to_kaling_roboneo_relay(order_id):
+                return
+            doc = doc_ref.get()
+            data = doc.to_dict() or {}
+            if data.get("status") != "pending":
+                return
+            print(f"🔄 Kaling relay fail {order_id} → fallback VAE Tiết kiệm")
+            ok, vae_err = _try_submit_videoaieasy(order_id)
+            if ok:
+                return
+            if data.get("status") == "pending":
+                _fail_order_processing(
+                    doc,
+                    data,
+                    f"Relay + VAE fail: {vae_err or ''}".strip(),
+                    user_note_for_videoaieasy_failure(vae_err),
+                    "submit economy relay",
+                )
+            return
         if rb_motion.submit_to_roboneo(order_id):
             return
         doc = doc_ref.get()
