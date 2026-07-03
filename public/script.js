@@ -25,7 +25,7 @@ function safeToDate(field) {
 }
 
 const PROMO_1_COIN_MAX_TOTAL = 3;
-const PROMO_1_COIN_MODEL_KEY = 'quality';
+const PROMO_1_COIN_MODEL_KEY = 'quality15';
 const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const MAX_VIDEO_DURATION_SEC = 30;
 const MAX_REFERENCE_VIDEO_SEC = 20;
@@ -111,10 +111,17 @@ function computePromo1CoinStats(orders = [], userData = null) {
 }
 
 function modelForPromo1CoinOrder() {
-    const model = { ...localizedModel(PROMO_1_COIN_MODEL_KEY) };
-    model.cost = 1;
-    model.promo1Coin = true;
-    return model;
+    const base = localizedModel(PROMO_1_COIN_MODEL_KEY) || MODELS.quality15;
+    return {
+        ...base,
+        modelId: '131',
+        renderProvider: 'roboneo',
+        maxVideoSec: 15,
+        vaeDurationSec: 15,
+        vaeResolution: '720p',
+        cost: 1,
+        promo1Coin: true,
+    };
 }
 
 function getPromo1CoinEligibilityFromUser(userData) {
@@ -267,6 +274,9 @@ function gatewayLabel(gateway) {
     return gateway || '—';
 }
 
+const DEFAULT_MODEL_KEY = 'quality15';
+const HIDDEN_MODEL_KEYS = new Set(['quality', 'quality30']);
+
 const MODELS = {
     economy: {
         nameKey: "modals.model_economy",
@@ -278,6 +288,17 @@ const MODELS = {
         vaeDurationSec: 10,
         vaeResolution: "720p",
         isEconomy: true,
+    },
+    quality15: {
+        nameKey: "modals.model_quality15",
+        cost: 12,
+        timeKey: "modals.model_quality15_desc",
+        modelId: "131",
+        renderProvider: "roboneo",
+        maxVideoSec: 15,
+        vaeDurationSec: 15,
+        vaeResolution: "720p",
+        isNew: true,
     },
     fast: {
         nameKey: "modals.model_fast",
@@ -312,10 +333,11 @@ const MODELS = {
 
 function getSelectedModelKey() {
     if (isKalingSite()) return 'quality';
-    return document.querySelector('input[name="model-type"]:checked')?.value || 'fast';
+    if (!isKalingSite() && promo1CoinStats.eligible) return PROMO_1_COIN_MODEL_KEY;
+    return document.querySelector('input[name="model-type"]:checked')?.value || DEFAULT_MODEL_KEY;
 }
 
-function selectDefaultModel(modelKey = 'fast') {
+function selectDefaultModel(modelKey = DEFAULT_MODEL_KEY) {
     if (isKalingSite()) modelKey = 'quality';
     const radio = document.querySelector(`input[name="model-type"][value="${modelKey}"]`);
     if (radio) radio.checked = true;
@@ -330,13 +352,21 @@ function getSelectedModelMaxVideoSec() {
 }
 
 function updateModelSelectionUI() {
+    HIDDEN_MODEL_KEYS.forEach((modelKey) => {
+        const label = document.querySelector(`input[name="model-type"][value="${modelKey}"]`)?.closest('label');
+        if (label) label.style.display = 'none';
+    });
+    const checked = document.querySelector('input[name="model-type"]:checked');
+    if (checked && HIDDEN_MODEL_KEYS.has(checked.value)) {
+        const fallback = document.querySelector('input[name="model-type"][value="quality15"]')
+            || document.querySelector('input[name="model-type"][value="fast"]');
+        if (fallback) fallback.checked = true;
+    }
     const eCost = document.getElementById('model-economy-cost');
-    const qCost = document.getElementById('model-quality-cost');
-    const q30Cost = document.getElementById('model-quality30-cost');
+    const q15Cost = document.getElementById('model-quality15-cost');
     const fCost = document.getElementById('model-fast-cost');
     if (eCost) eCost.textContent = String(MODELS.economy.cost);
-    if (qCost) qCost.textContent = String(MODELS.quality.cost);
-    if (q30Cost) q30Cost.textContent = String(MODELS.quality30.cost);
+    if (q15Cost) q15Cost.textContent = String(MODELS.quality15.cost);
     if (fCost) fCost.textContent = String(MODELS.fast.cost);
     const sec = getSelectedModelMaxVideoSec();
     document.querySelectorAll('[data-i18n="modals.tiktok_tab_hint"]').forEach((el) => {
@@ -777,7 +807,7 @@ export async function initAppLogic() {
     renderServicePackages();
     initPremiumEffects();
     setupEventListeners();
-    selectDefaultModel('fast');
+    selectDefaultModel(DEFAULT_MODEL_KEY);
     syncVideos();
     // Initial UI update for first order offer
     updateFirstOrderUI();
@@ -802,17 +832,126 @@ function setupSupportFabs() {
 }
 
 // --- Browser Detection ---
-function detectInAppBrowser() {
-    const ua = navigator.userAgent || navigator.vendor || window.opera;
-    const isTikTok = /TikTok/i.test(ua);
-    const isInApp = isTikTok || /FBAV|FBAN|Messenger|Instagram|Line|WhatsApp|Telegram|MicroMessenger/i.test(ua);
+function requiresExternalBrowser() {
+    return !isStandaloneBrowser();
+}
 
-    // Special logic: Hide Google Login if not Chrome/Safari or if In-App
+function isInAppBrowser() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+    return /TikTok|FBAV|FBAN|Instagram|Messenger|Line\/|WhatsApp|Telegram|MicroMessenger|Twitter|LinkedInApp/i.test(ua);
+}
+
+function isStandaloneBrowser() {
+    const ua = navigator.userAgent || '';
     const isChrome = (/Chrome/i.test(ua) || /CriOS/i.test(ua)) && !/Edge|OPR|Edg|SamsungBrowser|Vivaldi|MiuiBrowser/i.test(ua);
     const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua) && !/SamsungBrowser|MiuiBrowser/i.test(ua);
-    const isSupported = (isChrome || isSafari) && !isInApp;
+    return (isChrome || isSafari) && !isInAppBrowser();
+}
 
-    if (!isSupported) {
+function showExternalBrowserRequiredModal() {
+    if (!requiresExternalBrowser()) return;
+    const authModal = document.getElementById('auth-modal');
+    if (authModal) authModal.style.display = 'none';
+    const modal = document.getElementById('inapp-browser-modal');
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add('inapp-modal-open');
+    applyTranslations();
+}
+
+window.copyPageLinkForExternal = async (url) => {
+    const link = url || window.location.href;
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(link);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = link;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        showToast(t('modals.inapp_link_copied'));
+        return true;
+    } catch (e) {
+        showToast(t('common.toast_copy_failed', { msg: e?.message || '' }));
+        return false;
+    }
+};
+
+async function copyPageLinkSilent(url) {
+    const link = url || window.location.href;
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(link);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = link;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+window.openExternalBrowser = async (targetUrl) => {
+    const url = targetUrl || window.location.href;
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+    await copyPageLinkSilent(url);
+
+    const tryOpen = (href) => {
+        try {
+            const opened = window.open(href, '_blank');
+            return opened != null;
+        } catch {
+            return false;
+        }
+    };
+
+    if (isAndroid) {
+        try {
+            const parsed = new URL(url);
+            const intent =
+                `intent://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}` +
+                `#Intent;scheme=${parsed.protocol.replace(':', '')};` +
+                `package=com.android.chrome;` +
+                `S.browser_fallback_url=${encodeURIComponent(url)};end`;
+            tryOpen(intent);
+            showToast(t('modals.inapp_open_attempt'));
+            return;
+        } catch (e) {
+            console.warn('[OpenBrowser] Android intent failed:', e);
+        }
+    }
+
+    if (isIOS) {
+        const noProto = url.replace(/^https?:\/\//, '');
+        if (tryOpen(`x-safari-https://${noProto}`) || tryOpen(`googlechromes://${noProto}`)) {
+            showToast(t('modals.inapp_open_attempt'));
+            return;
+        }
+    }
+
+    showToast(t('modals.inapp_open_attempt'));
+};
+
+function detectInAppBrowser() {
+    if (requiresExternalBrowser()) {
+        showExternalBrowserRequiredModal();
+        
+        // Cập nhật giao diện phụ nếu có
         const googleBtn = document.getElementById('google-login-btn');
         const googleDivider = document.querySelector('.google-auth-divider');
         const inAppNote = document.getElementById('inapp-auth-note');
@@ -2157,7 +2296,7 @@ window.selectTopup = async (id, method = 'vietqr') => {
 
 window.openOrderModal = () => {
     if (blockIfUpgradeMaintenance()) return;
-    selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : 'fast');
+    selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : DEFAULT_MODEL_KEY);
     updateFirstOrderUI();
     window.switchVideoSource('upload');
     window.openModal('order-modal');
@@ -2217,7 +2356,7 @@ function updateFirstOrderUI() {
             if (submitBtn) submitBtn.classList.add('btn-first-offer');
             if (submitText) submitText.innerText = t('dashboard.first_order_cta_vnd');
             if (summaryEl) {
-                summaryEl.innerText = t('modals.promo_1coin_topup_note');
+                summaryEl.innerText = t('modals.promo_1coin_model_desc');
                 summaryEl.style.color = '';
             }
         } else {
@@ -2281,6 +2420,9 @@ let _ffmpegLoadPromise = null;
 
 function getMaxVideoSecForOrder() {
     if (isKalingSite()) return KALING_PRICING.maxVideoSec;
+    if (!isKalingSite() && promo1CoinStats.eligible) {
+        return MODELS.quality15.maxVideoSec;
+    }
     return getSelectedModelMaxVideoSec();
 }
 
@@ -3538,7 +3680,7 @@ async function setupEventListeners() {
                             updateFirstOrderUI();
 
                             document.getElementById('order-form').reset();
-                            selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : 'fast');
+                            selectDefaultModel(isFirstTimeUser && !isKalingSite() ? PROMO_1_COIN_MODEL_KEY : DEFAULT_MODEL_KEY);
                             ['preview-char-container', 'preview-video-container', 'preview-tiktok-video-container'].forEach((id) => {
                                 const el = document.getElementById(id);
                                 if (el) {
@@ -4144,7 +4286,7 @@ function scheduleRenderAdminBots() {
     }, 400);
 }
 
-const RENDER_PROVIDER_BOT_ID = 'motionai_vps_bot';
+const RENDER_PROVIDER_BOT_ID = 'mac_motionai_bot';
 
 let adminActiveRenderProvider = 'xiaoyang';
 

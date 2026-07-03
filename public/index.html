@@ -357,9 +357,9 @@
                     </div>
                     <div class="myvideo-actions">
                         <button class="btn-topup-inline" onclick="window.openTopupModal()" type="button">
-                            <span class="btn-topup-inline__label">Nạp coin</span>
+                            <span class="btn-topup-inline__label" data-i18n="dashboard.topup">Nạp coin</span>
                         </button>
-                        <button type="button" id="home-auto-video-btn" class="btn-auto-video" onclick="window.openBatchChannelModal()">
+                        <button type="button" id="home-auto-video-btn" class="btn-auto-video" onclick="window.openBatchChannelModal()" style="display: none !important;">
                             <span class="btn-auto-video__icon" aria-hidden="true">✨</span>
                             <span data-i18n="dashboard.auto_video_btn">Tạo video tự động</span>
                             <span class="auto-video-new-badge" data-i18n="dashboard.auto_video_new">MỚI</span>
@@ -373,7 +373,7 @@
                 <span data-i18n="dashboard.note_storage">⚠️ Video kết quả chỉ lưu 3 ngày. Vui lòng tải về sớm!</span>
             </p>
 
-            <h2 style="margin: 0 0 0.75rem; font-size: 1.05rem; font-weight: 800;">Video của tôi</h2>
+            <h2 style="margin: 0 0 0.75rem; font-size: 1.05rem; font-weight: 800;" data-i18n="dashboard.my_videos">Video của tôi</h2>
 
             <div id="my-orders-grid" class="orders-grid">
                 <!-- Cards will be rendered here -->
@@ -1023,7 +1023,8 @@
                             <div class="upload-zone upload-zone--small" onclick="document.getElementById('file-char').click()">
                                 <span>📸</span>
                                 <button type="button" class="btn-primary order-upload-btn"
-                                    onclick="event.stopPropagation(); document.getElementById('file-char').click()">
+                                    onclick="event.stopPropagation(); document.getElementById('file-char').click()"
+                                    data-i18n="modals.char_upload_btn">
                                     Tải ảnh nhân vật
                                 </button>
                                 <div class="upload-note" data-i18n="modals.char_note">Lưu ý: Nên chọn ảnh chân dung full người.</div>
@@ -1064,7 +1065,8 @@
                                     onclick="document.getElementById('file-video').click()">
                                     <span>🎥</span>
                                     <button type="button" class="btn-primary order-upload-btn"
-                                        onclick="event.stopPropagation(); document.getElementById('file-video').click()">
+                                        onclick="event.stopPropagation(); document.getElementById('file-video').click()"
+                                        data-i18n="modals.video_upload_btn">
                                         Tải video
                                     </button>
                                     <div class="upload-note" data-i18n="modals.video_note">Lưu ý: Đảm bảo nhân vật xuất hiện ngay từ đầu video.</div>
@@ -1099,7 +1101,23 @@
                                     </div>
                                 </div>
                             </label>
-                            <label class="card compact-card model-card-pick" style="cursor: pointer; padding: 0.8rem;">
+                            <label class="card compact-card model-card-pick" style="cursor: pointer; padding: 0.8rem; position: relative;">
+                                <span class="model-new-badge" data-i18n="modals.model_new_badge">MỚI</span>
+                                <input type="radio" name="model-type" value="quality15" checked>
+                                <div class="card-content-inline"
+                                    style="flex-direction: column; align-items: center; text-align: center; gap: 4px;">
+                                    <div style="font-weight: 700; font-size: 0.85rem;" data-i18n="modals.model_quality15">
+                                        Mượt &amp; giữ mặt</div>
+                                    <div style="font-size: 0.7rem; color: var(--text-muted);"
+                                        data-i18n="modals.model_quality15_desc">720p · tối đa 15s · giữ mặt</div>
+                                    <div
+                                        style="color: var(--accent); font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                                        <span id="model-quality15-cost">12</span>
+                                        <span style="font-size: 0.65rem; opacity: 0.8;">Coins</span>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="card compact-card model-card-pick" style="cursor: pointer; padding: 0.8rem; display: none;">
                                 <input type="radio" name="model-type" value="quality">
                                 <div class="card-content-inline"
                                     style="flex-direction: column; align-items: center; text-align: center; gap: 4px;">
@@ -1114,7 +1132,7 @@
                                     </div>
                                 </div>
                             </label>
-                            <label class="card compact-card model-card-pick" style="cursor: pointer; padding: 0.8rem; position: relative;">
+                            <label class="card compact-card model-card-pick" style="cursor: pointer; padding: 0.8rem; display: none;">
                                 <span class="model-new-badge" data-i18n="modals.model_new_badge">MỚI</span>
                                 <input type="radio" name="model-type" value="quality30">
                                 <div class="card-content-inline"
@@ -1131,7 +1149,7 @@
                                 </div>
                             </label>
                             <label class="card compact-card model-card-pick" style="cursor: pointer; padding: 0.8rem;">
-                                <input type="radio" name="model-type" value="fast" checked>
+                                <input type="radio" name="model-type" value="fast">
                                 <div class="card-content-inline"
                                     style="flex-direction: column; align-items: center; text-align: center; gap: 4px;">
                                     <div style="font-weight: 700; font-size: 0.85rem;" data-i18n="modals.model_fast">
@@ -1304,7 +1322,7 @@
         import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
-        import { initAppLogic } from "./script.js?v=7";
+        import { initAppLogic } from "./script.js?v=10";
 
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
@@ -1400,6 +1418,32 @@
                     stroke-linejoin="round" />
             </svg>
         </a>
+    </div>
+
+    <div id="inapp-browser-modal" class="inapp-browser-modal" hidden role="dialog" aria-modal="true"
+        aria-labelledby="inapp-browser-modal-title">
+        <div class="inapp-browser-modal__backdrop"></div>
+        <div class="inapp-browser-modal__card">
+            <div class="inapp-browser-modal__icon" aria-hidden="true">🌐</div>
+            <h2 id="inapp-browser-modal-title" class="inapp-browser-modal__title"
+                data-i18n="modals.inapp_browser_title">Mở bằng Chrome hoặc Safari</h2>
+            <p class="inapp-browser-modal__text" data-i18n="modals.inapp_browser_hint">
+                Tải ảnh/video và thanh toán ổn định hơn trên Chrome hoặc Safari.
+            </p>
+            <p class="inapp-browser-modal__sub" data-i18n="modals.inapp_browser_sub">
+                Trong TikTok/Facebook: bấm ⋮ → «Mở bằng trình duyệt», hoặc copy link bên dưới.
+            </p>
+            <div class="inapp-browser-modal__actions">
+                <button type="button" class="btn-primary inapp-browser-modal__open"
+                    onclick="window.openExternalBrowser()" data-i18n="modals.inapp_open_browser_btn">
+                    Mở Chrome / Safari
+                </button>
+                <button type="button" class="inapp-browser-modal__copy"
+                    onclick="window.copyPageLinkForExternal()" data-i18n="modals.inapp_copy_link_btn">
+                    Copy link
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- SVG Gradients -->
