@@ -27,6 +27,8 @@ from videoaieasy_web import (
     QUALITY_MODEL_IDS,
     QUALITY_30_MODEL_IDS,
     ECONOMY_MODEL_IDS,
+    QUALITY_15_MODEL_IDS,
+    MOTION_ROBONEO_RELAY_MODEL_IDS,
     VAE_API_MODEL_WEAVY,
     prepare_character_image_for_vae,
     prepare_motion_video_for_vae_upload,
@@ -208,7 +210,7 @@ def _use_videoaieasy() -> bool:
 
 def _videoaieasy_model_for_order(order_data: dict) -> str:
     model_id = str((order_data or {}).get("modelId") or "").strip()
-    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS:
+    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS or model_id in QUALITY_15_MODEL_IDS:
         return VAE_API_MODEL_WEAVY
     if model_id in AIDANCING_TURBO_MODEL_IDS:
         return MODEL_KLING_30
@@ -220,10 +222,10 @@ def _order_target_provider(order_data: dict) -> str:
         return RENDER_PROVIDER_AIDANCING
     model_id = str(order_data.get("modelId") or "").strip()
     rp = (order_data.get("renderProvider") or "").strip().lower()
-    if model_id in ECONOMY_MODEL_IDS and rp == RENDER_PROVIDER_ROBONEO:
+    if model_id in MOTION_ROBONEO_RELAY_MODEL_IDS and rp == RENDER_PROVIDER_ROBONEO:
         return RENDER_PROVIDER_ROBONEO
     # Mượt & giữ mặt (127 → weavy 20s, 129 → weavy 30s, 128 → weavy 10s) → VideoAiEasy
-    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS:
+    if model_id in QUALITY_MODEL_IDS or model_id in QUALITY_30_MODEL_IDS or model_id in ECONOMY_MODEL_IDS or model_id in QUALITY_15_MODEL_IDS:
         return RENDER_PROVIDER_VIDEOAIEASY
     if rp in _RENDER_PROVIDERS:
         return rp
@@ -236,7 +238,7 @@ def _use_kaling_roboneo_relay(order_data: dict) -> bool:
     if not relay_configured():
         return False
     model_id = str((order_data or {}).get("modelId") or "").strip()
-    if model_id not in ECONOMY_MODEL_IDS:
+    if model_id not in MOTION_ROBONEO_RELAY_MODEL_IDS:
         return False
     rp = ((order_data or {}).get("renderProvider") or "").strip().lower()
     return rp == RENDER_PROVIDER_ROBONEO
@@ -884,7 +886,7 @@ def submit_to_kaling_roboneo_relay(order_id: str) -> bool:
         data = doc.to_dict() or {}
         if data.get("status") != "pending":
             return False
-        print(f"\n⚡ [NẠP ĐƠN / Kaling relay RoboNeo] {order_id} — Tiết kiệm…")
+        print(f"\n⚡ [NẠP ĐƠN / Kaling relay RoboNeo] {order_id} — model {data.get('modelId')}…")
         out = submit_order_via_relay(order_id, data)
         if not out:
             return False

@@ -1,0 +1,6 @@
+requests
+firebase-admin
+playwright
+google-cloud-firestore
+boto3
+Pillow

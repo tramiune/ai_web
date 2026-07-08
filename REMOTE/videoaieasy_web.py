@@ -1,5 +1,5 @@
 """
-Video AI Easy (videoaieasy.hdgr.online) — web session cho motionai (web1) bot.
+Video AI Easy (videoaieasy.hdgr.online) — web session cho nhay.cloud bot.
 """
 
 from __future__ import annotations
@@ -10,8 +10,6 @@ import json
 import mimetypes
 import os
 import re
-import subprocess
-import tempfile
 import time
 from pathlib import Path
 
@@ -34,29 +32,13 @@ AUTH_COOKIE = "sb-gfevyulgkydodmlfnquh-auth-token"
 MODEL_KLING_26 = "kling-2.6"
 MODEL_KLING_30 = "kling-3.0"
 DEFAULT_VAE_RESOLUTION = "720p"
-QUALITY_MODEL_IDS = frozenset({"127", "125"})
-QUALITY_30_MODEL_IDS = frozenset({"129"})
-QUALITY_15_MODEL_IDS = frozenset({"131"})
-ECONOMY_MODEL_IDS = frozenset({"128"})
-MOTION_ROBONEO_RELAY_MODEL_IDS = ECONOMY_MODEL_IDS | QUALITY_15_MODEL_IDS
-VAE_API_MODEL_WEAVY = "weavy-kling-26"
+QUALITY_MODEL_IDS = frozenset({"127"})
 VAE_QUALITY_DURATION_SEC = 20
-VAE_QUALITY_30_DURATION_SEC = 30
-VAE_QUALITY_15_DURATION_SEC = 15
-VAE_ECONOMY_DURATION_SEC = 10
 TURBO_MODEL_IDS = frozenset({"117", "125"})
-VAE_MAX_UPLOAD_BYTES = int(get_env("VIDEOAIEASY_MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
-# VAE API: 10 coins = 1 xu (profile.coins)
-VAE_COINS_720P_BY_DURATION = {10: 10, 15: 15, 20: 20, 30: 30}
-VAE_COINS_1080P_BY_DURATION = {10: 20, 20: 40, 30: 60}
 
 
 class VideoAiEasyError(RuntimeError):
     pass
-
-
-class VideoAiEasyCreditError(VideoAiEasyError):
-    """Nick VAE không đủ coin/xu cho job."""
 
 
 class VideoAiEasyAuthError(VideoAiEasyError):
@@ -325,24 +307,19 @@ class VideoAiEasyClient:
         model_id: str = MODEL_KLING_26,
         resolution: str | None = None,
         duration_sec: int | None = None,
-        api_model: str | None = None,
     ) -> str:
-        res = normalize_vae_resolution(resolution)
-        vae_model = (api_model or model_id or MODEL_KLING_26).strip()
         body = {
             "mode": "motion-control",
-            "modelId": vae_model,
+            "modelId": model_id,
             "prompt": (prompt or get_env(
                 "VIDEOAIEASY_PROMPT", "Follow the reference motion naturally"
             )).strip(),
             "inputImageUrl": input_image_url.strip(),
             "drivingVideoUrl": driving_video_url.strip(),
+            "resolution": normalize_vae_resolution(resolution),
         }
         if duration_sec is not None:
             body["durationSec"] = int(duration_sec)
-        # weavy-kling-26 (13/20 coin): không gửi resolution. kling-2.6: gửi resolution.
-        if vae_model != VAE_API_MODEL_WEAVY:
-            body["resolution"] = res
         resp = self._api(
             "POST",
             "/api/jobs",
@@ -396,117 +373,6 @@ class VideoAiEasyClient:
             _once()
         return dest_path
 
-    def create_wardrobe_job(
-        self,
-        *,
-        person_image_url: str,
-        clothes_image_url: str,
-        wardrobe_replace: str = "full",
-    ) -> str:
-        replace = (wardrobe_replace or "full").strip() or "full"
-        body = {
-            "personImageUrl": person_image_url.strip(),
-            "clothesImageUrl": clothes_image_url.strip(),
-            "wardrobeReplace": replace,
-        }
-        resp = self._api(
-            "POST",
-            "/api/wardrobe",
-            json=body,
-            headers={"Content-Type": "application/json"},
-            timeout=int(get_env("VIDEOAIEASY_CREATE_TIMEOUT_SEC", "120")),
-        )
-        return str(resp["data"]["jobId"])
-
-
-def normalize_vae_public_url(url: str | None) -> str:
-    return re.sub(r"\s+", "", (url or "").strip())
-
-
-def poll_vae_job(
-    client: VideoAiEasyClient,
-    job_id: str,
-    *,
-    label: str = "vae",
-    timeout_sec: int | None = None,
-    interval_sec: float | None = None,
-) -> dict:
-    timeout = int(
-        timeout_sec if timeout_sec is not None else get_env("VIDEOAIEASY_WARDROBE_TIMEOUT_SEC", "1800")
-    )
-    deadline = time.time() + timeout
-    pause = float(interval_sec if interval_sec is not None else get_env("VIDEOAIEASY_WARDROBE_POLL_SEC", "10"))
-    last = ""
-    while time.time() < deadline:
-        job = client.get_job(job_id)
-        status = (job.get("status") or "").lower()
-        if status != last:
-            last = status
-            print(f"   [{label}] job {job_id}: {status}")
-        if status == "done":
-            return job
-        if status in ("failed", "expired", "error"):
-            raise VideoAiEasyError(job.get("error_message") or f"Job {status}")
-        time.sleep(pause)
-    raise VideoAiEasyError(f"Job {job_id} timeout sau {timeout}s")
-
-
-def _videoaieasy_account_id(email: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", (email or "").strip().lower()).strip("_") or "default"
-
-
-def load_videoaieasy_accounts() -> list[dict]:
-    accounts: list[dict] = []
-    raw = (get_env("VIDEOAIEASY_ACCOUNTS") or "").strip()
-    if raw:
-        if raw.startswith("["):
-            try:
-                for item in json.loads(raw):
-                    email = (item.get("email") or "").strip()
-                    password = item.get("password") or ""
-                    if email and password:
-                        accounts.append({
-                            "id": _videoaieasy_account_id(email),
-                            "email": email,
-                            "password": password,
-                        })
-            except json.JSONDecodeError as e:
-                raise VideoAiEasyError(f"VIDEOAIEASY_ACCOUNTS JSON lỗi: {e}") from e
-        else:
-            for part in raw.split(","):
-                part = part.strip()
-                if ":" not in part:
-                    continue
-                email, password = part.split(":", 1)
-                email, password = email.strip(), password.strip()
-                if email and password:
-                    accounts.append({
-                        "id": _videoaieasy_account_id(email),
-                        "email": email,
-                        "password": password,
-                    })
-    if not accounts:
-        email = (get_env("VIDEOAIEASY_EMAIL") or "").strip()
-        password = get_env("VIDEOAIEASY_PASSWORD") or ""
-        if email and password:
-            accounts.append({
-                "id": _videoaieasy_account_id(email),
-                "email": email,
-                "password": password,
-            })
-    return accounts
-
-
-def get_batch_vae_client() -> tuple[VideoAiEasyClient, dict]:
-    accounts = load_videoaieasy_accounts()
-    if not accounts:
-        raise VideoAiEasyError("Thiếu VIDEOAIEASY_ACCOUNTS / VIDEOAIEASY_EMAIL trong .env")
-    acc = accounts[0]
-    client = VideoAiEasyClient(acc["id"])
-    client.ensure_session(acc["email"], acc["password"])
-    print(f"🔑 VAE wardrobe: {acc['email']} ({acc['id']})")
-    return client, acc
-
 
 def normalize_vae_resolution(value: str | None) -> str:
     raw = (value or get_env("VIDEOAIEASY_DEFAULT_RESOLUTION", DEFAULT_VAE_RESOLUTION)).strip().lower()
@@ -519,80 +385,15 @@ def normalize_vae_resolution(value: str | None) -> str:
 
 def resolution_for_order(order_data: dict | None) -> str:
     data = order_data or {}
-    # UI có thể ghi 1080p; VAE render/billing dùng 720p (giống Kaling).
-    _ = data.get("vaeResolution") or data.get("resolution") or data.get("videoResolution")
+    explicit = data.get("vaeResolution") or data.get("resolution") or data.get("videoResolution")
+    if explicit:
+        return normalize_vae_resolution(str(explicit))
+    model_id = str(data.get("modelId") or "").strip()
+    if model_id in QUALITY_MODEL_IDS:
+        return normalize_vae_resolution("1080p")
+    if model_id in TURBO_MODEL_IDS:
+        return normalize_vae_resolution("1080p")
     return normalize_vae_resolution(None)
-
-
-def normalize_vae_duration_sec(value: int | float | str | None) -> int:
-    """VAE: gói 10s, 20s hoặc 30s."""
-    try:
-        sec = int(float(value))
-    except (TypeError, ValueError):
-        return VAE_ECONOMY_DURATION_SEC
-    if sec >= 25:
-        return VAE_QUALITY_30_DURATION_SEC
-    if sec >= 20:
-        return VAE_QUALITY_DURATION_SEC
-    if sec >= 15:
-        return 15
-    return VAE_ECONOMY_DURATION_SEC
-
-
-def vae_coins_for_duration(duration_sec: int, resolution: str | None = None) -> int:
-    """Số coins VAE trừ (10 coins = 1 xu trên profile)."""
-    dur = int(duration_sec)
-    if normalize_vae_resolution(resolution) == "1080p":
-        return VAE_COINS_1080P_BY_DURATION.get(dur, 20)
-    return VAE_COINS_720P_BY_DURATION.get(dur, 10)
-
-
-def vae_xu_for_duration(duration_sec: int, resolution: str | None = None) -> float:
-    return vae_coins_for_duration(duration_sec, resolution) / 10.0
-
-
-def is_vae_credit_error(err: object) -> bool:
-    if isinstance(err, VideoAiEasyCreditError):
-        return True
-    s = str(err or "").lower()
-    return any(
-        x in s
-        for x in (
-            "credit",
-            "coin",
-            "coins",
-            "balance",
-            "insufficient",
-            "not enough",
-            "không đủ",
-            "hết coin",
-            "hết xu",
-            "402",
-            "payment required",
-        )
-    )
-
-
-def profile_credits(profile: dict | None) -> int:
-    if not profile:
-        return 0
-    for key in ("credits", "balance", "coin", "coins"):
-        val = profile.get(key)
-        if val is None:
-            continue
-        try:
-            return max(0, int(val))
-        except (TypeError, ValueError):
-            pass
-    return 0
-
-
-def vae_motion_api_model(model_id: str | None = None) -> str:
-    """Gói Mượt & giữ mặt (127/129) + Tiết kiệm (128) → weavy-kling-26."""
-    mid = str(model_id or "").strip()
-    if mid in QUALITY_MODEL_IDS or mid in QUALITY_30_MODEL_IDS or mid in ECONOMY_MODEL_IDS or mid in QUALITY_15_MODEL_IDS:
-        return VAE_API_MODEL_WEAVY
-    return MODEL_KLING_26
 
 
 def duration_for_order(order_data: dict | None) -> int:
@@ -600,17 +401,14 @@ def duration_for_order(order_data: dict | None) -> int:
     for key in ("vaeDurationSec", "durationSec"):
         val = data.get(key)
         if val is not None:
-            return normalize_vae_duration_sec(val)
+            try:
+                return max(5, min(30, int(val)))
+            except (TypeError, ValueError):
+                pass
     model_id = str(data.get("modelId") or "").strip()
-    if model_id in QUALITY_30_MODEL_IDS:
-        return VAE_QUALITY_30_DURATION_SEC
     if model_id in QUALITY_MODEL_IDS:
         return VAE_QUALITY_DURATION_SEC
-    if model_id in QUALITY_15_MODEL_IDS:
-        return VAE_QUALITY_15_DURATION_SEC
-    if model_id in ECONOMY_MODEL_IDS:
-        return VAE_ECONOMY_DURATION_SEC
-    return VAE_ECONOMY_DURATION_SEC
+    return int(get_env("VIDEOAIEASY_DEFAULT_DURATION_SEC", "15"))
 
 
 def _parse_vae_aspect_ratio(aspect_ratio: str | None) -> float:
@@ -691,110 +489,3 @@ def prepare_character_image_for_vae(
         f"(pad đen + resize, tỉ lệ {ar_label})"
     )
     return out_path, True
-
-
-def _ffmpeg_bin() -> str | None:
-    try:
-        import imageio_ffmpeg
-
-        return imageio_ffmpeg.get_ffmpeg_exe()
-    except Exception:
-        import shutil
-
-        return shutil.which("ffmpeg")
-
-
-def prepare_motion_video_for_vae_upload(
-    source_path: str,
-    *,
-    max_seconds: float | None = None,
-    max_bytes: int | None = None,
-) -> tuple[str, bool]:
-    """Cắt video về đúng gói 10/20/30s trước upload — VAE tính xu theo video thật, không chỉ durationSec API."""
-    src = Path(source_path)
-    if not src.is_file():
-        raise VideoAiEasyError(f"File không tồn tại: {source_path}")
-
-    limit = max_bytes if max_bytes is not None else VAE_MAX_UPLOAD_BYTES
-    ffmpeg = _ffmpeg_bin()
-    work_path = src
-    work_tmp = False
-
-    if max_seconds is not None and max_seconds > 0 and ffmpeg:
-        fd, outp = tempfile.mkstemp(suffix=".mp4")
-        os.close(fd)
-        trim_out = Path(outp)
-        cmd = [
-            ffmpeg, "-y", "-i", str(work_path),
-            "-t", str(max_seconds),
-            "-c", "copy", "-movflags", "+faststart", str(trim_out),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            cmd = [
-                ffmpeg, "-y", "-i", str(work_path),
-                "-t", str(max_seconds),
-                "-c:v", "libx264", "-preset", "fast", "-crf", "28",
-                "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
-                str(trim_out),
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0 and trim_out.is_file():
-            if work_tmp and work_path != src:
-                try:
-                    work_path.unlink()
-                except OSError:
-                    pass
-            work_path = trim_out
-            work_tmp = True
-            print(f"✂️ Cắt video motion → {max_seconds}s (VAE gói {int(max_seconds)}s)")
-        elif max_seconds is not None:
-            raise VideoAiEasyError(
-                f"Không cắt được video về {max_seconds}s — VAE sẽ tính xu theo video dài hơn gói"
-            )
-    elif max_seconds is not None and max_seconds > 0 and not ffmpeg:
-        raise VideoAiEasyError("Thiếu ffmpeg — không cắt video VAE theo gói được")
-
-    size = work_path.stat().st_size
-    if size <= limit:
-        return str(work_path), work_tmp
-
-    if not ffmpeg:
-        raise VideoAiEasyError(
-            f"Video {size / (1024 * 1024):.1f}MB > giới hạn VAE "
-            f"{limit / (1024 * 1024):.0f}MB — cần ffmpeg để nén"
-        )
-
-    mb = size / (1024 * 1024)
-    print(f"📦 Video {mb:.1f}MB > {limit / (1024 * 1024):.0f}MB — nén trước upload VAE...")
-    for crf in (28, 32, 36):
-        fd, outp = tempfile.mkstemp(suffix=".mp4")
-        os.close(fd)
-        out_path = Path(outp)
-        cmd = [ffmpeg, "-y", "-i", str(work_path)]
-        if max_seconds is not None and max_seconds > 0:
-            cmd.extend(["-t", str(max_seconds)])
-        cmd.extend([
-            "-c:v", "libx264", "-preset", "fast", "-crf", str(crf),
-            "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
-            str(out_path),
-        ])
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0 or not out_path.is_file():
-            continue
-        if out_path.stat().st_size <= limit:
-            if work_tmp and work_path != src:
-                try:
-                    work_path.unlink()
-                except OSError:
-                    pass
-            print(f"✅ Nén VAE OK (crf {crf}) → {out_path.stat().st_size / (1024 * 1024):.1f}MB")
-            return str(out_path), True
-        try:
-            out_path.unlink()
-        except OSError:
-            pass
-
-    raise VideoAiEasyError(
-        f"Video vẫn > {limit / (1024 * 1024):.0f}MB sau khi nén — chọn video ngắn/nhẹ hơn"
-    )

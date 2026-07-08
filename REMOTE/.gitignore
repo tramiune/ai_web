@@ -1,0 +1,24 @@
+node_modules/
+.idea/
+.vscode/
+.DS_Store
+*.log
+wrangler-*.log
+.wrangler/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Bot Sensitive Data + runtime artifacts
+serviceAccountKey.json
+xiaoyang_session_*.json
+bot_chrome_profile/
+*.mp4
+*.png
+!public/icon-*.png
+!public/logo.png
+*.jpg
