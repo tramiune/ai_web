@@ -25,7 +25,7 @@ function safeToDate(field) {
 }
 
 const PROMO_1_COIN_MAX_TOTAL = 3;
-const PROMO_1_COIN_MODEL_KEY = 'quality15';
+const PROMO_1_COIN_MODEL_KEY = 'fast';
 const PROMO_1_COIN_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const MAX_VIDEO_DURATION_SEC = 30;
 const MAX_REFERENCE_VIDEO_SEC = 20;
@@ -111,14 +111,12 @@ function computePromo1CoinStats(orders = [], userData = null) {
 }
 
 function modelForPromo1CoinOrder() {
-    const base = localizedModel(PROMO_1_COIN_MODEL_KEY) || MODELS.quality15;
+    const base = localizedModel(PROMO_1_COIN_MODEL_KEY) || MODELS.fast;
     return {
         ...base,
-        modelId: '131',
-        renderProvider: 'roboneo',
-        maxVideoSec: 15,
-        vaeDurationSec: 15,
-        vaeResolution: '720p',
+        modelId: '34',
+        renderProvider: 'aidancing',
+        maxVideoSec: 20,
         cost: 1,
         promo1Coin: true,
     };
@@ -274,8 +272,8 @@ function gatewayLabel(gateway) {
     return gateway || '—';
 }
 
-const DEFAULT_MODEL_KEY = 'quality15';
-const HIDDEN_MODEL_KEYS = new Set(['quality', 'quality30']);
+const DEFAULT_MODEL_KEY = 'fast';
+const HIDDEN_MODEL_KEYS = new Set(['quality', 'quality30', 'economy', 'quality15']);
 
 const MODELS = {
     economy: {
@@ -304,9 +302,11 @@ const MODELS = {
         nameKey: "modals.model_fast",
         cost: 10,
         timeKey: "modals.model_fast_desc",
-        modelId: "34",
+        modelId: "160",
         renderProvider: "aidancing",
         maxVideoSec: 20,
+        vaeDurationSec: 20,
+        vaeResolution: "720p",
     },
     quality: {
         nameKey: "modals.model_quality",
