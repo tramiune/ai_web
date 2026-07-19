@@ -3202,10 +3202,16 @@ function renderVideoFilePreview(containerId, file, options = {}) {
         if (duration > maxDurationSec + 0.15) {
             const badge = document.createElement('div');
             badge.className = 'video-trim-hint-badge';
-            badge.textContent = prefersServerSideTrim()
-                ? t('modals.video_server_trim_mobile', { sec: maxDurationSec })
-                : t('modals.video_will_trim_on_submit', { sec: maxDurationSec });
+            badge.style.cssText = 'background:rgba(220,38,38,0.15);color:#ef4444;border:1px solid rgba(220,38,38,0.4);';
+            badge.textContent = t('modals.video_too_long', { sec: maxDurationSec });
             container.appendChild(badge);
+            // Disable submit khi video quá dài
+            const sb = document.getElementById('submit-btn');
+            if (sb) sb.disabled = true;
+        } else {
+            // Re-enable nếu video hợp lệ
+            const sb = document.getElementById('submit-btn');
+            if (sb) sb.disabled = false;
         }
 
         if (options.onChange) {
@@ -3509,8 +3515,13 @@ async function setupEventListeners() {
                         refDurationSec = null;
                     }
                 }
-                const needsTrim = (videoFile || useLibrary)
-                    && referenceVideoNeedsTrim(refDurationSec, maxSec, { useLibrary });
+                // Block nếu video quá dài — không trim nữa
+                if ((videoFile || useLibrary) && refDurationSec != null && refDurationSec > maxSec + 0.15) {
+                    alert(t('modals.video_too_long', { sec: maxSec }));
+                    submitBtn.disabled = false;
+                    return;
+                }
+                const needsTrim = false; // Đã bỏ trim FE
                 if (needsTrim) {
                     submitBtn.disabled = true;
                     const trimMsgKey = prefersServerSideTrim()
